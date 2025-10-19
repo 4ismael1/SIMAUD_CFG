@@ -98,18 +98,19 @@ export const AuthPage: React.FC = () => {
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
                 transition={{ delay: 0.3, type: 'spring', stiffness: 100 }}
-                className="inline-block"
+                className="inline-flex flex-col items-center space-y-4"
               >
                 <BrandLogo
+                  showText={false}
                   orientation="vertical"
                   align="center"
-                  className="space-y-2"
-                  imageWrapperClassName="mx-auto w-16 h-16 bg-white rounded-2xl shadow-lg flex items-center justify-center"
-                  imageClassName="w-14 h-14"
-                  titleClassName="text-2xl font-bold bg-gradient-to-r from-blue-600 to-green-600 bg-clip-text text-transparent"
-                  subtitle="Sistema de Gestion de Contratos"
-                  subtitleClassName="text-gray-600 text-sm"
+                  imageWrapperClassName="mx-auto w-24 h-24 bg-white rounded-3xl shadow-lg"
+                  imageClassName="h-20 w-auto"
+                  alt="SIMAUD logo"
                 />
+                <p className="text-gray-600 text-sm">
+                  Sistema de Gestion de Contratos
+                </p>
               </motion.div>
             </div>
 
@@ -167,18 +168,19 @@ export const AuthPage: React.FC = () => {
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               transition={{ delay: 0.3, type: 'spring', stiffness: 100 }}
-              className="inline-block"
+              className="inline-flex flex-col items-center space-y-4"
             >
               <BrandLogo
+                showText={false}
                 orientation="vertical"
                 align="center"
-                className="space-y-2"
-                imageWrapperClassName="mx-auto w-16 h-16 bg-white rounded-2xl shadow-lg flex items-center justify-center"
-                imageClassName="w-14 h-14"
-                titleClassName="text-2xl font-bold bg-gradient-to-r from-blue-600 to-green-600 bg-clip-text text-transparent"
-                subtitle="Sistema de Gestion de Contratos"
-                subtitleClassName="text-gray-600 text-sm"
+                imageWrapperClassName="mx-auto w-24 h-24 bg-white rounded-3xl shadow-lg"
+                imageClassName="h-20 w-auto"
+                alt="SIMAUD logo"
               />
+              <p className="text-gray-600 text-sm">
+                Sistema de Gestion de Contratos
+              </p>
             </motion.div>
           </div>
 

@@ -83,12 +83,18 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister })
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
-            <BrandLogo
-              subtitle="Sistema de Gestion de Contratos"
-              titleClassName="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent"
-              subtitleClassName="text-xs text-gray-500 -mt-1"
-              imageClassName="w-10 h-10"
-            />
+            <div className="flex items-center space-x-3">
+              <BrandLogo
+                showText={false}
+                className="items-center"
+                imageWrapperClassName="w-auto"
+                imageClassName="h-10 sm:h-12 w-auto"
+                alt="SIMAUD logo"
+              />
+              <p className="hidden sm:block text-sm text-gray-500">
+                Sistema de Gestion de Contratos
+              </p>
+            </div>
 
             {/* Desktop Navigation */}
             <div className="hidden md:flex items-center space-x-8">
@@ -261,14 +267,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister })
                 </div>
                 <div className="bg-white rounded-lg p-6">
                   {/* Header */}
-                  <BrandLogo
-                    className="mb-6"
-                    subtitle="Panel principal"
-                    titleClassName="text-sm font-semibold text-gray-900"
-                    subtitleClassName="text-xs text-gray-500"
-                    imageWrapperClassName="bg-gray-100 rounded-lg p-1"
-                    imageClassName="w-8 h-8"
-                  />
+                  <div className="flex items-center space-x-3 mb-6">
+                    <BrandLogo
+                      showText={false}
+                      imageWrapperClassName="bg-white rounded-2xl p-2 shadow-md"
+                      imageClassName="h-10 w-auto"
+                    />
+                    <span className="text-sm font-semibold text-gray-900">Panel principal</span>
+                  </div>
                   
                   {/* Stats Cards */}
                   <div className="grid grid-cols-2 gap-4 mb-6">
@@ -444,13 +450,17 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister })
               <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden">
                 {/* Header */}
                 <div className="bg-gradient-to-r from-blue-500 to-purple-600 p-4">
-                  <BrandLogo
-                    subtitle="Sistema de Gestion"
-                    titleClassName="text-white font-semibold"
-                    subtitleClassName="text-blue-100 text-sm"
-                    imageWrapperClassName="bg-white/20 rounded-lg p-1"
-                    imageClassName="w-8 h-8"
-                  />
+                  <div className="flex items-center space-x-3">
+                    <BrandLogo
+                      showText={false}
+                      imageWrapperClassName="bg-white rounded-lg p-2 shadow-sm"
+                      imageClassName="h-10 w-auto"
+                    />
+                    <div>
+                      <div className="text-white font-semibold">Dashboard</div>
+                      <div className="text-blue-100 text-sm">Sistema de Gestion</div>
+                    </div>
+                  </div>
                 </div>
                 
                 {/* Content */}
@@ -650,14 +660,16 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister })
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {/* Company Info */}
             <div>
-              <BrandLogo
-                className="mb-6"
-                subtitle="Sistema Integral de Gestion"
-                titleClassName="text-xl font-bold text-white"
-                subtitleClassName="text-gray-400 text-sm"
-                imageWrapperClassName="bg-white rounded-xl p-1"
-                imageClassName="w-10 h-10"
-              />
+              <div className="mb-6">
+                <BrandLogo
+                  showText={false}
+                  imageWrapperClassName="bg-white rounded-2xl p-2 shadow-lg"
+                  imageClassName="h-12 w-auto"
+                />
+                <p className="text-gray-400 text-sm mt-3">
+                  Sistema Integral de Gestion
+                </p>
+              </div>
               <p className="text-gray-400 mb-6 leading-relaxed">
                 La plataforma más avanzada para la gestión de contratos digitales. 
                 Automatiza, optimiza y asegura todos tus procesos contractuales.

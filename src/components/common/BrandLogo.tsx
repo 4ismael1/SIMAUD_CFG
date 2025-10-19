@@ -11,6 +11,8 @@ interface BrandLogoProps {
   imageWrapperClassName?: string;
   titleClassName?: string;
   subtitleClassName?: string;
+  showText?: boolean;
+  alt?: string;
 }
 
 /**
@@ -22,10 +24,12 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
   orientation = 'horizontal',
   align = 'left',
   className = '',
-  imageClassName = 'w-10 h-10',
+  imageClassName = 'h-10 w-auto',
   imageWrapperClassName = '',
   titleClassName = 'text-lg font-bold text-gray-900',
   subtitleClassName = 'text-xs text-gray-500',
+  showText = true,
+  alt,
 }) => {
   const isHorizontal = orientation === 'horizontal';
   const containerClasses = isHorizontal
@@ -36,20 +40,24 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
     align === 'center'
       ? 'text-center'
       : 'text-left';
-  const imageWrapperClasses = `flex-shrink-0 ${imageWrapperClassName}`.trim();
+
+  const imageWrapperClasses = `flex-shrink-0 flex items-center justify-center ${imageWrapperClassName}`.trim();
+  const trimmedTitle = title?.trim() ?? '';
+  const computedAlt =
+    alt ?? (trimmedTitle ? `${trimmedTitle} logo` : 'SIMAUD logo');
 
   return (
     <div className={containerClasses}>
       <div className={imageWrapperClasses}>
         <img
           src={LogoImage}
-          alt={`${title} logo`}
+          alt={computedAlt}
           className={`object-contain ${imageClassName}`.trim()}
         />
       </div>
-      {(title || subtitle) && (
+      {showText && (trimmedTitle || subtitle) && (
         <div className={!isHorizontal ? textAlignment : undefined}>
-          {title && <p className={titleClassName}>{title}</p>}
+          {trimmedTitle && <p className={titleClassName}>{trimmedTitle}</p>}
           {subtitle && subtitle.trim().length > 0 && (
             <p className={subtitleClassName}>{subtitle}</p>
           )}

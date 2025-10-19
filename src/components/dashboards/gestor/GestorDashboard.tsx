@@ -141,13 +141,17 @@ export const GestorDashboard: React.FC = () => {
         
         {/* Sidebar Header */}
         <div className="flex items-center justify-between h-16 px-6 border-b border-gray-200">
-          <BrandLogo
-            subtitle="Gestor de Contratos"
-            titleClassName="text-lg font-bold text-gray-900"
-            subtitleClassName="text-xs text-gray-500"
-            imageWrapperClassName="flex items-center justify-center w-8 h-8 bg-gradient-to-r from-purple-500 to-purple-600 rounded-lg"
-            imageClassName="w-6 h-6"
-          />
+          <div className="flex items-center space-x-3">
+            <BrandLogo
+              showText={false}
+              imageWrapperClassName="w-14 h-14"
+              imageClassName="h-12 w-auto"
+              alt="SIMAUD logo"
+            />
+            <div className="flex flex-col">
+              <span className="text-sm font-semibold text-gray-900">Gestor de Contratos</span>
+            </div>
+          </div>
           <button
             onClick={() => setSidebarOpen(false)}
             className="lg:hidden p-2 text-gray-400 hover:text-gray-600"

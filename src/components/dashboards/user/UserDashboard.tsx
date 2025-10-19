@@ -421,13 +421,17 @@ export const UserDashboard: React.FC = () => {
         
         {/* Sidebar Header */}
         <div className="flex items-center justify-between h-16 px-6 border-b border-gray-200">
-          <BrandLogo
-            subtitle="Panel Firmante"
-            titleClassName="text-lg font-bold text-gray-900"
-            subtitleClassName="text-xs text-gray-500"
-            imageWrapperClassName="flex items-center justify-center w-8 h-8 bg-gradient-to-r from-orange-500 to-orange-600 rounded-lg"
-            imageClassName="w-6 h-6"
-          />
+          <div className="flex items-center space-x-3">
+            <BrandLogo
+              showText={false}
+              imageWrapperClassName="w-14 h-14"
+              imageClassName="h-12 w-auto"
+              alt="SIMAUD logo"
+            />
+            <div className="flex flex-col">
+              <span className="text-sm font-semibold text-gray-900">Panel Firmante</span>
+            </div>
+          </div>
           <button
             onClick={() => setSidebarOpen(false)}
             className="lg:hidden p-2 text-gray-400 hover:text-gray-600"
