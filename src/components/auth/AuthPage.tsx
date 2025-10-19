@@ -7,6 +7,7 @@ import { RegisterForm } from './RegisterForm';
 import { EmailConfirmationPending } from './EmailConfirmationPending';
 import { ResetPasswordForm } from './ResetPasswordForm';
 import { useAuth } from '../../contexts/AuthContext';
+import { BrandLogo } from '../common/BrandLogo';
 
 export const AuthPage: React.FC = () => {
   const [currentView, setCurrentView] = useState<'landing' | 'login' | 'register' | 'confirmation' | 'reset'>('landing');
@@ -97,16 +98,19 @@ export const AuthPage: React.FC = () => {
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
                 transition={{ delay: 0.3, type: 'spring', stiffness: 100 }}
-                className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-blue-500 to-green-500 rounded-xl mb-4 shadow-lg"
+                className="inline-block"
               >
-                <span className="text-xl font-bold text-white">S</span>
+                <BrandLogo
+                  orientation="vertical"
+                  align="center"
+                  className="space-y-2"
+                  imageWrapperClassName="mx-auto w-16 h-16 bg-white rounded-2xl shadow-lg flex items-center justify-center"
+                  imageClassName="w-14 h-14"
+                  titleClassName="text-2xl font-bold bg-gradient-to-r from-blue-600 to-green-600 bg-clip-text text-transparent"
+                  subtitle="Sistema de Gestion de Contratos"
+                  subtitleClassName="text-gray-600 text-sm"
+                />
               </motion.div>
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-green-600 bg-clip-text text-transparent mb-2">
-                SIMAUD
-              </h1>
-              <p className="text-gray-600 text-sm">
-                Sistema de Gestión de Contratos
-              </p>
             </div>
 
             <ResetPasswordForm
@@ -163,16 +167,19 @@ export const AuthPage: React.FC = () => {
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               transition={{ delay: 0.3, type: 'spring', stiffness: 100 }}
-              className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-blue-500 to-green-500 rounded-xl mb-4 shadow-lg"
+              className="inline-block"
             >
-              <span className="text-xl font-bold text-white">S</span>
+              <BrandLogo
+                orientation="vertical"
+                align="center"
+                className="space-y-2"
+                imageWrapperClassName="mx-auto w-16 h-16 bg-white rounded-2xl shadow-lg flex items-center justify-center"
+                imageClassName="w-14 h-14"
+                titleClassName="text-2xl font-bold bg-gradient-to-r from-blue-600 to-green-600 bg-clip-text text-transparent"
+                subtitle="Sistema de Gestion de Contratos"
+                subtitleClassName="text-gray-600 text-sm"
+              />
             </motion.div>
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-green-600 bg-clip-text text-transparent mb-2">
-              SIMAUD
-            </h1>
-            <p className="text-gray-600 text-sm">
-              Sistema de Gestión de Contratos
-            </p>
           </div>
 
           {/* Content */}

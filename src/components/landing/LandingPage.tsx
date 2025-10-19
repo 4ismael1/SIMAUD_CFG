@@ -18,6 +18,7 @@ import {
   Eye,
   Settings
 } from 'lucide-react';
+import { BrandLogo } from '../common/BrandLogo';
 
 interface LandingPageProps {
   onLogin: () => void;
@@ -82,17 +83,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister })
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
-            <div className="flex items-center space-x-3">
-              <div className="flex items-center justify-center w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl">
-                <FileText className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                  SIMAUD
-                </h1>
-                <p className="text-xs text-gray-500 -mt-1">Sistema de Gestión de Contratos</p>
-              </div>
-            </div>
+            <BrandLogo
+              subtitle="Sistema de Gestion de Contratos"
+              titleClassName="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent"
+              subtitleClassName="text-xs text-gray-500 -mt-1"
+              imageClassName="w-10 h-10"
+            />
 
             {/* Desktop Navigation */}
             <div className="hidden md:flex items-center space-x-8">
@@ -265,15 +261,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister })
                 </div>
                 <div className="bg-white rounded-lg p-6">
                   {/* Header */}
-                  <div className="flex items-center space-x-3 mb-6">
-                    <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-                      <FileText className="w-5 h-5 text-white" />
-                    </div>
-                    <div>
-                      <div className="w-24 h-4 bg-gray-200 rounded mb-1"></div>
-                      <div className="w-16 h-3 bg-gray-100 rounded"></div>
-                    </div>
-                  </div>
+                  <BrandLogo
+                    className="mb-6"
+                    subtitle="Panel principal"
+                    titleClassName="text-sm font-semibold text-gray-900"
+                    subtitleClassName="text-xs text-gray-500"
+                    imageWrapperClassName="bg-gray-100 rounded-lg p-1"
+                    imageClassName="w-8 h-8"
+                  />
                   
                   {/* Stats Cards */}
                   <div className="grid grid-cols-2 gap-4 mb-6">
@@ -449,15 +444,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister })
               <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden">
                 {/* Header */}
                 <div className="bg-gradient-to-r from-blue-500 to-purple-600 p-4">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
-                      <Shield className="w-4 h-4 text-white" />
-                    </div>
-                    <div>
-                      <div className="text-white font-semibold">SIMAUD Dashboard</div>
-                      <div className="text-blue-100 text-sm">Sistema de Gestión</div>
-                    </div>
-                  </div>
+                  <BrandLogo
+                    subtitle="Sistema de Gestion"
+                    titleClassName="text-white font-semibold"
+                    subtitleClassName="text-blue-100 text-sm"
+                    imageWrapperClassName="bg-white/20 rounded-lg p-1"
+                    imageClassName="w-8 h-8"
+                  />
                 </div>
                 
                 {/* Content */}
@@ -657,15 +650,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister })
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {/* Company Info */}
             <div>
-              <div className="flex items-center space-x-3 mb-6">
-                <div className="flex items-center justify-center w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl">
-                  <FileText className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-bold">SIMAUD</h3>
-                  <p className="text-gray-400 text-sm">Sistema Integral de Gestión</p>
-                </div>
-              </div>
+              <BrandLogo
+                className="mb-6"
+                subtitle="Sistema Integral de Gestion"
+                titleClassName="text-xl font-bold text-white"
+                subtitleClassName="text-gray-400 text-sm"
+                imageWrapperClassName="bg-white rounded-xl p-1"
+                imageClassName="w-10 h-10"
+              />
               <p className="text-gray-400 mb-6 leading-relaxed">
                 La plataforma más avanzada para la gestión de contratos digitales. 
                 Automatiza, optimiza y asegura todos tus procesos contractuales.

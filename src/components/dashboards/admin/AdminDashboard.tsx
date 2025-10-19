@@ -8,7 +8,6 @@ import {
   Bell,
   Search,
   Plus,
-  Shield,
   LogOut,
   Menu,
   X,
@@ -36,6 +35,7 @@ import { ContractManagementAdmin } from '../admin/ContractManagementAdmin';
 import { NotificationCenter } from '../../notifications/NotificationCenter';
 import { ExpiryAlerts } from '../../notifications/ExpiryAlerts';
 import { LoadingSpinner } from '../../common/LoadingSpinner';
+import { BrandLogo } from '../../common/BrandLogo';
 
 type AdminView = 'dashboard' | 'users' | 'templates' | 'variables' | 'contracts' | 'management' | 'approvals' | 'renewals' | 'reports' | 'settings' | 'profile';
 
@@ -185,15 +185,13 @@ export const AdminDashboard: React.FC = () => {
         
         {/* Sidebar Header */}
         <div className="flex items-center justify-between h-16 px-6 border-b border-gray-200">
-          <div className="flex items-center space-x-3">
-            <div className="flex items-center justify-center w-8 h-8 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg">
-              <Shield className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <h1 className="text-lg font-bold text-gray-900">SIMAUD</h1>
-              <p className="text-xs text-gray-500">Admin Panel</p>
-            </div>
-          </div>
+          <BrandLogo
+            subtitle="Admin Panel"
+            titleClassName="text-lg font-bold text-gray-900"
+            subtitleClassName="text-xs text-gray-500"
+            imageWrapperClassName="flex items-center justify-center w-8 h-8 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg"
+            imageClassName="w-6 h-6"
+          />
           <button
             onClick={() => setSidebarOpen(false)}
             className="lg:hidden p-2 text-gray-400 hover:text-gray-600"
