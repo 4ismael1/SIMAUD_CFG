@@ -421,11 +421,11 @@ export const UserDashboard: React.FC = () => {
         
         {/* Sidebar Header */}
         <div className="flex items-center justify-between h-16 px-6 border-b border-gray-200">
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-4">
             <BrandLogo
               showText={false}
-              imageWrapperClassName="w-14 h-14"
-              imageClassName="h-12 w-auto"
+              imageWrapperClassName="w-20 h-20"
+              imageClassName="h-16 w-auto"
               alt="SIMAUD logo"
             />
             <div className="flex flex-col">
