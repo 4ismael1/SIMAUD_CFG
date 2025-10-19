@@ -209,7 +209,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister })
             >
               <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 mb-6 leading-tight">
                 Sistema Integral de
-                <span className="block bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                <span
+                  className="block font-bold"
+                  style={{ color: 'rgba(137, 38, 42, 0.996)' }}
+                >
                   Gestión de Contratos
                 </span>
               </h1>
