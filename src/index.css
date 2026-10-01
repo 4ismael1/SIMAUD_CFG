@@ -1,8 +1,30 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+html,
+body,
+#root {
+  width: 100%;
+  min-width: 320px;
+  overflow-x: clip;
+}
+
+.auth-shell {
+  position: relative;
+  isolation: isolate;
+  overflow: clip;
+}
+
+@media (max-height: 760px) {
+  .auth-shell.items-center {
+    align-items: flex-start;
+    padding-top: max(1rem, env(safe-area-inset-top));
+    padding-bottom: 1rem;
+  }
+}
 
 @layer base {
   * {
@@ -63,9 +85,11 @@
   background: #94a3b8;
 }
 
-/* Smooth transitions for all interactive elements */
+/* Keep control transitions focused; animating every property can distort layouts. */
 button, input, select, textarea {
-  transition: all 0.2s ease-in-out;
+  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform;
+  transition-duration: 150ms;
+  transition-timing-function: ease-in-out;
 }
 
 /* Focus styles for accessibility */
@@ -97,4 +121,15 @@ textarea:focus-visible {
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

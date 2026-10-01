@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { LoadingSpinner } from './LoadingSpinner';
 
@@ -12,6 +13,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   requiredRole 
 }) => {
   const { isAuthenticated, user, isLoading, isUpdatingRole } = useAuth();
+  const navigate = useNavigate();
 
   // Mostrar loading si está cargando O si está verificando el rol
   if (isLoading || isUpdatingRole) {
@@ -37,7 +39,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
             No tienes permisos para acceder a esta sección.
           </p>
           <button
-            onClick={() => window.location.reload()}
+            onClick={() => navigate(-1)}
             className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors duration-200"
           >
             Volver

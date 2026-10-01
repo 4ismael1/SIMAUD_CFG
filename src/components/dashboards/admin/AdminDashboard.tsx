@@ -6,7 +6,6 @@ import {
   BarChart3, 
   Settings, 
   Bell,
-  Search,
   Plus,
   LogOut,
   Menu,
@@ -177,9 +176,9 @@ export const AdminDashboard: React.FC = () => {
   };
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-[100dvh] min-h-[100svh] min-w-0 bg-gray-50">
       {/* Sidebar */}
-      <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-xl transform ${
+      <div className={`fixed inset-y-0 left-0 z-[60] flex w-64 flex-col bg-white shadow-xl transform ${
         sidebarOpen ? 'translate-x-0' : '-translate-x-full'
       } transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0`}>
         
@@ -198,6 +197,7 @@ export const AdminDashboard: React.FC = () => {
           </div>
           <button
             onClick={() => setSidebarOpen(false)}
+            aria-label="Cerrar menú lateral"
             className="lg:hidden p-2 text-gray-400 hover:text-gray-600"
           >
             <X className="w-5 h-5" />
@@ -205,7 +205,7 @@ export const AdminDashboard: React.FC = () => {
         </div>
 
         {/* Navigation */}
-        <nav className="mt-6 px-3">
+        <nav className="mt-6 min-h-0 flex-1 overflow-y-auto px-3">
           <div className="space-y-1">
             {navigationItems.map((item) => {
               const Icon = item.icon;
@@ -234,9 +234,12 @@ export const AdminDashboard: React.FC = () => {
         </nav>
 
         {/* User Info */}
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200">
+        <div className="shrink-0 border-t border-gray-200 p-4">
           <button 
-            onClick={() => setCurrentView('profile')}
+            onClick={() => {
+              setCurrentView('profile');
+              setSidebarOpen(false);
+            }}
             className="w-full flex items-center space-x-3 mb-3 p-2 rounded-lg hover:bg-gray-50 transition-colors duration-200"
           >
             <div className="flex items-center justify-center w-10 h-10 bg-gradient-to-r from-purple-500 to-purple-600 rounded-full">
@@ -258,22 +261,24 @@ export const AdminDashboard: React.FC = () => {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden lg:ml-0">
+      <div className="flex-1 flex min-w-0 flex-col overflow-hidden lg:ml-0">
         {/* Top Bar */}
-        <header className="bg-white shadow-sm border-b border-gray-200">
-          <div className="flex items-center justify-between h-16 px-4 sm:px-6">
-            <div className="flex items-center space-x-4">
+        <header className="shrink-0 bg-white shadow-sm border-b border-gray-200">
+          <div className="flex h-16 items-center justify-between gap-2 px-4 sm:gap-4 sm:px-6">
+            <div className="flex min-w-0 items-center gap-2 sm:gap-4">
               <button
                 onClick={() => setSidebarOpen(true)}
+                aria-label="Abrir menú lateral"
+                aria-expanded={sidebarOpen}
                 className="lg:hidden p-2 text-gray-400 hover:text-gray-600"
               >
                 <Menu className="w-6 h-6" />
               </button>
-              <div>
-                <h1 className="text-xl font-semibold text-gray-900">
+              <div className="min-w-0">
+                <h1 className="truncate text-base font-semibold text-gray-900 sm:text-xl">
                   {navigationItems.find(item => item.id === currentView)?.label}
                 </h1>
-                <p className="text-sm text-gray-500">
+                <p className="hidden text-sm text-gray-500 sm:block">
                   {currentView === 'dashboard' && 'Resumen general del sistema'}
                   {currentView === 'users' && 'Administra usuarios del sistema'}
                   {currentView === 'templates' && 'Gestiona plantillas de contratos'}
@@ -289,15 +294,7 @@ export const AdminDashboard: React.FC = () => {
               </div>
             </div>
             
-            <div className="flex items-center space-x-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <input
-                  type="text"
-                  placeholder="Buscar..."
-                  className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                />
-              </div>
+            <div className="flex shrink-0 items-center gap-2 sm:gap-4">
               <NotificationCenter onNavigate={(url) => {
                 // Handle navigation based on URL
                 if (url.includes('/contracts/')) {
@@ -313,8 +310,8 @@ export const AdminDashboard: React.FC = () => {
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 overflow-auto bg-gray-50">
-          <div className="p-6">
+        <main className="min-h-0 flex-1 overflow-auto bg-gray-50">
+          <div className="p-4 sm:p-6">
             {renderMainContent()}
           </div>
         </main>

@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { RotateCcw } from 'lucide-react';
+import React, { useCallback, useEffect, useState } from 'react';
+import { Ban, CheckCircle, ClipboardList, Clock, RotateCcw, XCircle } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { RenewalRequestModal } from './RenewalRequestModal';
 import type { Contract } from '../../types/contracts';
@@ -24,11 +24,8 @@ export function RenewalRequestButton({
   }>({ hasRenewal: false, status: null });
   const [loading, setLoading] = useState(true);
 
-  React.useEffect(() => {
-    checkRenewalStatus();
-  }, [contract.id]);
-
-  const checkRenewalStatus = async () => {
+  const checkRenewalStatus = useCallback(async () => {
+    setLoading(true);
     try {
       const { data: renewal, error } = await supabase
         .from('contract_renewals')
@@ -51,7 +48,11 @@ export function RenewalRequestButton({
     } finally {
       setLoading(false);
     }
-  };
+  }, [contract.id]);
+
+  useEffect(() => {
+    void checkRenewalStatus();
+  }, [checkRenewalStatus]);
 
   const sizeClasses = {
     sm: 'px-2 py-1 text-xs',
@@ -70,30 +71,21 @@ export function RenewalRequestButton({
 
   // Si ya hay una renovación, mostrar el estado
   if (renewalStatus.hasRenewal) {
-    const getStatusText = () => {
-      switch (renewalStatus.status) {
-        case 'pending': return '⏳ Renovación Solicitada';
-        case 'approved': return '✅ Renovación Aprobada';
-        case 'rejected': return '❌ Renovación Rechazada';
-        case 'cancelled': return '🚫 Renovación Cancelada';
-        default: return '📋 En Proceso';
-      }
+    const statusPresentation = {
+      pending: { label: 'Renovación Solicitada', icon: Clock, color: 'bg-blue-100 text-blue-700' },
+      approved: { label: 'Renovación Aprobada', icon: CheckCircle, color: 'bg-green-100 text-green-700' },
+      rejected: { label: 'Renovación Rechazada', icon: XCircle, color: 'bg-red-100 text-red-700' },
+      cancelled: { label: 'Renovación Cancelada', icon: Ban, color: 'bg-gray-100 text-gray-700' },
     };
-
-    const getStatusColor = () => {
-      switch (renewalStatus.status) {
-        case 'pending': return 'bg-blue-100 text-blue-700';
-        case 'approved': return 'bg-green-100 text-green-700';
-        case 'rejected': return 'bg-red-100 text-red-700';
-        case 'cancelled': return 'bg-gray-100 text-gray-700';
-        default: return 'bg-gray-100 text-gray-700';
-      }
-    };
+    const status = renewalStatus.status && renewalStatus.status in statusPresentation
+      ? statusPresentation[renewalStatus.status as keyof typeof statusPresentation]
+      : { label: 'En Proceso', icon: ClipboardList, color: 'bg-gray-100 text-gray-700' };
+    const StatusIcon = status.icon;
 
     return (
-      <div className={`${sizeClasses[size]} ${getStatusColor()} rounded-lg flex items-center gap-2 cursor-default`}>
-        <RotateCcw size={size === 'sm' ? 14 : size === 'medium' ? 16 : 18} />
-        {getStatusText()}
+      <div className={`${sizeClasses[size]} ${status.color} rounded-lg flex items-center gap-2 cursor-default`}>
+        <StatusIcon size={size === 'sm' ? 14 : size === 'medium' ? 16 : 18} aria-hidden="true" />
+        {status.label}
       </div>
     );
   }

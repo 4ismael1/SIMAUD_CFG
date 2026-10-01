@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { LoadingSpinner } from '../../common/LoadingSpinner';
+import { ModalPortal } from '../../common/ModalPortal';
 
 interface UserProfile {
   id: string;
@@ -260,14 +261,15 @@ export const UserModal: React.FC<UserModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-50 p-4">
+    <ModalPortal>
+      <div className="fixed inset-0 z-[100] flex items-start sm:items-center justify-center overflow-y-auto bg-slate-950/55 p-3 sm:p-4 backdrop-blur-[2px]">
       <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[calc(100dvh-1.5rem)] overflow-y-auto"
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+        <div className="flex items-center justify-between gap-3 p-4 border-b border-gray-200 sm:p-6">
           <div className="flex items-center space-x-3">
             <div className={`p-2 rounded-lg ${
               mode === 'create' ? 'bg-green-100' : 'bg-blue-100'
@@ -291,9 +293,12 @@ export const UserModal: React.FC<UserModalProps> = ({
             </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
+            aria-label="Cerrar ventana"
             className="text-gray-400 hover:text-gray-600 p-2 rounded-lg hover:bg-gray-100 transition-colors duration-200"
           >
+            <X className="w-5 h-5" />
           </button>
         </div>
 
@@ -336,7 +341,7 @@ export const UserModal: React.FC<UserModalProps> = ({
           </div>
 
           {/* Phone and Cedula */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Teléfono *
@@ -519,6 +524,7 @@ export const UserModal: React.FC<UserModalProps> = ({
           </div>
         </form>
       </motion.div>
-    </div>
+      </div>
+    </ModalPortal>
   );
 };

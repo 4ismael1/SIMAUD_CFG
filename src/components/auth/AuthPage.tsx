@@ -14,11 +14,17 @@ export const AuthPage: React.FC = () => {
   const { pendingEmailConfirmation, isAuthenticated } = useAuth();
   const navigate = useNavigate();
 
+  React.useEffect(() => {
+    if (currentView === 'landing') {
+      window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    }
+  }, [currentView]);
+
   // Check if this is a password reset flow
   React.useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('reset') === 'true') {
-      setCurrentView('reset' as any);
+      setCurrentView('reset');
     }
   }, []);
 
@@ -48,7 +54,7 @@ export const AuthPage: React.FC = () => {
   // Si hay confirmación pendiente, mostrar la pantalla de confirmación
   if (pendingEmailConfirmation || currentView === 'confirmation') {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 flex items-center justify-center p-4">
+      <div className="auth-shell min-h-screen min-h-[100dvh] bg-gradient-to-br from-blue-50 via-white to-blue-50 flex items-center justify-center p-4">
         <div className="absolute inset-0 bg-gradient-to-br from-blue-600/5 via-transparent to-green-600/5" />
         
         {/* Background Pattern */}
@@ -63,7 +69,7 @@ export const AuthPage: React.FC = () => {
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.5 }}
-            className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-2xl p-8 border border-white/20"
+            className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-2xl p-5 sm:p-6 border border-white/20"
           >
             <EmailConfirmationPending onBack={() => setCurrentView('login')} />
           </motion.div>
@@ -75,7 +81,7 @@ export const AuthPage: React.FC = () => {
   // Show password reset form if coming from email link
   if (currentView === 'reset') {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 flex items-center justify-center p-4">
+      <div className="auth-shell min-h-screen min-h-[100dvh] bg-gradient-to-br from-blue-50 via-white to-blue-50 flex items-center justify-center p-4">
         <div className="absolute inset-0 bg-gradient-to-br from-blue-600/5 via-transparent to-green-600/5" />
         
         {/* Background Pattern */}
@@ -90,26 +96,26 @@ export const AuthPage: React.FC = () => {
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.5 }}
-            className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-2xl p-8 border border-white/20"
+            className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-2xl p-5 sm:p-6 border border-white/20"
           >
             {/* Logo Section */}
-            <div className="text-center mb-8">
+            <div className="text-center mb-6 sm:mb-8">
               <motion.div
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
                 transition={{ delay: 0.3, type: 'spring', stiffness: 100 }}
-                className="inline-flex flex-col items-center space-y-4"
+                className="inline-flex flex-col items-center space-y-3"
               >
                 <BrandLogo
                   showText={false}
                   orientation="vertical"
                   align="center"
-                  imageWrapperClassName="mx-auto w-24 h-24 bg-white rounded-3xl shadow-lg"
-                  imageClassName="h-20 w-auto"
+                  imageWrapperClassName="mx-auto w-20 h-20 sm:w-24 sm:h-24 bg-white rounded-3xl shadow-lg"
+                  imageClassName="h-16 sm:h-20 w-auto"
                   alt="SIMAUD logo"
                 />
                 <p className="text-gray-600 text-sm">
-                  Sistema de Gestion de Contratos
+                  Sistema de Gestión de Contratos
                 </p>
               </motion.div>
             </div>
@@ -144,7 +150,7 @@ export const AuthPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 flex items-center justify-center p-4">
+    <div className="auth-shell min-h-screen min-h-[100dvh] bg-gradient-to-br from-blue-50 via-white to-blue-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-gradient-to-br from-blue-600/5 via-transparent to-green-600/5" />
       
       {/* Background Pattern */}
@@ -160,26 +166,26 @@ export const AuthPage: React.FC = () => {
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.5 }}
-          className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-2xl p-8 border border-white/20"
+          className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-2xl p-5 sm:p-6 border border-white/20"
         >
           {/* Logo Section */}
-          <div className="text-center mb-8">
+          <div className="text-center mb-6 sm:mb-8">
             <motion.div
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               transition={{ delay: 0.3, type: 'spring', stiffness: 100 }}
-              className="inline-flex flex-col items-center space-y-4"
+              className="inline-flex flex-col items-center space-y-3"
             >
               <BrandLogo
                 showText={false}
                 orientation="vertical"
                 align="center"
-                imageWrapperClassName="mx-auto w-24 h-24 bg-white rounded-3xl shadow-lg"
-                imageClassName="h-20 w-auto"
+                imageWrapperClassName="mx-auto w-20 h-20 sm:w-24 sm:h-24 bg-white rounded-3xl shadow-lg"
+                imageClassName="h-16 sm:h-20 w-auto"
                 alt="SIMAUD logo"
               />
               <p className="text-gray-600 text-sm">
-                Sistema de Gestion de Contratos
+                Sistema de Gestión de Contratos
               </p>
             </motion.div>
           </div>

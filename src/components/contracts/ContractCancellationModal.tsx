@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { LoadingSpinner } from '../common/LoadingSpinner';
+import { ModalPortal } from '../common/ModalPortal';
 import { useAuth } from '../../contexts/AuthContext';
 import type { Contract } from '../../types/contracts';
 
@@ -116,15 +117,10 @@ export const ContractCancellationModal: React.FC<ContractCancellationModalProps>
       // Llamar onSuccess inmediatamente para refrescar la UI padre
       onSuccess();
       
-      // Force reload de la página para asegurar que la UI se actualice
-      setTimeout(() => {
-        window.location.reload();
-      }, 1000);
-      
-      // Esperar 2 segundos antes de cerrar
+      // Let the parent refresh its data and close the dialog without reloading the app.
       setTimeout(() => {
         onClose();
-      }, 2000);
+      }, 1500);
       
     } catch (error: any) {
       console.error('Error cancelling contract:', error);
@@ -142,11 +138,12 @@ export const ContractCancellationModal: React.FC<ContractCancellationModalProps>
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-50 p-4">
+    <ModalPortal>
+      <div className="fixed inset-0 z-[100] flex items-start sm:items-center justify-center overflow-y-auto bg-slate-950/55 p-3 sm:p-4 backdrop-blur-[2px]">
       <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[calc(100dvh-1.5rem)] overflow-y-auto"
       >
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
@@ -317,7 +314,8 @@ export const ContractCancellationModal: React.FC<ContractCancellationModalProps>
           </div>
         </form>
       </motion.div>
-    </div>
+      </div>
+    </ModalPortal>
   );
 };
 

@@ -64,19 +64,12 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToRegister, onBack
     }
   };
 
-  // Manejar Enter en los campos
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      handleSubmit(e as any);
-    }
-  };
-
   if (currentView === 'forgot') {
     return <ForgotPasswordForm onBack={() => setCurrentView('login')} />;
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Header */}
       <div className="text-center">
         <div className="inline-flex items-center justify-center w-12 h-12 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full mb-3">
@@ -101,7 +94,6 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToRegister, onBack
               type="email"
               value={formData.email}
               onChange={(e) => handleInputChange('email', e.target.value)}
-              onKeyPress={handleKeyPress}
               className={`block w-full pl-10 pr-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white ${
                 error ? 'border-red-300' : 'border-gray-300'
               }`}
@@ -125,7 +117,6 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToRegister, onBack
               type={showPassword ? 'text' : 'password'}
               value={formData.password}
               onChange={(e) => handleInputChange('password', e.target.value)}
-              onKeyPress={handleKeyPress}
               className={`block w-full pl-10 pr-10 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white ${
                 error ? 'border-red-300' : 'border-gray-300'
               }`}
@@ -138,6 +129,8 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToRegister, onBack
               onClick={() => setShowPassword(!showPassword)}
               className="absolute inset-y-0 right-0 pr-3 flex items-center"
               disabled={isLoading}
+              aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+              aria-pressed={showPassword}
             >
               {showPassword ? (
                 <EyeOff className="h-4 w-4 text-gray-400 hover:text-gray-600" />

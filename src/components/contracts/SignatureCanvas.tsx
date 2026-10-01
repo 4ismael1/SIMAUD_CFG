@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import SignatureCanvasLib from 'react-signature-canvas';
 import { LoadingSpinner } from '../common/LoadingSpinner';
+import { ModalPortal } from '../common/ModalPortal';
 
 interface SignatureCanvasProps {
   isOpen: boolean;
@@ -125,11 +126,12 @@ export const SignatureCanvas: React.FC<SignatureCanvasProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50 p-4">
+    <ModalPortal>
+      <div className="fixed inset-0 z-[100] flex items-start sm:items-center justify-center overflow-y-auto bg-slate-950/55 p-3 sm:p-4 backdrop-blur-[2px]">
       <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[95vh] mx-auto flex flex-col overflow-hidden"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[calc(100dvh-1.5rem)] mx-auto flex flex-col overflow-hidden"
       >
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 sm:p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-purple-50">
@@ -309,6 +311,7 @@ export const SignatureCanvas: React.FC<SignatureCanvasProps> = ({
           </div>
         </div>
       </motion.div>
-    </div>
+      </div>
+    </ModalPortal>
   );
 };

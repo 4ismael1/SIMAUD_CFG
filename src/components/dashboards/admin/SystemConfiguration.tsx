@@ -1,25 +1,31 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
 import { 
-  Settings, 
   RefreshCw, 
   Database, 
   Bell, 
   Calendar,
   Clock,
   Zap,
-  AlertTriangle,
   CheckCircle,
-  Info,
   Server,
   Shield,
   Activity
 } from 'lucide-react';
-import { LoadingSpinner } from '../../common/LoadingSpinner';
 import { ContractStatusUpdater } from '../../contracts/ContractStatusUpdater';
 
+interface SystemStats {
+  system_health?: {
+    total_entities?: { contracts?: number };
+    active_entities?: {
+      active_contracts?: number;
+      pending_approvals?: number;
+    };
+    system_utilization?: { efficiency_score?: number };
+  };
+}
+
 export const SystemConfiguration: React.FC = () => {
-  const [systemStats, setSystemStats] = useState<any>(null);
+  const [systemStats, setSystemStats] = useState<SystemStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
 
@@ -42,7 +48,7 @@ export const SystemConfiguration: React.FC = () => {
       );
 
       if (response.ok) {
-        const data = await response.json();
+        const data = await response.json() as SystemStats;
         setSystemStats(data);
       }
       setLastRefresh(new Date());
@@ -223,7 +229,7 @@ const AutomationConfig: React.FC<{ onUpdate: () => void }> = ({ onUpdate }) => {
             <Clock className="w-4 h-4 text-gray-600" />
             <span className="text-sm font-medium text-gray-900">Auto-renovaciones</span>
           </div>
-          <span className="text-sm text-green-600">✓ Activo</span>
+          <span className="inline-flex items-center gap-1.5 text-sm text-green-700"><CheckCircle className="h-4 w-4" aria-hidden="true" />Activo</span>
         </div>
         
         <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
@@ -231,7 +237,7 @@ const AutomationConfig: React.FC<{ onUpdate: () => void }> = ({ onUpdate }) => {
             <Bell className="w-4 h-4 text-gray-600" />
             <span className="text-sm font-medium text-gray-900">Notificaciones de vencimiento</span>
           </div>
-          <span className="text-sm text-green-600">✓ Activo</span>
+          <span className="inline-flex items-center gap-1.5 text-sm text-green-700"><CheckCircle className="h-4 w-4" aria-hidden="true" />Activo</span>
         </div>
         
         <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
@@ -239,7 +245,7 @@ const AutomationConfig: React.FC<{ onUpdate: () => void }> = ({ onUpdate }) => {
             <Calendar className="w-4 h-4 text-gray-600" />
             <span className="text-sm font-medium text-gray-900">Actualización diaria de estados</span>
           </div>
-          <span className="text-sm text-green-600">✓ Activo</span>
+          <span className="inline-flex items-center gap-1.5 text-sm text-green-700"><CheckCircle className="h-4 w-4" aria-hidden="true" />Activo</span>
         </div>
       </div>
     </div>
@@ -263,7 +269,7 @@ const NotificationConfig: React.FC = () => {
           <RefreshCw className="w-4 h-4 text-gray-600" />
           <span className="text-sm font-medium text-gray-900">Notificaciones de renovación</span>
         </div>
-        <span className="text-sm text-green-600">✓ Activo</span>
+        <span className="inline-flex items-center gap-1.5 text-sm text-green-700"><CheckCircle className="h-4 w-4" aria-hidden="true" />Activo</span>
       </div>
       
       <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
@@ -271,7 +277,7 @@ const NotificationConfig: React.FC = () => {
           <CheckCircle className="w-4 h-4 text-gray-600" />
           <span className="text-sm font-medium text-gray-900">Confirmaciones de firma</span>
         </div>
-        <span className="text-sm text-green-600">✓ Activo</span>
+        <span className="inline-flex items-center gap-1.5 text-sm text-green-700"><CheckCircle className="h-4 w-4" aria-hidden="true" />Activo</span>
       </div>
     </div>
   );
@@ -286,7 +292,7 @@ const DatabaseConfig: React.FC = () => {
           <Database className="w-4 h-4 text-gray-600" />
           <span className="text-sm font-medium text-gray-900">Limpieza automática</span>
         </div>
-        <span className="text-sm text-green-600">✓ Activo</span>
+        <span className="inline-flex items-center gap-1.5 text-sm text-green-700"><CheckCircle className="h-4 w-4" aria-hidden="true" />Activo</span>
       </div>
       
       <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
@@ -294,7 +300,7 @@ const DatabaseConfig: React.FC = () => {
           <RefreshCw className="w-4 h-4 text-gray-600" />
           <span className="text-sm font-medium text-gray-900">Respaldos diarios</span>
         </div>
-        <span className="text-sm text-green-600">✓ Activo</span>
+        <span className="inline-flex items-center gap-1.5 text-sm text-green-700"><CheckCircle className="h-4 w-4" aria-hidden="true" />Activo</span>
       </div>
       
       <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
@@ -302,7 +308,7 @@ const DatabaseConfig: React.FC = () => {
           <Activity className="w-4 h-4 text-gray-600" />
           <span className="text-sm font-medium text-gray-900">Optimización semanal</span>
         </div>
-        <span className="text-sm text-green-600">✓ Activo</span>
+        <span className="inline-flex items-center gap-1.5 text-sm text-green-700"><CheckCircle className="h-4 w-4" aria-hidden="true" />Activo</span>
       </div>
     </div>
   );
@@ -317,7 +323,7 @@ const SecurityConfig: React.FC = () => {
           <Shield className="w-4 h-4 text-gray-600" />
           <span className="text-sm font-medium text-gray-900">RLS Policies</span>
         </div>
-        <span className="text-sm text-green-600">✓ Activo</span>
+        <span className="inline-flex items-center gap-1.5 text-sm text-green-700"><CheckCircle className="h-4 w-4" aria-hidden="true" />Activo</span>
       </div>
       
       <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
@@ -333,7 +339,7 @@ const SecurityConfig: React.FC = () => {
           <Activity className="w-4 h-4 text-gray-600" />
           <span className="text-sm font-medium text-gray-900">Auditoría completa</span>
         </div>
-        <span className="text-sm text-green-600">✓ Activo</span>
+        <span className="inline-flex items-center gap-1.5 text-sm text-green-700"><CheckCircle className="h-4 w-4" aria-hidden="true" />Activo</span>
       </div>
     </div>
   );

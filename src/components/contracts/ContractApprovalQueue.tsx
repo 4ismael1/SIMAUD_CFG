@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { LoadingSpinner } from '../common/LoadingSpinner';
+import { ModalPortal } from '../common/ModalPortal';
 import { ContractViewModal } from './ContractViewModal';
 import { useAuth } from '../../contexts/AuthContext';
 import type { Contract, ContractApproval } from '../../types/contracts';
@@ -406,10 +407,11 @@ export const ContractApprovalQueue: React.FC = () => {
 
       {/* Approval Action Modal */}
       {approvalModal.isOpen && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-50 p-4">
+        <ModalPortal>
+        <div className="fixed inset-0 z-[100] flex items-start sm:items-center justify-center overflow-y-auto bg-slate-950/55 p-3 sm:p-4 backdrop-blur-[2px]">
           <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
             className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md"
           >
             <div className="flex items-center space-x-3 mb-4">
@@ -486,6 +488,7 @@ export const ContractApprovalQueue: React.FC = () => {
             </div>
           </motion.div>
         </div>
+        </ModalPortal>
       )}
     </div>
   );

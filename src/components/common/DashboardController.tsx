@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Navigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
@@ -24,16 +24,20 @@ export const DashboardController: React.FC = () => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [retryKey, setRetryKey] = useState(0);
+  const profileRef = useRef(profile);
+  profileRef.current = profile;
+  const userId = user?.id;
 
   useEffect(() => {
     // Only load profile if we don't have one yet or if user ID changed
-    if (!user || !isAuthenticated || !user.id) {
+    if (!userId || !isAuthenticated) {
       setIsLoadingProfile(false);
       return;
     }
     
     // Skip loading if we already have a profile for this user
-    if (profile && profile.id === user.id) {
+    if (profileRef.current?.id === userId) {
       setIsLoadingProfile(false);
       return;
     }
@@ -46,7 +50,7 @@ export const DashboardController: React.FC = () => {
         const { data: profileData, error: profileError } = await supabase
           .from('user_profiles')
           .select('*')
-          .eq('id', user.id)
+          .eq('id', userId)
           .single();
 
         if (profileError) {
@@ -75,7 +79,7 @@ export const DashboardController: React.FC = () => {
           event: 'UPDATE',
           schema: 'public',
           table: 'user_profiles',
-          filter: `id=eq.${user.id}`,
+          filter: `id=eq.${userId}`,
         },
         (payload) => {
           console.log('Profile updated in real-time:', payload);
@@ -88,7 +92,7 @@ export const DashboardController: React.FC = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user?.id, isAuthenticated]); // Only depend on user ID, not the whole user object
+  }, [userId, isAuthenticated, retryKey]);
 
   // Si no está autenticado, redirigir al auth
   if (!isAuthenticated || !user) {
@@ -119,7 +123,12 @@ export const DashboardController: React.FC = () => {
             {error || 'No se pudo cargar el perfil del usuario'}
           </p>
           <button
-            onClick={() => window.location.reload()}
+            onClick={() => {
+              setError(null);
+              setProfile(null);
+              setIsLoadingProfile(true);
+              setRetryKey(key => key + 1);
+            }}
             className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors duration-200"
           >
             Reintentar

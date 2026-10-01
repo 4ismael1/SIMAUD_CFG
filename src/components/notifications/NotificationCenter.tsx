@@ -8,8 +8,6 @@ import {
   Clock, 
   RefreshCw,
   AlertTriangle,
-  FileText,
-  Users,
   Trash2,
   ExternalLink,
   XCircle
@@ -22,7 +20,6 @@ interface Notification {
   type: string;
   title: string;
   message: string;
-  data: any;
   read_at: string | null;
   priority: 'low' | 'medium' | 'high' | 'urgent';
   action_url: string | null;
@@ -106,18 +103,19 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ onNaviga
       setNotifications(notifications || []);
       setUnreadCount(unreadCount || 0);
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error loading notifications:', error);
+      const message = error instanceof Error ? error.message : String(error);
       
       // Provide more specific error messages based on error type
-      if (error.message === 'Failed to fetch') {
+      if (message === 'Failed to fetch') {
         setError('No se puede conectar con el servidor. Verifica tu conexión a internet.');
-      } else if (error.message.includes('CORS')) {
+      } else if (message.includes('CORS')) {
         setError('Error de configuración CORS. Contacta al administrador.');
-      } else if (error.message.includes('Supabase')) {
-        setError(error.message);
+      } else if (message.includes('Supabase')) {
+        setError(message);
       } else {
-        setError(error.message || 'Error al cargar notificaciones');
+        setError(message || 'Error al cargar notificaciones');
       }
       
       // Set empty state to prevent UI issues
@@ -266,7 +264,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ onNaviga
             initial={{ opacity: 0, y: 10, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.95 }}
-            className="absolute right-0 top-12 w-96 bg-white rounded-xl shadow-xl border border-gray-200 z-50 max-h-96 overflow-hidden"
+            className="absolute right-0 top-12 z-[60] w-[min(24rem,calc(100vw-2rem))] max-w-[calc(100vw-1rem)] overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl max-h-96"
           >
             {/* Header */}
             <div className="flex items-center justify-between p-4 border-b border-gray-200">
@@ -275,9 +273,12 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ onNaviga
                 {unreadCount > 0 && (
                   <button
                     onClick={markAllAsRead}
-                    className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                    aria-label="Marcar todas las notificaciones como leídas"
+                    title="Marcar todas las notificaciones como leídas"
+                    className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-700 font-medium text-sm"
                   >
-                    Marcar todas leídas
+                    <Check className="h-4 w-4 sm:hidden" aria-hidden="true" />
+                    <span className="hidden sm:inline">Marcar todas leídas</span>
                   </button>
                 )}
                 <button

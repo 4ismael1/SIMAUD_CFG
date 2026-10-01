@@ -15,7 +15,6 @@ import {
   Menu,
   X,
   PenTool,
-  Eye,
   Settings
 } from 'lucide-react';
 import { BrandLogo } from '../common/BrandLogo';
@@ -92,7 +91,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister })
                 alt="SIMAUD logo"
               />
               <p className="hidden sm:block text-sm text-gray-500">
-                Sistema de Gestion de Contratos
+                Sistema de Gestión de Contratos
               </p>
             </div>
 
@@ -138,6 +137,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister })
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="md:hidden p-2 text-gray-600 hover:text-gray-900"
+              aria-label={mobileMenuOpen ? 'Cerrar menú de navegación' : 'Abrir menú de navegación'}
+              aria-expanded={mobileMenuOpen}
             >
               {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
             </button>
@@ -190,7 +191,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister })
       </nav>
 
       {/* Hero Section */}
-      <section className="relative pt-20 pb-16 overflow-hidden min-h-screen flex items-center">
+      <section className="relative pt-20 pb-16 overflow-hidden min-h-screen min-h-[100dvh] flex items-center">
         {/* Background Pattern */}
         <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-white to-purple-50" />
         <div className="absolute inset-0 opacity-30">
@@ -200,14 +201,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister })
         </div>
 
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 xl:gap-12 items-center">
             {/* Left Content */}
             <motion.div
               initial={{ opacity: 0, x: -30 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.8 }}
             >
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 mb-6 leading-tight">
+              <h1 className="text-4xl sm:text-5xl xl:text-6xl font-bold text-gray-900 mb-6 leading-tight">
                 Sistema Integral de
                 <span
                   className="block font-bold"
@@ -216,7 +217,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister })
                   Gestión de Contratos
                 </span>
               </h1>
-              <p className="text-xl text-gray-600 mb-8 leading-relaxed">
+              <p className="text-lg sm:text-xl text-gray-600 mb-8 leading-relaxed">
                 SIMAUD es la plataforma profesional que revoluciona la gestión contractual de tu organización. 
                 Automatiza procesos, asegura cumplimiento y optimiza cada etapa del ciclo de vida de tus contratos.
               </p>
@@ -259,7 +260,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister })
               initial={{ opacity: 0, x: 30 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.8, delay: 0.2 }}
-              className="relative"
+              className="relative mx-auto w-full max-w-3xl xl:max-w-none"
             >
               {/* Dashboard Mockup */}
               <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl p-6 shadow-2xl transform rotate-3 hover:rotate-0 transition-transform duration-500">
@@ -461,7 +462,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister })
                     />
                     <div>
                       <div className="text-white font-semibold">Dashboard</div>
-                      <div className="text-blue-100 text-sm">Sistema de Gestion</div>
+                      <div className="text-blue-100 text-sm">Sistema de Gestión</div>
                     </div>
                   </div>
                 </div>
@@ -745,7 +746,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister })
 
           <div className="border-t border-gray-800 mt-12 pt-8 flex flex-col md:flex-row items-center justify-between">
             <p className="text-gray-400 text-sm">
-              © 2025 SIMAUD. Todos los derechos reservados.
+              © {new Date().getFullYear()} SIMAUD. Todos los derechos reservados.
             </p>
             <div className="flex items-center space-x-6 mt-4 md:mt-0">
               <span className="text-gray-400 text-sm">
