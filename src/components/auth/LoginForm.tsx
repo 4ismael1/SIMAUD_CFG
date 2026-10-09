@@ -4,6 +4,7 @@ import { Eye, EyeOff, LogIn, Mail, Lock } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { LoadingSpinner } from '../common/LoadingSpinner';
 import { ForgotPasswordForm } from './ForgotPasswordForm';
+import { BRAND_NAME } from '../../lib/branding';
 
 interface LoginFormProps {
   onSwitchToRegister: () => void;
@@ -76,7 +77,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToRegister, onBack
           <LogIn className="w-6 h-6 text-white" />
         </div>
         <h2 className="text-2xl font-bold text-gray-900 mb-1">Iniciar Sesión</h2>
-        <p className="text-gray-600 text-sm">Accede a tu cuenta de SIMAUD</p>
+        <p className="text-gray-600 text-sm">Accede a tu cuenta de {BRAND_NAME}</p>
       </div>
 
       {/* Form */}
@@ -261,7 +262,7 @@ const OldLoginForm: React.FC<LoginFormProps> = ({ onSwitchToRegister }) => {
           <LogIn className="w-6 h-6 text-white" />
         </div>
         <h2 className="text-2xl font-bold text-gray-900 mb-1">Iniciar Sesión</h2>
-        <p className="text-gray-600 text-sm">Accede a tu cuenta de SIMAUD</p>
+        <p className="text-gray-600 text-sm">Accede a tu cuenta de {BRAND_NAME}</p>
       </div>
 
       {/* Form */}

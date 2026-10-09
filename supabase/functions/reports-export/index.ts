@@ -324,7 +324,7 @@ function generatePDFHTML(data: any, params: ExportParams): string {
     <html>
     <head>
       <meta charset="UTF-8">
-      <title>Reporte SIMAUD - ${data.title}</title>
+      <title>Reporte SIMAUD-LEX: MÓDULO Gestión Legal Digital - ${data.title}</title>
       <style>
         body { font-family: Arial, sans-serif; margin: 40px; color: #333; }
         .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #3b82f6; padding-bottom: 20px; }
@@ -344,7 +344,7 @@ function generatePDFHTML(data: any, params: ExportParams): string {
     <body>
       <div class="header">
         <div class="title">${data.title}</div>
-        <div class="subtitle">Generado el ${date} | Sistema SIMAUD</div>
+        <div class="subtitle">Generado el ${date} | SIMAUD-LEX: MÓDULO Gestión Legal Digital</div>
       </div>
       
       <div class="section">
@@ -360,7 +360,7 @@ function generatePDFHTML(data: any, params: ExportParams): string {
       </div>
       
       <div style="margin-top: 40px; text-align: center; color: #6b7280; font-size: 12px;">
-        <p>Este reporte fue generado automáticamente por SIMAUD el ${new Date().toLocaleString('es-ES')}</p>
+        <p>Este reporte fue generado automáticamente por SIMAUD-LEX el ${new Date().toLocaleString('es-ES')}</p>
       </div>
     </body>
     </html>

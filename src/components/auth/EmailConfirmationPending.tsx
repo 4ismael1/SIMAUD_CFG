@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Mail, RefreshCw, ArrowLeft, CheckCircle } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { LoadingSpinner } from '../common/LoadingSpinner';
+import { BRAND_NAME } from '../../lib/branding';
 
 interface EmailConfirmationPendingProps {
   onBack: () => void;
@@ -81,7 +82,7 @@ export const EmailConfirmationPending: React.FC<EmailConfirmationPendingProps> =
             y haz clic en el enlace de confirmación.
           </p>
           <p>
-            Una vez confirmado tu email, podrás iniciar sesión en SIMAUD.
+            Una vez confirmado tu email, podrás iniciar sesión en {BRAND_NAME}.
           </p>
         </div>
 

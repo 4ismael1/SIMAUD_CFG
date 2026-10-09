@@ -1,5 +1,6 @@
 import React from 'react';
 import LogoImage from '../../assets/Logo.png';
+import { BRAND_FULL_NAME, BRAND_MODULE, BRAND_NAME } from '../../lib/branding';
 
 interface BrandLogoProps {
   title?: string;
@@ -19,8 +20,8 @@ interface BrandLogoProps {
  * Shared brand logo renderer to keep image usage consistent across the app.
  */
 export const BrandLogo: React.FC<BrandLogoProps> = ({
-  title = 'SIMAUD',
-  subtitle,
+  title = BRAND_NAME,
+  subtitle = BRAND_MODULE,
   orientation = 'horizontal',
   align = 'left',
   className = '',
@@ -44,7 +45,7 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
   const imageWrapperClasses = `flex-shrink-0 flex items-center justify-center ${imageWrapperClassName}`.trim();
   const trimmedTitle = title?.trim() ?? '';
   const computedAlt =
-    alt ?? (trimmedTitle ? `${trimmedTitle} logo` : 'SIMAUD logo');
+    alt ?? `Logotipo de ${BRAND_FULL_NAME}`;
 
   return (
     <div className={containerClasses}>

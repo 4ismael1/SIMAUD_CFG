@@ -113,7 +113,7 @@ function generateContractPDF(contract: any, includeSignatures: boolean): string 
     <head>
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>${contract.title} - SIMAUD</title>
+      <title>${contract.title} - SIMAUD-LEX: MÓDULO Gestión Legal Digital</title>
       <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
         
@@ -415,7 +415,7 @@ function generateContractPDF(contract: any, includeSignatures: boolean): string 
         
         <div class="header">
           <h1>${contract.title}</h1>
-          <div class="subtitle">Documento Generado por SIMAUD</div>
+          <div class="subtitle">Documento generado por SIMAUD-LEX</div>
           <div style="margin-top: 15px;">
             <span class="status-badge ${
               contract.approval_status === 'signed' ? 'status-signed' :
@@ -473,8 +473,8 @@ ${processedContent}
         ${includeSignatures ? generateInlineSignaturesSection(sortedSignatories, currentDate) : ''}
         
         <div class="footer">
-          <p><strong>Documento generado por SIMAUD</strong></p>
-          <p>Sistema Integral de Gestión de Contratos</p>
+          <p><strong>Documento generado por SIMAUD-LEX</strong></p>
+          <p>MÓDULO Gestión Legal Digital</p>
           <p>Fecha de generación: ${currentDate} | Hora: ${new Date().toLocaleTimeString('es-ES')}</p>
           <p style="margin-top: 10px; font-size: 10px;">
             Este documento es una representación digital válida del contrato original.

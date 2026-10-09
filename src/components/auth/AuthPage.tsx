@@ -8,6 +8,7 @@ import { EmailConfirmationPending } from './EmailConfirmationPending';
 import { ResetPasswordForm } from './ResetPasswordForm';
 import { useAuth } from '../../contexts/AuthContext';
 import { BrandLogo } from '../common/BrandLogo';
+import { BRAND_MODULE, BRAND_NAME } from '../../lib/branding';
 
 export const AuthPage: React.FC = () => {
   const [currentView, setCurrentView] = useState<'landing' | 'login' | 'register' | 'confirmation' | 'reset'>('landing');
@@ -112,11 +113,11 @@ export const AuthPage: React.FC = () => {
                   align="center"
                   imageWrapperClassName="mx-auto w-20 h-20 sm:w-24 sm:h-24 bg-white rounded-3xl shadow-lg"
                   imageClassName="h-16 sm:h-20 w-auto"
-                  alt="SIMAUD logo"
                 />
-                <p className="text-gray-600 text-sm">
-                  Sistema de Gestión de Contratos
-                </p>
+                <div>
+                  <p className="font-semibold text-gray-900">{BRAND_NAME}</p>
+                  <p className="text-gray-600 text-sm">{BRAND_MODULE}</p>
+                </div>
               </motion.div>
             </div>
 
@@ -182,11 +183,11 @@ export const AuthPage: React.FC = () => {
                 align="center"
                 imageWrapperClassName="mx-auto w-20 h-20 sm:w-24 sm:h-24 bg-white rounded-3xl shadow-lg"
                 imageClassName="h-16 sm:h-20 w-auto"
-                alt="SIMAUD logo"
               />
-              <p className="text-gray-600 text-sm">
-                Sistema de Gestión de Contratos
-              </p>
+              <div>
+                <p className="font-semibold text-gray-900">{BRAND_NAME}</p>
+                <p className="text-gray-600 text-sm">{BRAND_MODULE}</p>
+              </div>
             </motion.div>
           </div>
 

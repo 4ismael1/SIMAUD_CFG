@@ -4,6 +4,7 @@ import { Eye, EyeOff, UserPlus, Mail, Lock, User, Phone, CreditCard } from 'luci
 import { useAuth } from '../../contexts/AuthContext';
 import { LoadingSpinner } from '../common/LoadingSpinner';
 import { supabase } from '../../lib/supabase';
+import { BRAND_NAME } from '../../lib/branding';
 
 interface RegisterFormProps {
   onSwitchToLogin: () => void;
@@ -171,7 +172,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin, onR
           <UserPlus className="w-6 h-6 text-white" />
         </div>
         <h2 className="text-2xl font-bold text-gray-900 mb-1">Crear Cuenta</h2>
-        <p className="text-gray-600 text-sm">Únete a SIMAUD hoy mismo</p>
+        <p className="text-gray-600 text-sm">Únete a {BRAND_NAME} hoy mismo</p>
       </div>
 
       {/* Form */}

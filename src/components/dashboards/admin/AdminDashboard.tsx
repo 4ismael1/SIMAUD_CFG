@@ -35,6 +35,7 @@ import { NotificationCenter } from '../../notifications/NotificationCenter';
 import { ExpiryAlerts } from '../../notifications/ExpiryAlerts';
 import { LoadingSpinner } from '../../common/LoadingSpinner';
 import { BrandLogo } from '../../common/BrandLogo';
+import { BRAND_NAME } from '../../../lib/branding';
 
 type AdminView = 'dashboard' | 'users' | 'templates' | 'variables' | 'contracts' | 'management' | 'approvals' | 'renewals' | 'reports' | 'settings' | 'profile';
 
@@ -184,15 +185,15 @@ export const AdminDashboard: React.FC = () => {
         
         {/* Sidebar Header */}
         <div className="flex items-center justify-between h-16 px-6 border-b border-gray-200">
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-3 min-w-0">
             <BrandLogo
               showText={false}
-              imageWrapperClassName="w-20 h-20"
-              imageClassName="h-16 w-auto"
-              alt="SIMAUD logo"
+              imageWrapperClassName="w-16"
+              imageClassName="h-10 w-auto max-w-full"
             />
-            <div className="flex flex-col">
-              <span className="text-sm font-semibold text-gray-900">Admin Panel</span>
+            <div className="flex flex-col min-w-0">
+              <span className="text-sm font-semibold text-gray-900">{BRAND_NAME}</span>
+              <span className="text-xs text-gray-500">Admin Panel</span>
             </div>
           </div>
           <button

@@ -18,6 +18,7 @@ import {
   Settings
 } from 'lucide-react';
 import { BrandLogo } from '../common/BrandLogo';
+import { BRAND_MODULE, BRAND_NAME } from '../../lib/branding';
 
 interface LandingPageProps {
   onLogin: () => void;
@@ -88,15 +89,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister })
                 className="items-center"
                 imageWrapperClassName="w-auto"
                 imageClassName="h-10 sm:h-12 w-auto"
-                alt="SIMAUD logo"
               />
-              <p className="hidden sm:block text-sm text-gray-500">
-                Sistema de Gestión de Contratos
-              </p>
+              <div>
+                <p className="text-sm sm:text-base font-semibold text-gray-900">{BRAND_NAME}</p>
+                <p className="hidden sm:block text-xs text-gray-500">{BRAND_MODULE}</p>
+              </div>
             </div>
 
             {/* Desktop Navigation */}
-            <div className="hidden md:flex items-center space-x-8">
+            <div className="hidden lg:flex items-center space-x-8">
               <button 
                 onClick={() => scrollToSection('features')}
                 className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200"
@@ -118,7 +119,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister })
             </div>
 
             {/* Auth Buttons */}
-            <div className="hidden md:flex items-center space-x-4">
+            <div className="hidden lg:flex items-center space-x-4">
               <button
                 onClick={onLogin}
                 className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200"
@@ -136,7 +137,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister })
             {/* Mobile menu button */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="md:hidden p-2 text-gray-600 hover:text-gray-900"
+              className="lg:hidden p-2 text-gray-600 hover:text-gray-900"
               aria-label={mobileMenuOpen ? 'Cerrar menú de navegación' : 'Abrir menú de navegación'}
               aria-expanded={mobileMenuOpen}
             >
@@ -150,7 +151,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister })
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="md:hidden bg-white border-t border-gray-200"
+            className="lg:hidden bg-white border-t border-gray-200"
           >
             <div className="px-4 py-4 space-y-4">
               <button 
@@ -208,17 +209,17 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister })
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.8 }}
             >
-              <h1 className="text-4xl sm:text-5xl xl:text-6xl font-bold text-gray-900 mb-6 leading-tight">
-                Sistema Integral de
+              <h1 className="text-3xl sm:text-4xl xl:text-5xl font-bold text-gray-900 mb-6 leading-tight">
+                {BRAND_NAME}:{' '}
                 <span
                   className="block font-bold"
                   style={{ color: 'rgba(137, 38, 42, 0.996)' }}
                 >
-                  Gestión de Contratos
+                  {BRAND_MODULE}
                 </span>
               </h1>
               <p className="text-lg sm:text-xl text-gray-600 mb-8 leading-relaxed">
-                SIMAUD es la plataforma profesional que revoluciona la gestión contractual de tu organización. 
+                {BRAND_NAME} es la plataforma profesional que revoluciona la gestión contractual de tu organización.
                 Automatiza procesos, asegura cumplimiento y optimiza cada etapa del ciclo de vida de tus contratos.
               </p>
 
@@ -401,7 +402,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister })
               viewport={{ once: true }}
             >
               <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-6">
-                ¿Por qué elegir SIMAUD?
+                ¿Por qué elegir {BRAND_NAME}?
               </h2>
               <p className="text-xl text-gray-600 mb-8">
                 Más que un software, es tu aliado estratégico para optimizar 
@@ -462,7 +463,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister })
                     />
                     <div>
                       <div className="text-white font-semibold">Dashboard</div>
-                      <div className="text-blue-100 text-sm">Sistema de Gestión</div>
+                      <div className="text-blue-100 text-sm">{BRAND_MODULE}</div>
                     </div>
                   </div>
                 </div>
@@ -548,10 +549,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister })
             className="text-center mb-16"
           >
             <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-6">
-              Sistema Profesional de Gestión Contractual
+              {BRAND_MODULE}
             </h2>
             <p className="text-xl text-gray-600 max-w-4xl mx-auto leading-relaxed">
-              SIMAUD es una plataforma integral diseñada para organizaciones que buscan optimizar 
+              {BRAND_NAME} es una plataforma integral diseñada para organizaciones que buscan optimizar
               sus procesos contractuales. Desde la creación hasta la firma y renovación, 
               cada etapa está automatizada y asegurada.
             </p>
@@ -666,13 +667,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister })
             <div>
               <div className="mb-6">
                 <BrandLogo
-                  showText={false}
                   imageWrapperClassName="bg-white rounded-2xl p-2 shadow-lg"
                   imageClassName="h-12 w-auto"
+                  titleClassName="text-lg font-bold text-white"
+                  subtitleClassName="text-xs text-gray-400"
                 />
-                <p className="text-gray-400 text-sm mt-3">
-                  Sistema Integral de Gestion
-                </p>
               </div>
               <p className="text-gray-400 mb-6 leading-relaxed">
                 La plataforma más avanzada para la gestión de contratos digitales. 
@@ -746,11 +745,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister })
 
           <div className="border-t border-gray-800 mt-12 pt-8 flex flex-col md:flex-row items-center justify-between">
             <p className="text-gray-400 text-sm">
-              © {new Date().getFullYear()} SIMAUD. Todos los derechos reservados.
+              © {new Date().getFullYear()} {BRAND_NAME}. Todos los derechos reservados.
             </p>
             <div className="flex items-center space-x-6 mt-4 md:mt-0">
               <span className="text-gray-400 text-sm">
-                Sistema Integral de Gestión de Contratos
+                {BRAND_MODULE}
               </span>
             </div>
           </div>
