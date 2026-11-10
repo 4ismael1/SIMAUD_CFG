@@ -23,6 +23,9 @@ Rama `feat/backend-propio-y-nueva-ui`. Commits de esta sesión: `aaba3ad` (fix /
   Verificado midiendo el DOM (5 hojas iguales en editor y vista previa); **falta que el dueño lo vea en su navegador**
   (el panel de Claude estaba oculto y sus capturas no se actualizaban; por eso los planificadores usan `setTimeout`, no rAF).
 - Pendiente del editor premium: biblioteca de cláusulas, arrastrar bloques, visor del PDF real tras T15.
+- **T12b cambia la API de usuarios**: el admin ya NO elige contraseña al crear/editar (invitación/restablecimiento por
+  enlace, `POST /users/:id/password-reset`). Adaptar el front de Usuarios (alta y `EditUserDialog`) y hacer la pantalla
+  **Auditoría** (`GET /audit`, export CSV/XLSX) con el contrato del informe T12b.
 
 ### Codex — tabla del lanzamiento (~01:10)
 | Tarea | BD de pruebas | Informe al terminar |
