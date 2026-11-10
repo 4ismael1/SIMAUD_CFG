@@ -1,6 +1,6 @@
 # T10 — Firma electrónica certificada, evidencia y verificación pública
 
-**Asignado a:** Codex · **Revisa:** Claude · **Depende de:** T09b terminado (toca los mismos archivos de contratos/PDF).
+**Asignado a:** Codex · **Revisa:** Claude · **Depende de:** T09a y T09b terminados (comparte contratos/PDF, `schema.ts`, `env.ts` y migraciones).
 Alcance: `api/src/modules/contracts/**` (firmas, PDF, auditoría), `api/src/modules/verify/**` (nuevo), `api/src/lib/crypto/**` (nuevo), `api/src/lib/pdf*`, `api/src/db/schema.ts` + migración nueva, `api/src/config/env.ts`, `api/src/app.ts` (registrar rutas), `api/src/db/` (script de certificado), `api/test/**`, `deploy/**` y `docs/DEPLOY.md` (gestión de la clave), `docs/tasks/T10*`.
 **No toques** `src/**` (el front lo hace Claude). Lee `docs/CODE_STANDARDS.md`, `docs/tasks/T07-auditoria-seguridad.REPORT.md` y los informes T09a/T09b.
 Marco legal de referencia: Ley 126-02 (RD) — firma electrónica con evidencia de identidad, integridad e intención. No afirmes en textos que es «firma digital cualificada» salvo que se use un certificado de una entidad acreditada (INDOTEL); usa «firma electrónica con sellado del sistema».
@@ -27,7 +27,13 @@ En la transacción de firmar (ya existe), guardar en `contract_signatories` / ta
 - `POST /api/v1/verify/file` (público, rate limit, límite de tamaño = PDF máx. 15 MB, solo `application/pdf` comprobado por magic bytes): calcula SHA-256 del PDF subido y responde si coincide con algún `finalPdfSha256` (y de qué código) y si la firma del sistema es válida. No guarda el archivo.
 - Si un contrato se cancela/anula después de activo, la verificación muestra «revocado» con fecha (sin motivo detallado).
 
-## 5. Tests
+## 5. Firma escrita (tipográfica) y método de firma
+El front ya ofrece tres formas de firmar: **escribir** el nombre con una fuente manuscrita (8 estilos autoalojados), **dibujar** o **subir** imagen. En los tres casos envía un PNG al mismo endpoint de firma.
+- **Preferencia guardada (solo para la firma escrita; nunca se guardan imágenes dibujadas ni subidas)**: `GET /me/signature-style` → `{ text, fontId }` o 404 si no hay; `PUT /me/signature-style` `{ text, fontId }` → la guarda; `DELETE /me/signature-style`. Solo el propio usuario (autenticado). Validación: `text` recortado 1–60 caracteres, letras (con tildes/ñ), espacios, punto, guion y apóstrofo; `fontId` ∈ lista cerrada: `herr-von-muellerhoff`, `great-vibes`, `mr-dafoe`, `alex-brush`, `allura`, `la-belle-aurore`, `sacramento`, `homemade-apple`. Columna `signature_style jsonb` en users o tabla propia (migración).
+- **Método en la evidencia**: el endpoint de firma acepta campos opcionales `method` (`typed` | `drawn` | `uploaded`) y `fontId` (solo con `typed`, misma lista). Se guardan en la evidencia de la firma (sección 1) y entran en `evidenceHash`; la página de constancia del PDF muestra el método («Firma escrita», «Firma manuscrita digital», «Imagen aportada»). Si no se envían, `method` = `unknown` (compatibilidad). **Ojo**: hoy el parser multipart limita `fields: 2, parts: 3`; amplíalo (4 campos, 5 partes) o el front no podrá enviar los campos nuevos.
+- Tests: validación, aislamiento entre usuarios, 404 sin preferencia, método registrado en la evidencia.
+
+## 6. Tests
 Cadena de evidencias y de auditoría (alterar una fila → `verifyAuditChain` falla), hash del documento estable ante saltos de línea Windows, verificación por código (válido, no encontrado, revocado), por archivo (PDF original coincide; PDF con un byte cambiado no), firma del sistema válida/ inválida, rate limit, ausencia de datos sensibles en respuestas públicas, sin clave configurada → error claro al arrancar en producción.
 Verificación: `npm run format && npm run format:check && npm run typecheck && npm test && npm audit`.
 

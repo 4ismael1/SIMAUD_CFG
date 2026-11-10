@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Check, CircleCheck, Download, Maximize2, PenLine, ShieldCheck, Undo2, Upload, X } from 'lucide-react';
+import { Check, CircleCheck, Download, Maximize2, PenLine, ShieldCheck, Type, Undo2, Upload, X } from 'lucide-react';
 import { Alert, Button, ButtonLink, Checkbox, EmptyState, Logo, Segmented, Skeleton, useToast } from '../../ui';
 import { useContract } from '../../lib/api/hooks/contracts';
 import { useSignContract } from '../../lib/api/hooks/signatures';
@@ -12,10 +12,13 @@ import { DocumentView } from '../contracts/components/DocumentView';
 import { SIGNATORY_ROLE_LABELS } from '../contracts/components/SignatoriesPanel';
 import { SignaturePad, type SignaturePadHandle } from './SignaturePad';
 import { SignatureFullscreen } from './SignatureFullscreen';
+import { TypedSignature, type TypedSignatureValue } from './TypedSignature';
+import { DEFAULT_SIGNATURE_STYLE, renderTypedSignature, styleById } from './signature-styles';
+import { useDeleteSignatureStyle, useSaveSignatureStyle, useSignatureStyle } from '../../lib/api/hooks/signature-style';
 
 const MAX_UPLOAD_BYTES = 500 * 1024;
 
-type Mode = 'draw' | 'upload';
+type Mode = 'type' | 'draw' | 'upload';
 
 export function SignContractPage() {
   const { id = '' } = useParams();
@@ -29,7 +32,12 @@ export function SignContractPage() {
   const [readToEnd, setReadToEnd] = useState(false);
   const [viewedAt] = useState(() => new Date().toISOString());
   const [accepted, setAccepted] = useState(false);
-  const [mode, setMode] = useState<Mode>('draw');
+  const [mode, setMode] = useState<Mode>('type');
+  const savedStyle = useSignatureStyle();
+  const saveStyle = useSaveSignatureStyle();
+  const deleteStyle = useDeleteSignatureStyle();
+  const [typed, setTyped] = useState<TypedSignatureValue | null>(null);
+  const [rememberTyped, setRememberTyped] = useState(true);
   const [hasDrawing, setHasDrawing] = useState(false);
   const [uploaded, setUploaded] = useState<{ blob: Blob; url: string } | null>(null);
   /** Signature drawn in the full-screen pad; replaces the inline pad until discarded. */
@@ -100,15 +108,30 @@ export function SignContractPage() {
     setFullscreenOpen(false);
   }
 
-  const hasSignature = mode === 'draw' ? Boolean(captured) || hasDrawing : Boolean(uploaded);
+  // The typed signature starts from the saved style, or from the signer's name in the default style.
+  const typedValue: TypedSignatureValue = typed ?? {
+    text: savedStyle.data?.text ?? mySignatory.name,
+    styleId: styleById(savedStyle.data?.fontId).id,
+  };
+  const usingSavedStyle =
+    Boolean(savedStyle.data) && typedValue.text === savedStyle.data?.text && typedValue.styleId === savedStyle.data?.fontId;
+
+  const hasSignature =
+    mode === 'type' ? typedValue.text.trim().length > 0 : mode === 'draw' ? Boolean(captured) || hasDrawing : Boolean(uploaded);
   const canSubmit = readToEnd && accepted && hasSignature && !sign.isPending;
 
   async function handleSign() {
-    const drawn = captured?.blob ?? (await padRef.current?.toBlob());
-    const signature = mode === 'draw' ? drawn : uploaded?.blob;
+    let signature: Blob | null | undefined;
+    if (mode === 'type') signature = await renderTypedSignature(typedValue.text, styleById(typedValue.styleId));
+    else if (mode === 'draw') signature = captured?.blob ?? (await padRef.current?.toBlob());
+    else signature = uploaded?.blob;
     if (!signature) return;
     try {
       await sign.mutateAsync({ signature, acceptedDeclaration: true, viewedAt });
+      // Only typed signatures are remembered; a failure here must not undo a valid signature.
+      if (mode === 'type' && rememberTyped && !usingSavedStyle) {
+        saveStyle.mutate({ text: typedValue.text.trim(), fontId: typedValue.styleId });
+      }
       setDone(true);
     } catch (error) {
       toast.error(errorMessage(error, 'No se pudo registrar la firma.'));
@@ -162,8 +185,9 @@ export function SignContractPage() {
                 value={mode}
                 onChange={setMode}
                 items={[
+                  { value: 'type', label: <><Type aria-hidden="true" />Escribir</> },
                   { value: 'draw', label: <><PenLine aria-hidden="true" />Dibujar</> },
-                  { value: 'upload', label: <><Upload aria-hidden="true" />Subir imagen</> },
+                  { value: 'upload', label: <><Upload aria-hidden="true" />Subir</> },
                 ]}
               />
               {mode === 'draw' && (
@@ -184,6 +208,19 @@ export function SignContractPage() {
                 </div>
               )}
             </div>
+            {mode === 'type' && (
+              <TypedSignature
+                value={typedValue}
+                onChange={setTyped}
+                remember={rememberTyped}
+                onRememberChange={setRememberTyped}
+                usingSaved={usingSavedStyle}
+                onForgetSaved={() => {
+                  deleteStyle.mutate();
+                  setTyped({ text: mySignatory.name, styleId: DEFAULT_SIGNATURE_STYLE.id });
+                }}
+              />
+            )}
             {mode === 'draw' && captured && (
               <div className="flex h-48 flex-col items-center justify-center gap-2 rounded-xl border-[1.5px] border-slate-200 bg-white sm:h-52">
                 <img src={captured.url} alt={`Firma de ${mySignatory.name}`} className="max-h-32 max-w-[85%] object-contain" />

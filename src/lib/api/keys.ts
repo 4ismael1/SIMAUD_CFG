@@ -7,6 +7,7 @@ export const keys = {
     ["auth", "availability", query] as const,
   me: ["me"] as const,
   preferences: ["notification-preferences"] as const,
+  signatureStyle: ["me", "signature-style"] as const,
   users: {
     all: ["users"] as const,
     lists: lists("users"),
