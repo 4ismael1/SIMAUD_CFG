@@ -28,3 +28,11 @@ dist-ssr
 .env.prod
 deploy/.env.prod
 .env.ops
+
+# Playwright e2e (T21): secrets, temp storage and results
+e2e/.env.e2e
+e2e/.secrets/
+e2e/.storage/
+e2e/output/
+test-results/
+playwright-report/
