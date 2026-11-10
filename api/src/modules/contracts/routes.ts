@@ -3,6 +3,7 @@ import { validateInstitutionLogo } from "../../lib/storage-image-validation.js";
 import { applyContractAction } from "./actions.js";
 import { activateRenewalParent } from "../renewals/routes.js";
 import { removeFinalPdf } from "./pdf.js";
+import { withStorageMutation } from "../../lib/storage.js";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -317,35 +318,37 @@ export async function contractRoutes(app: FastifyInstance) {
       return detail(req, id);
     });
   }
-  app.delete("/contracts/:id", auth, async (req) => {
-    const id = idOf(req);
-    let paths: string[] = [];
-    let pdfPath: string | null = null;
-    await db.transaction(async (tx) => {
-      const contract = await contractService.getContract(tx, id, true);
-      const allSignatories = await contractService.getSignatories(tx, id);
-      if (!contractService.permissions(contract, req.user, allSignatories).delete)
-        throw contractService.forbidden();
-      if (
-        req.user.role === "admin" &&
-        parse(z.object({ confirm: text }).strict(), req.body ?? {}).confirm !== contract.code
-      )
-        throw contractService.invalid("Confirma con el código del contrato.");
-      paths = (
-        await tx
-          .select({ path: files.path })
-          .from(files)
-          .where(and(eq(files.contractId, id), eq(files.kind, "signature")))
-      ).map((f) => f.path);
-      if (paths.length) await tx.delete(files).where(inArray(files.path, paths));
-      pdfPath = contract.signedPdfPath;
-      await contractService.record(tx, req, contract, "delete", contract, null);
-      await tx.delete(contracts).where(eq(contracts.id, id));
-    });
-    await removeSignatureFiles(paths);
-    if (pdfPath) await removeFinalPdf(pdfPath);
-    return { message: "Contrato eliminado." };
-  });
+  app.delete("/contracts/:id", auth, async (req) =>
+    withStorageMutation(async () => {
+      const id = idOf(req);
+      let paths: string[] = [];
+      let pdfPath: string | null = null;
+      await db.transaction(async (tx) => {
+        const contract = await contractService.getContract(tx, id, true);
+        const allSignatories = await contractService.getSignatories(tx, id);
+        if (!contractService.permissions(contract, req.user, allSignatories).delete)
+          throw contractService.forbidden();
+        if (
+          req.user.role === "admin" &&
+          parse(z.object({ confirm: text }).strict(), req.body ?? {}).confirm !== contract.code
+        )
+          throw contractService.invalid("Confirma con el código del contrato.");
+        paths = (
+          await tx
+            .select({ path: files.path })
+            .from(files)
+            .where(and(eq(files.contractId, id), eq(files.kind, "signature")))
+        ).map((f) => f.path);
+        if (paths.length) await tx.delete(files).where(inArray(files.path, paths));
+        pdfPath = contract.signedPdfPath;
+        await contractService.record(tx, req, contract, "delete", contract, null);
+        await tx.delete(contracts).where(eq(contracts.id, id));
+      });
+      await removeSignatureFiles(paths);
+      if (pdfPath) await removeFinalPdf(pdfPath);
+      return { message: "Contrato eliminado." };
+    }),
+  );
   for (const kind of ["versions", "audit", "approvals"] as const) {
     app.get("/contracts/:id/" + kind, auth, async (req) => {
       const id = idOf(req);

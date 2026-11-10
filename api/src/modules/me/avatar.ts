@@ -1,8 +1,8 @@
 import { sanitizePng } from "../../lib/storage-png.js";
-import { trashFile } from "../../lib/storage.js";
+import { storage, withStorageMutation, storageDirectory } from "../../lib/storage.js";
+import { StorageError } from "../../lib/storage-types.js";
 import { randomUUID } from "node:crypto";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { fileURLToPath } from "node:url";
+import path from "node:path";
 import { and, eq } from "drizzle-orm";
 import type { FastifyRequest } from "fastify";
 import { db } from "../../db/client.js";
@@ -10,11 +10,11 @@ import { files, users } from "../../db/schema.js";
 import { ApiError, unauthorized } from "../../lib/errors.js";
 import { active, lockUser } from "../auth/service.js";
 import { publicUser } from "../users/schemas.js";
-export const avatarDirectory = fileURLToPath(new URL("../../../storage/avatars/", import.meta.url));
+export const avatarDirectory = path.join(storageDirectory, "avatars") + path.sep;
 export const avatarName =
   /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.(jpg|png|webp)$/;
 async function removeFile(name: string | null) {
-  if (name && avatarName.test(name)) await trashFile(avatarDirectory + name);
+  if (name && avatarName.test(name)) await storage.delete("avatars/" + name);
 }
 export async function uploadAvatar(request: FastifyRequest) {
   let data: Buffer | undefined;
@@ -31,10 +31,12 @@ export async function uploadAvatar(request: FastifyRequest) {
   if (!data) throw new ApiError(400, "VALIDATION_ERROR", "Selecciona una imagen.");
   if (mime !== "image/png")
     throw new ApiError(400, "VALIDATION_ERROR", "Selecciona una imagen PNG válida.");
-  data = sanitizePng(data);
+  const bytes = sanitizePng(data);
+  return withStorageMutation(() => storeAvatar(request, bytes));
+}
+async function storeAvatar(request: FastifyRequest, data: Buffer) {
   const name = randomUUID() + ".png";
-  await mkdir(avatarDirectory, { recursive: true });
-  await writeFile(avatarDirectory + name, data, { flag: "wx" });
+  await storage.put("avatars/" + name, data, { contentType: "image/png" });
   let previous: string | null = null;
   let updated;
   try {
@@ -66,6 +68,9 @@ export async function uploadAvatar(request: FastifyRequest) {
   return updated;
 }
 export async function deleteAvatar(id: string) {
+  return withStorageMutation(() => removeAvatar(id));
+}
+async function removeAvatar(id: string) {
   const previous = await db.transaction(async (tx) => {
     const user = await lockUser(tx, id);
     if (!active(user)) throw unauthorized();
@@ -83,9 +88,9 @@ export async function getAvatar(name: string) {
     .where(and(eq(files.path, name), eq(files.kind, "avatar")));
   if (!file) throw new ApiError(404, "NOT_FOUND", "No se encontró el avatar.");
   try {
-    return { mime: file.mime, data: await readFile(avatarDirectory + name) };
+    return { mime: file.mime, data: await storage.get("avatars/" + name) };
   } catch (e) {
-    if ((e as NodeJS.ErrnoException).code === "ENOENT")
+    if (e instanceof StorageError && e.reason === "missing")
       throw new ApiError(404, "NOT_FOUND", "No se encontró el avatar.");
     throw e;
   }

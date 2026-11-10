@@ -23,7 +23,7 @@ export async function getJobRuns() {
   const outbox = await db.execute<{ pending: number; failed: number }>(
     sql`select count(*) filter (where status = 'pending')::int pending, count(*) filter (where status = 'failed')::int failed from email_outbox`,
   );
-  return jobNames.map((name) => ({
+  return [...jobNames, "storage-migrate"].map((name) => ({
     name,
     ...(name === "email-dispatch" ? { outbox: outbox.rows[0] } : {}),
     lastRun: result.rows.find((row) => row.name === name) ?? null,

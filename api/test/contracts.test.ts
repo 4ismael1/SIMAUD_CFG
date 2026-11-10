@@ -1,9 +1,9 @@
+import { validPng } from "./image-fixtures.js";
 import { dispatchEmails } from "../src/jobs/email-dispatch.js";
 import { beforeAll, afterAll, beforeEach, afterEach, it, expect } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { eq, sql } from "drizzle-orm";
 import { buildApp } from "../src/app.js";
-import { createAccessToken } from "../src/lib/auth/jwt.js";
 import {
   contracts,
   contractTemplates,
@@ -15,7 +15,15 @@ import {
   notifications,
   files,
 } from "../src/db/schema.js";
-import { db, pool, prepareDatabase, cleanDatabase, createUser, authorization } from "./helpers.js";
+import {
+  db,
+  pool,
+  prepareDatabase,
+  cleanDatabase,
+  createUser,
+  authorization,
+  signIn,
+} from "./helpers.js";
 import type { Mail } from "../src/lib/mailer.js";
 import { readFile, unlink } from "node:fs/promises";
 let app: FastifyInstance;
@@ -47,7 +55,7 @@ beforeEach(async () => {
   second = await createUser();
   tokens = {};
   for (const u of [admin, gestor, other, supervisor, first, second])
-    tokens[u.id] = await createAccessToken(u);
+    tokens[u.id] = (await signIn(app, u)).token;
   await db
     .insert(templateVariables)
     .values({ name: "cliente", label: "Cliente", type: "text", required: true });
@@ -89,8 +97,20 @@ function input() {
     startDate: "2026-11-01",
     endDate: "2027-11-01",
     signatories: [
-      { name: first.name, email: first.email, role: "client", signingOrder: 1 },
-      { name: second.name, email: second.email, role: "witness", signingOrder: 2 },
+      {
+        name: first.name,
+        email: first.email,
+        cedula: first.cedula,
+        role: "client",
+        signingOrder: 1,
+      },
+      {
+        name: second.name,
+        email: second.email,
+        cedula: second.cedula,
+        role: "witness",
+        signingOrder: 2,
+      },
     ],
   };
 }
@@ -104,10 +124,7 @@ async function approve(id: string) {
   const r = await request(supervisor, "POST", "/contracts/" + id + "/approve", {});
   expect(r.statusCode, r.body).toBe(200);
 }
-const png = Buffer.from(
-  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a1XcAAAAASUVORK5CYII=",
-  "base64",
-);
+const png = validPng();
 async function sign(
   user: typeof admin,
   id: string,
@@ -166,7 +183,7 @@ it("permisos: usuario no crea; gestor no ve ajenos; firmante solo participa; sup
 });
 async function createUserWithToken() {
   const u = await createUser();
-  tokens[u.id] = await createAccessToken(u);
+  tokens[u.id] = (await signIn(app, u)).token;
   return u;
 }
 it("creación revierte contrato, firmantes y versión si email/cédula identifican personas distintas", async () => {
@@ -209,12 +226,12 @@ it("aprobación concurrente, orden de firmas, archivos privados y última firma 
   expect((await sign(first, c.id, { image: Buffer.from("fake") })).statusCode).toBe(400);
   expect((await sign(first, c.id, { image: Buffer.alloc(500 * 1024 + 1) })).statusCode).toBe(413);
   let inbox = (await request(first, "GET", "/me/signatures")).json();
-  expect(inbox[0].myTurn).toBe(true);
+  expect(inbox.data[0].myTurn).toBe(true);
   const r = await sign(first, c.id);
   expect(r.statusCode, r.body).toBe(200);
   expect((await sign(first, c.id)).statusCode).toBe(409);
   inbox = (await request(second, "GET", "/me/signatures")).json();
-  expect(inbox[0].myTurn).toBe(true);
+  expect(inbox.data[0].myTurn).toBe(true);
   const [file] = await db.select().from(files);
   expect(file!.kind).toBe("signature");
   expect((await request(other, "GET", "/files/signatures/" + file!.id)).statusCode).toBe(404);
@@ -428,7 +445,15 @@ it("vincula firmantes al primer acceso confirmado y persiste refresh grace", asy
     .update(contractSignatories)
     .set({ userId: null })
     .where(eq(contractSignatories.contractId, c.id));
-  expect((await request(first, "GET", "/me/signatures")).json()[0].signatory.userId).toBe(first.id);
+  const response = await request(first, "GET", "/me/signatures");
+  expect(response.statusCode, response.body).toBe(200);
+  expect(response.json().data[0].signatory.id).toBe(c.signatories[0].id);
+  expect(response.json().data[0].signatory).not.toHaveProperty("userId");
+  const [linked] = await db
+    .select()
+    .from(contractSignatories)
+    .where(eq(contractSignatories.id, c.signatories[0].id));
+  expect(linked!.userId).toBe(first.id);
 });
 
 it("contrato rechaza teléfono inválido con detalle del firmante", async () => {

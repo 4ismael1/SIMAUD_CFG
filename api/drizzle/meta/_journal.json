@@ -64,6 +64,13 @@
       "when": 1794275656466,
       "tag": "0008_t09b_contract_security",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1794275656467,
+      "tag": "0009_t11_storage",
+      "breakpoints": true
     }
   ]
 }

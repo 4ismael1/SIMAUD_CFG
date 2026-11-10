@@ -162,7 +162,13 @@ it("los avisos respetan preferencias; los correos de seguridad siguen encolándo
     expect(response.statusCode).toBe(200);
     expect((await row()).template).toBe("password_reset");
     expect(mailer).not.toHaveBeenCalled();
-    expect((await dispatchEmails(mailer, now)).pending).toBe(1);
+    const mail = await row();
+    // PostgreSQL conserva microsegundos que Date trunca al leer nextAttemptAt.
+    const deliveryAt = new Date(mail.nextAttemptAt.getTime() + 1);
+    expect(mail.expiresAt!.getTime()).toBeGreaterThan(deliveryAt.getTime());
+    expect((await dispatchEmails(mailer, deliveryAt)).pending).toBe(1);
+    expect(mailer).toHaveBeenCalledTimes(1);
+    expect(await row()).toMatchObject({ status: "pending", attempts: 1 });
   } finally {
     await app.close();
   }

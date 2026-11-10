@@ -51,6 +51,10 @@ const schema = z.object({
     .regex(/^[a-f0-9]{64}$/i, "Debe contener 32 bytes en hexadecimal")
     .optional(),
   RESEND_API_KEY: z.string().min(1).optional(),
+  SETTINGS_ENCRYPTION_KEY: z
+    .string()
+    .regex(/^[a-f0-9]{64}$/i, "Debe contener 32 bytes en hexadecimal")
+    .optional(),
   MAIL_REPLY_TO: z.email().optional(),
   SMTP_URL: z
     .string()
@@ -92,6 +96,8 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env) {
     throw new Error("SMTP_URL es obligatorio con MAIL_DRIVER=smtp");
   if (config.NODE_ENV !== "test" && !config.MAIL_PAYLOAD_KEY)
     throw new Error("MAIL_PAYLOAD_KEY es obligatoria fuera de test");
+  if (config.NODE_ENV !== "test" && !config.SETTINGS_ENCRYPTION_KEY)
+    throw new Error("SETTINGS_ENCRYPTION_KEY es obligatoria fuera de test");
   return parsed.data;
 }
 export const env = loadEnv();

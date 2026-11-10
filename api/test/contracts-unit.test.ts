@@ -87,6 +87,8 @@ it("TRUST_PROXY valida booleano, saltos, direcciones y CIDR sin exponer secretos
   const source = {
     DATABASE_URL: "postgres://u:p@localhost/dev",
     DATABASE_URL_TEST: "postgres://u:p@localhost/simaud_test",
+    MAIL_PAYLOAD_KEY: "ab".repeat(32),
+    SETTINGS_ENCRYPTION_KEY: "cd".repeat(32),
     JWT_ACCESS_SECRET: "a".repeat(32),
     APP_URL: "http://localhost",
   };

@@ -14,6 +14,7 @@ import {
   index,
   uniqueIndex,
   check,
+  primaryKey,
   type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 const id = () => uuid("id").defaultRandom().primaryKey();
@@ -449,6 +450,24 @@ export const jobRuns = pgTable(
     error: text("error"),
   },
   (table) => [index("job_runs_name_started_idx").on(table.name, table.startedAt)],
+);
+
+export const storageMigrationObjects = pgTable(
+  "storage_migration_objects",
+  {
+    jobId: uuid("job_id")
+      .notNull()
+      .references(() => jobRuns.id, { onDelete: "cascade" }),
+    key: text("key").notNull(),
+    size: bigint("size", { mode: "number" }).notNull(),
+    sha256: text("sha256").notNull(),
+    copied: boolean("copied").notNull().default(false),
+  },
+  (table) => [
+    primaryKey({ columns: [table.jobId, table.key] }),
+    check("storage_migration_objects_size_check", sql`${table.size} >= 0`),
+    check("storage_migration_objects_sha256_check", sql`${table.sha256} ~ '^[a-f0-9]{64}$'`),
+  ],
 );
 
 export const expiryDeliveries = pgTable(

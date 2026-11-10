@@ -1,3 +1,4 @@
+import { decryptPayload, payloadContext } from "../src/lib/mail/payload.js";
 import { requestToken, consumeToken } from "../src/modules/auth/service.js";
 import { afterAll, beforeAll, beforeEach, expect, it } from "vitest";
 import {
@@ -69,6 +70,14 @@ it("create-admin es idempotente y exige cambiar contraseña antes de acceder a l
     expect(
       (await app.inject({ url: "/api/v1/system/jobs", headers: authorization(session.token) }))
         .statusCode,
+    ).toBe(401);
+    expect(
+      (
+        await app.inject({
+          url: "/api/v1/system/jobs",
+          headers: authorization(changed.json().accessToken),
+        })
+      ).statusCode,
     ).toBe(200);
     expect(
       (
@@ -127,6 +136,8 @@ it("la protección acepta simaud_test2 y rechaza desarrollo aunque cambien host 
     DATABASE_URL_TEST: "postgresql://test:example@localhost/simaud_test2",
     JWT_ACCESS_SECRET: "x".repeat(32),
     APP_URL: "https://example.com",
+    MAIL_PAYLOAD_KEY: "ab".repeat(32),
+    SETTINGS_ENCRYPTION_KEY: "cd".repeat(32),
   };
   expect(() => guardTestDatabase(loadEnv(source))).not.toThrow();
   expect(() =>
@@ -167,7 +178,13 @@ it("recuperar la cuenta exige una contraseña distinta y elimina el bloqueo al c
     password: testPassword,
   });
   await requestToken("reset@example.com", "password_reset");
-  const token = (await row()).payload.token!;
+  const mail = await row();
+  expect(mail.payload).toEqual({});
+  expect(mail.encryptedPayload).toBeTypeOf("string");
+  const token = decryptPayload(
+    mail.encryptedPayload!,
+    payloadContext(mail.to, mail.template),
+  ).token!;
   await expect(consumeToken(token, "password_reset", testPassword)).rejects.toMatchObject({
     code: "VALIDATION_ERROR",
   });

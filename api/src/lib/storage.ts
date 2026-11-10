@@ -1,13 +1,18 @@
-import { mkdir, rename, readdir, rm } from "node:fs/promises";
 import path from "node:path";
+import { AsyncLocalStorage } from "node:async_hooks";
 import { pool } from "../db/client.js";
-
-export const storageDirectory = path.resolve("storage");
+import { createDriver, readStorageState, sameStorageLocation } from "./storage-config.js";
+import { DiskStorage, storageDirectory } from "./storage-disk.js";
+import { storageBusy, validateKey, type StorageDriver } from "./storage-types.js";
+export { storageDirectory };
+export type { StorageDriver } from "./storage-types.js";
+const mutationDriver = new AsyncLocalStorage<StorageDriver>();
+let mutationTail: Promise<unknown> = Promise.resolve();
 
 export async function withStorageLock<T>(operation: () => Promise<T>) {
   const client = await pool.connect();
   try {
-    // backup.sh holds this same session lock from before pg_dump until tar finishes.
+    // backup.sh holds the same session lock throughout pg_dump and tar.
     await client.query("select pg_advisory_lock(10409)");
     return await operation();
   } finally {
@@ -19,56 +24,81 @@ export async function withStorageLock<T>(operation: () => Promise<T>) {
   }
 }
 
+export function withStorageMutation<T>(operation: () => Promise<T>): Promise<T> {
+  if (mutationDriver.getStore()) return operation();
+  // Reserve pool capacity for the business transaction and the backup lock.
+  const execution = mutationTail.then(() => runStorageMutation(operation));
+  mutationTail = execution.catch(() => undefined);
+  return execution;
+}
+
+async function runStorageMutation<T>(operation: () => Promise<T>): Promise<T> {
+  const client = await pool.connect();
+  let locked = false;
+  try {
+    const result = await client.query<{ locked: boolean }>(
+      "select pg_try_advisory_lock_shared(10411) locked",
+    );
+    locked = result.rows[0]!.locked;
+    if (!locked) throw storageBusy();
+    const state = await readStorageState();
+    if (state.migrating) throw storageBusy();
+    // The lease spans file publication, database commit and rollback cleanup.
+    return await mutationDriver.run(createDriver(state.active), operation);
+  } finally {
+    try {
+      if (locked) await client.query("select pg_advisory_unlock_shared(10411)");
+    } finally {
+      client.release();
+    }
+  }
+}
+
+async function activeDriver() {
+  return mutationDriver.getStore() ?? createDriver((await readStorageState()).active);
+}
+
+export const storage: StorageDriver = {
+  put: (key: string, bytes: Buffer, options: { contentType: string }) =>
+    withStorageMutation(async () =>
+      withStorageLock(async () => (await activeDriver()).put(validateKey(key), bytes, options)),
+    ),
+  get: async (key: string) => (await activeDriver()).get(validateKey(key)),
+  exists: async (key: string) => (await activeDriver()).exists(validateKey(key)),
+  delete: (key: string, today?: string) =>
+    withStorageMutation(async () =>
+      withStorageLock(async () => (await activeDriver()).delete(validateKey(key), today)),
+    ),
+  list: async (prefix?: string) => (await activeDriver()).list(prefix),
+  purge: (today: string) => purgeTrash(today),
+};
+
+// Compatibility for T09b callers and restore tooling. Business modules use keys.
 export async function trashFile(
   filename: string,
   today = new Date().toISOString().slice(0, 10),
   root = storageDirectory,
 ) {
-  const relative = path.relative(root, filename);
-  if (
-    !relative ||
-    relative.startsWith("..") ||
-    path.isAbsolute(relative) ||
-    relative.split(path.sep)[0] === ".trash" ||
-    !/^\d{4}-\d{2}-\d{2}$/.test(today)
-  )
-    throw new Error("Ruta de storage inválida.");
-  return withStorageLock(async () => {
-    const target = path.join(root, ".trash", today, relative);
-    await mkdir(path.dirname(target), { recursive: true });
-    try {
-      await rename(filename, target);
-    } catch (error) {
-      // Retrying cleanup of an already moved file is harmless; other I/O failures matter.
-      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
-    }
-  });
+  const relative = path.relative(root, filename).split(path.sep).join("/");
+  validateKey(relative);
+  return withStorageMutation(async () =>
+    withStorageLock(() => new DiskStorage(root).delete(relative, today)),
+  );
 }
 
-export async function purgeTrash(today: string, root = storageDirectory) {
-  const cutoff = Date.parse(today + "T00:00:00Z") - 8 * 86400000;
-  if (!Number.isFinite(cutoff)) throw new Error("Fecha de limpieza inválida.");
-  return withStorageLock(async () => {
-    const directory = path.join(root, ".trash");
-    const entries = await readdir(directory, { withFileTypes: true }).catch(
-      (error: NodeJS.ErrnoException) => {
-        if (error.code === "ENOENT") return [];
-        throw error;
-      },
-    );
-    let purged = 0;
-    for (const entry of entries) {
-      const timestamp = Date.parse(entry.name + "T00:00:00Z");
-      if (
-        !entry.isDirectory() ||
-        !/^\d{4}-\d{2}-\d{2}$/.test(entry.name) ||
-        !Number.isFinite(timestamp) ||
-        timestamp >= cutoff
-      )
-        continue;
-      await rm(path.join(directory, entry.name), { recursive: true });
-      purged++;
-    }
-    return purged;
-  });
+export async function purgeTrash(today: string, root?: string) {
+  return withStorageMutation(async () =>
+    withStorageLock(async () => {
+      if (root) return new DiskStorage(root).purge(today);
+      const active = await activeDriver();
+      const local = await new DiskStorage().purge(today);
+      let purged = active instanceof DiskStorage ? local : local + (await active.purge(today));
+      const state = await readStorageState();
+      for (const config of state.retired ?? []) {
+        if (config.driver === "disk" || sameStorageLocation(config, state.active)) continue;
+        purged += await createDriver(config).purge(today);
+      }
+      return purged;
+    }),
+  );
 }

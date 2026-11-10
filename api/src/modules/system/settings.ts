@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { inArray } from "drizzle-orm";
 import { db, type Transaction } from "../../db/client.js";
 import { settings } from "../../db/schema.js";
 import { env } from "../../config/env.js";
@@ -34,7 +35,10 @@ export async function getSettings(connection: Transaction | typeof db = db): Pro
     expiryNotificationDays: [30, 15, 7, 1],
     institution: { name: "SIMAUD", rnc: "", address: "", logo: null },
   };
-  const rows = await connection.select().from(settings);
+  const rows = await connection
+    .select()
+    .from(settings)
+    .where(inArray(settings.key, ["expiryWarningDays", "expiryNotificationDays", "institution"]));
   return settingsSchema.parse({
     ...defaults,
     ...Object.fromEntries(rows.map((row) => [row.key, row.value])),

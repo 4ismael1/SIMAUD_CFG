@@ -3,7 +3,7 @@ import type { FastifyInstance } from "fastify";
 import { db, pool } from "../src/db/client.js";
 import { prepareDatabase as migrateTestDatabase, cleanDatabase } from "./database.js";
 export { cleanDatabase };
-import { users, type Role } from "../src/db/schema.js";
+import { users } from "../src/db/schema.js";
 import { hashPassword } from "../src/lib/auth/password.js";
 import type { Mail } from "../src/lib/mailer.js";
 export { db, pool };
@@ -49,6 +49,7 @@ export function cookie(response: { headers: Record<string, unknown> }) {
 export function mailToken(mails: Mail[], index = mails.length - 1) {
   return new URL(mails[index]!.text.trim().split(/\s+/).at(-1)!).searchParams.get("token")!;
 }
+// Login real para que cada bearer tenga una familia persistida y validada por authenticate.
 export async function signIn(
   app: FastifyInstance,
   user: { email: string },

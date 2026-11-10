@@ -1,3 +1,4 @@
+import { validPng } from "./image-fixtures.js";
 import { dispatchEmails } from "../src/jobs/email-dispatch.js";
 import { beforeAll, afterAll, beforeEach, afterEach, describe, it, expect } from "vitest";
 import { eq } from "drizzle-orm";
@@ -78,10 +79,11 @@ describe("auth", () => {
   });
   it("registro ignora rol, guarda hashes y exige confirmación", async () => {
     const r = await post("/auth/register", { ...registration, role: "admin" });
-    expect(r.statusCode).toBe(201);
-    expect(r.json().user.role).toBe("user");
+    expect(r.statusCode).toBe(202);
+    expect(r.json()).toEqual({ message: "Revisa tu correo." });
     expect(r.body).not.toMatch(/passwordHash|tokenHash|password_hash/);
     const [u] = await db.select().from(users);
+    expect(u!.role).toBe("user");
     expect(u!.passwordHash).toMatch(/^\$argon2id\$/);
     const [t] = await db.select().from(authTokens);
     expect(t!.tokenHash).toBe(tokenHash(mailToken(mails)));
@@ -99,28 +101,28 @@ describe("auth", () => {
     expect(signed.response.headers["set-cookie"]).toMatch(/HttpOnly/);
     expect(signed.response.headers["set-cookie"]).toMatch(/SameSite=Lax/);
   });
-  it("duplicados y disponibilidad normalizan email y distinguen campo", async () => {
+  it("registro duplicado es opaco y disponibilidad pública no existe", async () => {
     await post("/auth/register", registration);
     const email = await post("/auth/register", {
       ...registration,
       email: " NEW@EXAMPLE.COM ",
       cedula: "40200700678",
     });
-    expect(email.statusCode).toBe(409);
-    expect(email.json().error.details.field).toBe("email");
+    expect(email.statusCode).toBe(202);
+    expect(email.json()).toEqual({ message: "Revisa tu correo." });
     const cedula = await post("/auth/register", {
       ...registration,
       email: "other@example.com",
     });
-    expect(cedula.statusCode).toBe(409);
-    expect(cedula.json().error.details.field).toBe("cedula");
+    expect(cedula.statusCode).toBe(202);
+    expect(cedula.body).toBe(email.body);
+    expect(await db.select().from(users)).toHaveLength(1);
     expect(
-      (
-        await app.inject(base + "/auth/availability?email=NEW%40example.com&cedula=00113918205")
-      ).json(),
-    ).toEqual({ emailAvailable: false, cedulaAvailable: false });
+      (await app.inject(base + "/auth/availability?email=NEW%40example.com&cedula=00113918205"))
+        .statusCode,
+    ).toBe(404);
   });
-  it("refresh rota y la reutilización revoca toda la familia, sin afectar otra sesión", async () => {
+  it("refresh rota y el reuso revoca todas las sesiones", async () => {
     const u = await createUser();
     const first = await signIn(app, u);
     const other = await signIn(app, u);
@@ -134,7 +136,7 @@ describe("auth", () => {
       .where(eq(refreshTokens.tokenHash, tokenHash(first.cookie.split("=")[1]!)));
     expect((await post("/auth/refresh", {}, { cookie: first.cookie })).statusCode).toBe(401);
     expect((await post("/auth/refresh", {}, { cookie: cookie(rotated) })).statusCode).toBe(401);
-    expect((await post("/auth/refresh", {}, { cookie: other.cookie })).statusCode).toBe(200);
+    expect((await post("/auth/refresh", {}, { cookie: other.cookie })).statusCode).toBe(401);
   });
   it("dos refresh concurrentes devuelven REFRESH_RACE y conservan la familia", async () => {
     const u = await createUser();
@@ -355,10 +357,7 @@ describe("perfil", () => {
       });
     expect((await upload(Buffer.from("fake"))).statusCode).toBe(400);
     expect((await upload(Buffer.alloc(2 * 1024 * 1024 + 1))).statusCode).toBe(413);
-    const png = Buffer.from(
-      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l7kAAAAASUVORK5CYII=",
-      "base64",
-    );
+    const png = validPng();
     const r = await upload(png);
     expect(r.statusCode).toBe(200);
     const name = r.json().user.avatarPath;

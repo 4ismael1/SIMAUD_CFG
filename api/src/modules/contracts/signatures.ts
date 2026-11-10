@@ -2,10 +2,8 @@ import { signatureInbox } from "./signature-inbox.js";
 import { activateRenewalParent } from "../renewals/routes.js";
 import { saveFinalPdf, finalPdfName, removeFinalPdf } from "./pdf.js";
 import { sanitizePng } from "../../lib/storage-png.js";
-import { trashFile } from "../../lib/storage.js";
+import { storage, withStorageMutation } from "../../lib/storage.js";
 import { randomUUID } from "node:crypto";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
-import path from "node:path";
 import type { FastifyInstance } from "fastify";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
@@ -15,13 +13,12 @@ import { authenticate } from "../../plugins/auth.js";
 import { parse, uuid, pageInput } from "./schemas.js";
 import { transition } from "./state-machine.js";
 import * as contractService from "./service.js";
-const directory = path.resolve("storage/signatures");
-function safePath(name: string) {
+function signatureKey(name: string) {
   if (!/^[0-9a-f-]{36}\.png$/.test(name)) throw contractService.notFound();
-  return path.join(directory, name);
+  return "signatures/" + name;
 }
 export async function removeSignatureFiles(names: string[]) {
-  for (const name of names) await trashFile(safePath(name));
+  for (const name of names) await storage.delete(signatureKey(name));
 }
 export async function signatureRoutes(app: FastifyInstance) {
   const auth = { preHandler: authenticate };
@@ -57,90 +54,93 @@ export async function signatureRoutes(app: FastifyInstance) {
     if (Date.parse(viewed) > Date.now())
       throw contractService.invalid("viewedAt no puede estar en el futuro.");
     const name = randomUUID() + ".png";
-    let written = false;
-    let finalName: string | undefined;
-    try {
-      await db.transaction(async (tx) => {
-        const contract = await contractService.getContract(tx, id, true);
-        await contractService.linkSignatories(tx, req.user);
-        const allSignatories = await contractService.getSignatories(tx, id);
-        const me = allSignatories.find((item) => item.userId === req.user.id);
-        if (!me) throw contractService.forbidden();
-        if (me.status === "signed") throw contractService.conflict("Ya has firmado.");
-        if (!contractService.permissions(contract, req.user, allSignatories).sign)
-          throw contractService.conflict("No es tu turno de firmar.");
-        if (Date.parse(viewed) < contract.updatedAt.getTime())
-          throw contractService.invalid("Debes volver a visualizar el contrato actual.");
-        await mkdir(directory, { recursive: true });
-        await writeFile(safePath(name), buffer!, { flag: "wx" });
-        written = true;
-        const [file] = await tx
-          .insert(files)
-          .values({
-            ownerId: req.user.id,
-            contractId: id,
-            kind: "signature",
-            path: name,
-            mime: "image/png",
-            size: buffer!.length,
-          })
-          .returning();
-        await tx
-          .update(signatories)
-          .set({
-            status: "signed",
-            signaturePath: name,
-            signedAt: new Date(),
-            viewedAt: new Date(viewed),
-            acceptedDeclarationAt: new Date(),
-            ip: req.ip,
-            userAgent: req.headers["user-agent"],
-          })
-          .where(eq(signatories.id, me.id));
-        const last = allSignatories.every((item) => item.id === me.id || item.status === "signed");
-        const next = last ? transition(contract.status, "sign") : contract.status;
-        // Intermediate signatures do not change document freshness.
-        if (last)
+    return withStorageMutation(async () => {
+      let written = false;
+      let finalName: string | undefined;
+      try {
+        await db.transaction(async (tx) => {
+          const contract = await contractService.getContract(tx, id, true);
+          await contractService.linkSignatories(tx, req.user);
+          const allSignatories = await contractService.getSignatories(tx, id);
+          const me = allSignatories.find((item) => item.userId === req.user.id);
+          if (!me) throw contractService.forbidden();
+          if (me.status === "signed") throw contractService.conflict("Ya has firmado.");
+          if (!contractService.permissions(contract, req.user, allSignatories).sign)
+            throw contractService.conflict("No es tu turno de firmar.");
+          if (Date.parse(viewed) < contract.updatedAt.getTime())
+            throw contractService.invalid("Debes volver a visualizar el contrato actual.");
+          await storage.put(signatureKey(name), buffer!, { contentType: "image/png" });
+          written = true;
+          const [file] = await tx
+            .insert(files)
+            .values({
+              ownerId: req.user.id,
+              contractId: id,
+              kind: "signature",
+              path: name,
+              mime: "image/png",
+              size: buffer!.length,
+            })
+            .returning();
           await tx
-            .update(contracts)
-            .set({ status: next, updatedAt: new Date() })
-            .where(eq(contracts.id, id));
-        if (last) await activateRenewalParent(tx, contract, req.user.id);
-        if (last)
-          await contractService.notify(
-            tx,
-            contract,
-            "contract_signed",
-            [{ userId: contract.createdBy }, ...allSignatories],
-            "El contrato ha sido firmado por todos.",
+            .update(signatories)
+            .set({
+              status: "signed",
+              signaturePath: name,
+              signedAt: new Date(),
+              viewedAt: new Date(viewed),
+              acceptedDeclarationAt: new Date(),
+              ip: req.ip,
+              userAgent: req.headers["user-agent"],
+            })
+            .where(eq(signatories.id, me.id));
+          const last = allSignatories.every(
+            (item) => item.id === me.id || item.status === "signed",
           );
-        else await contractService.nextSigners(tx, contract);
-        await contractService.record(
-          tx,
-          req,
-          contract,
-          "sign",
-          { status: contract.status, signatoryId: me.id },
-          {
-            status: next,
-            signatoryId: me.id,
-            fileId: file!.id,
-            viewedAt: viewed,
-            acceptedDeclaration: true,
-          },
-        );
-        if (last) {
-          await saveFinalPdf(tx, contract, () => {
-            finalName = finalPdfName(contract);
-          });
-        }
-      });
-    } catch (error) {
-      if (written) await removeSignatureFiles([name]);
-      if (finalName) await removeFinalPdf(finalName);
-      throw error;
-    }
-    return { message: "Firma registrada." };
+          const next = last ? transition(contract.status, "sign") : contract.status;
+          // Intermediate signatures do not change document freshness.
+          if (last)
+            await tx
+              .update(contracts)
+              .set({ status: next, updatedAt: new Date() })
+              .where(eq(contracts.id, id));
+          if (last) await activateRenewalParent(tx, contract, req.user.id);
+          if (last)
+            await contractService.notify(
+              tx,
+              contract,
+              "contract_signed",
+              [{ userId: contract.createdBy }, ...allSignatories],
+              "El contrato ha sido firmado por todos.",
+            );
+          else await contractService.nextSigners(tx, contract);
+          await contractService.record(
+            tx,
+            req,
+            contract,
+            "sign",
+            { status: contract.status, signatoryId: me.id },
+            {
+              status: next,
+              signatoryId: me.id,
+              fileId: file!.id,
+              viewedAt: viewed,
+              acceptedDeclaration: true,
+            },
+          );
+          if (last) {
+            await saveFinalPdf(tx, contract, () => {
+              finalName = finalPdfName(contract);
+            });
+          }
+        });
+      } catch (error) {
+        if (written) await removeSignatureFiles([name]);
+        if (finalName) await removeFinalPdf(finalName);
+        throw error;
+      }
+      return { message: "Firma registrada." };
+    });
   });
   app.get("/files/signatures/:id", auth, async (req, reply) => {
     const id = parse(uuid, (req.params as { id: string }).id);
@@ -160,7 +160,7 @@ export async function signatureRoutes(app: FastifyInstance) {
       throw contractService.notFound();
     let bytes: Buffer;
     try {
-      bytes = await readFile(safePath(file.path));
+      bytes = await storage.get(signatureKey(file.path));
     } catch {
       throw contractService.notFound();
     }

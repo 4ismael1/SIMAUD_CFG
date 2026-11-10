@@ -52,3 +52,26 @@ Verificación: `npm run format && npm run format:check && npm run typecheck && n
 
 ## Informe
 `docs/tasks/T10-firma-certificada.REPORT.md`: diseño criptográfico (qué se firma, con qué, cómo se verifica), canonicalización, dependencias propuestas, variables nuevas, cómo rotar la clave, contrato de API para la página `/verificar` del front, limitaciones legales/técnicas. No hagas git commit. No imprimas secretos.
+
+
+---
+
+## ADENDA (9 nov 2026, tras T11 y su revisión) — manda sobre lo anterior si hay conflicto
+
+**A. La sección 7 cambia.** T11 ya cifra las firmas (`api/src/lib/storage-encryption.ts`, AES-256-GCM, subclave HKDF de `SETTINGS_ENCRYPTION_KEY`) sobre `StorageDriver`. **No crees `FILE_ENCRYPTION_KEY`** ni otro esquema: reutiliza ese módulo. Lo que falta:
+1. Backfill idempotente (script `src/db/encrypt-legacy-signatures.ts` + entrada en `package.json`) que cifre las firmas antiguas guardadas en claro (se detectan por la ausencia de la cabecera mágica), en el driver activo, verificando hash antes de sustituir.
+2. Lectura estricta: tras el backfill, una firma sin cabecera cifrada debe **rechazarse** (hoy `storage-encryption.ts:27-28` devuelve los bytes en claro sin autenticar; quien pueda escribir en el disco/bucket podría sustituir una firma). Deja un modo de compatibilidad solo si `NODE_ENV=test` o mientras exista el flag de backfill pendiente; documenta.
+3. La migración de almacenamiento (`storage-migration.ts:50`) no debe conservar una copia antigua en claro en destino si ya existe: compara contra el contenido cifrado actual.
+4. `signatureImageSha256` de la evidencia se calcula sobre el PNG saneado en claro.
+
+**B. Correcciones de la revisión de T11 que entran en esta tarea** (amplía el alcance a `api/src/lib/storage*` y `api/src/modules/system/storage-*`):
+1. `storage-config.ts` `resolveConfig`: si `endpoint`, `bucket` o `accessKeyId` difieren de la configuración guardada, **exigir `secretAccessKey`** (400 `VALIDATION_ERROR`); nunca firmar contra otro host con el secreto guardado. Aplica a `PUT /system/storage` y `POST /system/storage/test`. Test.
+2. `storage-migration.ts:83-86`: guardar por cada objeto fallido la clave lógica y un motivo saneado (sin credenciales) y exponer los primeros 20 en el resumen del job (`failures: [{ key, reason }]`). Si la migración termina con fallos, **dejar de bloquear escrituras** (`migrating: false`, `pending` se conserva) porque el origen está intacto. Test.
+3. `probeStorage`: añadir un paso `immutability` que haga un segundo `put` sobre la misma clave y exija conflicto; si el proveedor lo sobrescribe en silencio, la prueba falla con mensaje claro («El proveedor no impide sobrescribir objetos»). Añade `'immutability'` a los nombres de paso.
+4. Endpoint S3 en producción: rechazar IP literales y hosts que resuelvan a rangos privados, loopback o link-local (`169.254.0.0/16`), con test.
+5. `storage.ts`: el `pg_advisory_lock(10409)` del `put` debe tener espera acotada (p. ej. `lock_timeout` de 5 s → 503 «Almacenamiento ocupado, inténtalo de nuevo») para que una copia nocturna no cuelgue una firma con su fila bloqueada.
+6. Documenta en `docs/DEPLOY.md` (bloque destacado) que **con S3 activo la copia de seguridad actual no incluye los PDF firmados** y qué hacer (versionado/replicación del bucket) antes de usar S3 en producción.
+
+**C. Borrado (sección 6)**: hoy la API exige `confirm` al admin en cualquier estado pero el front no lo envía para borradores. Regla única: solo se pueden borrar `draft` y `rejected` sin firmas, y para esos **no se exige `confirm`** (el front ya pide confirmación con useAction). Expón `can.delete` coherente con la nueva regla y documenta en el informe.
+
+**D. Trabajo en paralelo (T12a corre a la vez).** T12a es dueño de: `api/src/modules/reports/**`, `api/src/modules/dashboard/**`, los archivos nuevos `api/src/modules/contracts/admin-routes.ts` y `admin-actions.ts`, los filtros de `GET /contracts` (solo el handler de listado y su esquema de query) y `api/test/t12a-*.test.ts`. **No toques esos archivos.** Tú eres dueño de migraciones (`0010_*`), `schema.ts`, `env.ts`, firmas, PDF, verify, storage y la regla de borrado. Tests propios: `api/test/t10-*.test.ts`; si necesitas tocar un test existente, solo el caso afectado. Base de pruebas: `simaud_test` (la de por defecto).

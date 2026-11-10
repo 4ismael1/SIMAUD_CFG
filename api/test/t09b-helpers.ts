@@ -1,10 +1,9 @@
 import { buildApp } from "../src/app.js";
 import { contracts } from "../src/db/schema.js";
 import { db, createUser, authorization, signIn } from "./helpers.js";
-import { encodeRgba } from "../src/lib/storage-png.js";
+export { validPng } from "./image-fixtures.js";
 import type { FastifyInstance } from "fastify";
 
-export const validPng = () => encodeRgba(2, 1, Buffer.from([0, 0, 0, 255, 255, 255, 255, 0]));
 export const testApp = () => buildApp({ logger: false, mailer: async () => undefined });
 
 export async function contractFixture(

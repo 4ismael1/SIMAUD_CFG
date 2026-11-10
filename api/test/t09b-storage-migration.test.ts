@@ -25,9 +25,9 @@ it("mueve sin perder bytes y purga solamente fechas con más de ocho días", asy
     await mkdir(path.join(root, ".trash/manual"));
     expect(await purgeTrash("2026-11-09", root)).toBe(1);
     expect(await readdir(path.join(root, ".trash"))).toEqual(["2026-11-01", "manual"]);
-    await expect(trashFile(path.join(root, "../outside"), "2026-11-01", root)).rejects.toThrow(
-      "inválida",
-    );
+    await expect(
+      trashFile(path.join(root, "../outside"), "2026-11-01", root),
+    ).rejects.toMatchObject({ reason: "invalid", statusCode: 400, code: "VALIDATION_ERROR" });
   } finally {
     // The resolved temp directory is created by this test and contains no application storage.
     expect(path.resolve(root).startsWith(path.resolve(tmpdir()) + path.sep)).toBe(true);

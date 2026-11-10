@@ -123,6 +123,7 @@ it.each(mailTemplates)(
     expect([
       "/auth/confirmar",
       "/auth/restablecer",
+      "/auth/recuperar",
       "/app/firmas",
       "/app/contratos/id%22%3C",
       "/app",
@@ -131,6 +132,8 @@ it.each(mailTemplates)(
 );
 const environment = {
   DATABASE_URL: "postgresql://test:example@localhost/dev",
+  MAIL_PAYLOAD_KEY: "ab".repeat(32),
+  SETTINGS_ENCRYPTION_KEY: "cd".repeat(32),
   JWT_ACCESS_SECRET: "x".repeat(32),
   APP_URL: "https://simaud.example.com",
 };

@@ -1,8 +1,6 @@
 import { sanitizePng } from "../../lib/storage-png.js";
-import { trashFile } from "../../lib/storage.js";
+import { storage } from "../../lib/storage.js";
 import { createHash } from "node:crypto";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
-import path from "node:path";
 import type { FastifyInstance } from "fastify";
 import type { Content } from "pdfmake/interfaces.js";
 import { eq } from "drizzle-orm";
@@ -14,7 +12,6 @@ import { getSettings } from "../system/settings.js";
 import { parse, uuid } from "./schemas.js";
 import * as service from "./service.js";
 
-const directory = path.resolve("storage/contracts");
 export const contentHash = (text: string) =>
   createHash("sha256").update(text, "utf8").digest("hex");
 
@@ -24,7 +21,7 @@ export function finalPdfName(contract: service.Contract) {
 
 export async function removeFinalPdf(name: string) {
   if (!/^[0-9a-f-]{36}-v\d+\.pdf$/.test(name)) return;
-  await trashFile(path.join(directory, name));
+  await storage.delete("contracts/" + name);
 }
 
 export async function contractPdf(
@@ -65,7 +62,7 @@ export async function contractPdf(
   for (const signer of signatories) {
     const block: Content[] = [];
     if (signer.signaturePath && /^[0-9a-f-]{36}\.png$/.test(signer.signaturePath)) {
-      const bytes = await readFile(path.resolve("storage/signatures", signer.signaturePath));
+      const bytes = await storage.get("signatures/" + signer.signaturePath);
       block.push({ image: "data:image/png;base64," + bytes.toString("base64"), fit: [150, 65] });
     }
     block.push(
@@ -125,8 +122,7 @@ export async function saveFinalPdf(
 ) {
   const bytes = await contractPdf(tx, contract);
   const name = finalPdfName(contract);
-  await mkdir(directory, { recursive: true });
-  await writeFile(path.join(directory, name), bytes, { flag: "wx" });
+  await storage.put("contracts/" + name, bytes, { contentType: "application/pdf" });
   onWritten?.();
   await tx
     .update(contracts)
@@ -148,7 +144,7 @@ export async function pdfRoutes(app: FastifyInstance) {
       if (!contract.signedPdfPath || contract.signedPdfPath !== finalPdfName(contract))
         throw service.notFound();
       try {
-        bytes = await readFile(path.join(directory, contract.signedPdfPath));
+        bytes = await storage.get("contracts/" + contract.signedPdfPath);
       } catch {
         throw service.notFound();
       }

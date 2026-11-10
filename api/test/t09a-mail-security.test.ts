@@ -130,6 +130,7 @@ it("encolar y cifrar participan del rollback sin dejar correo", async () => {
 it("MAIL_PAYLOAD_KEY exige 32 bytes hex fuera de test sin revelar valores", () => {
   const config = {
     NODE_ENV: "development",
+    SETTINGS_ENCRYPTION_KEY: "cd".repeat(32),
     DATABASE_URL: "postgresql://test:example@localhost/dev",
     JWT_ACCESS_SECRET: "x".repeat(32),
     APP_URL: "https://example.com",

@@ -1,3 +1,4 @@
+import { validPng } from "./image-fixtures.js";
 import { dispatchEmails } from "../src/jobs/email-dispatch.js";
 import { beforeAll, beforeEach, afterEach, afterAll, it, expect } from "vitest";
 import type { FastifyInstance } from "fastify";
@@ -7,7 +8,6 @@ import { Readable } from "node:stream";
 import ExcelJS from "exceljs";
 import { eq, sql } from "drizzle-orm";
 import { buildApp } from "../src/app.js";
-import { createAccessToken } from "../src/lib/auth/jwt.js";
 import { eventBus, afterCommit } from "../src/lib/events.js";
 import { runJob, santoDomingoDate } from "../src/jobs/index.js";
 import { renewalPriority } from "../src/modules/renewals/routes.js";
@@ -25,7 +25,15 @@ import {
   authTokens,
   refreshTokens,
 } from "../src/db/schema.js";
-import { prepareDatabase, cleanDatabase, db, pool, createUser, authorization } from "./helpers.js";
+import {
+  prepareDatabase,
+  cleanDatabase,
+  db,
+  pool,
+  createUser,
+  authorization,
+  signIn,
+} from "./helpers.js";
 let app: FastifyInstance;
 let admin: Awaited<ReturnType<typeof createUser>>,
   supervisor: typeof admin,
@@ -53,7 +61,7 @@ beforeEach(async () => {
   signer = await createUser();
   tokens = {};
   for (const user of [admin, supervisor, gestor, other, signer])
-    tokens[user.id] = await createAccessToken(user);
+    tokens[user.id] = (await signIn(app, user)).token;
   const [template] = await db
     .insert(contractTemplates)
     .values({ title: "Plantilla", content: "Contrato **de prueba**", variables: [] })
@@ -105,6 +113,14 @@ async function contract(overrides: Partial<typeof contracts.$inferInsert> = {}) 
     role: "client",
     signingOrder: 1,
   });
+  await db.insert(contractVersions).values({
+    contractId: created!.id,
+    versionNumber: created!.currentVersion,
+    content: created!.content,
+    generatedContent: created!.generatedContent,
+    snapshot: { variableDefinitions: [] },
+    createdBy: created!.createdBy,
+  });
   return created!;
 }
 async function renewal(contractId: string, user = signer) {
@@ -118,10 +134,7 @@ async function renewal(contractId: string, user = signer) {
   expect(result.statusCode, result.body).toBe(201);
   return result.json();
 }
-const png = Buffer.from(
-  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a1XcAAAAASUVORK5CYII=",
-  "base64",
-);
+const png = validPng();
 async function sign(id: string) {
   const boundary = "lifecycle-sign";
   const payload = Buffer.concat([
@@ -306,7 +319,15 @@ it("lock de job impide ejecución y administra ajustes con permisos", async () =
     connection.release();
   }
   expect((await request(gestor, "GET", "/system/jobs")).statusCode).toBe(403);
-  expect((await request(admin, "GET", "/system/jobs")).json()).toHaveLength(4);
+  const jobs = await request(admin, "GET", "/system/jobs");
+  expect(jobs.statusCode, jobs.body).toBe(200);
+  expect(jobs.json<{ name: string }[]>().map((job) => job.name)).toEqual([
+    "contract-status",
+    "expiry-notifications",
+    "cleanup",
+    "email-dispatch",
+    "storage-migrate",
+  ]);
   expect(
     (
       await request(admin, "PATCH", "/system/settings", {
@@ -338,6 +359,7 @@ it("cleanup elimina leídas antiguas y tokens vencidos conservando recientes", a
     tokenHash: "expired",
     expiresAt: new Date("2029-01-01"),
   });
+  await db.update(refreshTokens).set({ expiresAt: new Date("2031-01-01") });
   await db.insert(refreshTokens).values({
     userId: signer.id,
     tokenHash: "expired",
@@ -348,6 +370,7 @@ it("cleanup elimina leídas antiguas y tokens vencidos conservando recientes", a
     summary: { notifications: 1, authTokens: 1, refreshTokens: 1 },
   });
   expect(await db.select().from(notifications)).toHaveLength(1);
+  expect(await db.select().from(refreshTokens)).toHaveLength(5);
 });
 it("notificaciones propias, enlaces, contador y preferencias parciales", async () => {
   const own = await contract();
