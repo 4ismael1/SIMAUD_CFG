@@ -32,6 +32,7 @@
 - **Modo de trabajo (cuota de Claude al 69% el 9 nov)**: la lógica la hace Codex; Claude solo revisa, comprueba y hace el front.
 - T09a+T09b commiteados (`ea9a2b6`). En curso: **T11 almacenamiento disco/S3** (simaud_test, `aws4fetch@1.0.20` instalado) y **T09c adaptar tests antiguos** (simaud_test2). Después: **T10** (firma certificada + no borrar firmados + cifrado de firmas; lanzar tras T11 porque toca storage). El cifrado de firmas de T10 debe ir sobre la interfaz `StorageDriver` de T11.
 - Front pendiente (Claude): pantalla Configuración › Almacenamiento (disco / S3 con presets R2, S3, B2, Spaces, MinIO; credenciales; «Probar conexión»; migrar), adaptar `src/lib/api` a los DTO de listas de T09b (`/me/signatures` paginado, `signatory` resumido), bandeja `/app/firmas`.
+- **Pantallas hechas (commits `c85e63f`, `67f0557`)**: Por firmar, Aprobaciones, Usuarios, Perfil, Configuración, Plantillas + editor, Renovaciones, Reportes; todas las rutas del menú registradas. Compilan, 94 tests web, build OK. **No verificadas con sesión** (Claude no puede iniciar sesión): pedir al dueño que entre en el panel del navegador o verificar en staging. Falta: Configuración › Almacenamiento (tras T11) y página pública `/verificar` (tras T10).
 - Siguiente: probar firma con sesión, bandeja `/app/firmas`, stagger en paneles, asistente de nuevo contrato (6.3 punto 4).
 
 > Escrito por Claude el 9 nov 2026 para que otra sesión (otra cuenta) continúe **exactamente** donde se quedó.
