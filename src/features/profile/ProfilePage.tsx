@@ -30,11 +30,16 @@ export function ProfilePage() {
   return (
     <>
       <PageHeader title="Mi perfil" description="Tus datos, tu seguridad y cómo te avisamos." />
-      <div className="stagger grid items-start gap-5 lg:grid-cols-2">
-        <PersonalSection />
-        <SecuritySection />
-        <NotificationsSection />
-        <SavedSignatureSection />
+      {/* Two independent columns: a short card never leaves a gap under it waiting for the taller one beside it. */}
+      <div className="grid items-start gap-5 lg:grid-cols-2">
+        <div className="stagger flex flex-col gap-5">
+          <PersonalSection />
+          <NotificationsSection />
+        </div>
+        <div className="stagger flex flex-col gap-5">
+          <SecuritySection />
+          <SavedSignatureSection />
+        </div>
       </div>
     </>
   );
