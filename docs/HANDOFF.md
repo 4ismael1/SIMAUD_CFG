@@ -126,7 +126,7 @@ Lee también **`docs/PRINCIPIOS.md`** (obligatorio) y **`docs/CODE_STANDARDS.md`
 1. **Página pública `/verificar`** y envío de `method/fontId` en la firma (tras T10; leer su informe para las rutas exactas).
 2. Filtros en plantillas/variables; borrar notificaciones (`useDeleteNotification`); repaso de formularios (asistente de contrato, editor de plantilla) y de la bandeja del firmante (`SignaturesInboxPage`, ya aceptable).
 3. Verificar TODO con el dueño con sesión a 1440/768/375 px y corregir (requiere actualizar `SIMAUD_RUN` con T12a/T10).
-4. Borrar código viejo (`src/components`, Supabase; pedir OK para `supabase/`), staging en Instabox y prueba completa con los 4 roles.
+4. ~~Borrar código viejo~~ (hecho en `dbd8383`, incl. `supabase/`; el original sigue en `main`). Staging en Instabox y prueba completa con los 4 roles.
 
 ### Preguntas abiertas al dueño
 - Secreto de S3 cifrado en BD: ¿se acepta como excepción a PRINCIPIOS §5 o se mueve a variable de entorno?
@@ -134,7 +134,7 @@ Lee también **`docs/PRINCIPIOS.md`** (obligatorio) y **`docs/CODE_STANDARDS.md`
 - Datos de la institución (nombre, RNC, dirección) para el PDF y la constancia.
 - Plazo legal de conservación de contratos firmados.
 - ¿Posicionar los recuadros de firma dentro del documento? (requiere API y PDF).
-- OK para borrar la carpeta `supabase/`.
+- ~~OK para borrar `supabase/`~~ (dado y hecho).
 
 > Escrito por Claude el 9 nov 2026 para que otra sesión (otra cuenta) continúe **exactamente** donde se quedó.
 > Léelo completo antes de tocar nada. Después lee `docs/PLAN.md` y `docs/CODE_STANDARDS.md`.
