@@ -15,7 +15,8 @@ interface ReassignDialogProps {
 
 /** Admin only: hand a contract over to another manager. The reason is kept in the audit trail. */
 export function ReassignDialog({ contract, onClose, onConfirm, loading }: ReassignDialogProps) {
-  const managers = useUsers({ role: 'gestor', pageSize: MANAGER_PAGE_SIZE });
+  // Only while the dialog is open (it is mounted for every list, also for non-admins who never open it).
+  const managers = useUsers({ role: 'gestor', pageSize: MANAGER_PAGE_SIZE }, { enabled: contract !== null });
   const [managerId, setManagerId] = useState('');
   const [reason, setReason] = useState('');
   const candidates = (managers.data?.data ?? []).filter((manager) => manager.id !== contract?.createdBy);

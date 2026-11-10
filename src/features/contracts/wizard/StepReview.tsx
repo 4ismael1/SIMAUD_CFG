@@ -23,8 +23,8 @@ export function StepReview({ draft, template }: StepReviewProps) {
   const contentFormat = template?.contentFormat;
 
   useEffect(() => {
-    if (content) mutate({ contentFormat, content, values: effectiveVariables(draft) });
-  }, [content, contentFormat, draft, mutate]);
+    if (content) mutate({ contentFormat, content, values: effectiveVariables(draft, template?.variables) });
+  }, [content, contentFormat, draft, template?.variables, mutate]);
 
   const money = validateMoney(draft.value);
 

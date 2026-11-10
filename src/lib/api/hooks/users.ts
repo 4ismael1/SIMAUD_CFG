@@ -17,12 +17,13 @@ import type {
   Paginated,
   MessageResponse,
 } from "../types";
-export function useUsers(query: UserQuery = {}) {
+export function useUsers(query: UserQuery = {}, options: { enabled?: boolean } = {}) {
   return useQuery({
     queryKey: keys.users.list({ ...query }),
     queryFn: ({ signal }) =>
       apiFetch<Paginated<User>>("/users", { query: { ...query }, signal }),
     placeholderData: keepPreviousData,
+    enabled: options.enabled ?? true,
   });
 }
 export function useUser(id: string) {

@@ -109,9 +109,19 @@ export function partyValues(signatories: SignatoryData[]): VariableValues {
   return out;
 }
 
-/** What is sent to the API and the preview: what the user typed plus what the wizard filled. */
-export function effectiveVariables(draft: ContractFields & { variables: VariableValues; signatories: SignatoryData[] }): VariableValues {
-  return { ...draft.variables, ...partyValues(draft.signatories), ...contractBoundValues(draft) };
+/**
+ * What is sent to the API and the preview: what the user typed plus what the wizard filled, limited to
+ * the variables the template actually uses (the API rejects unknown ones, e.g. a representative's email
+ * when the template only prints their name).
+ */
+export function effectiveVariables(
+  draft: ContractFields & { variables: VariableValues; signatories: SignatoryData[] },
+  templateVariables?: Iterable<string>,
+): VariableValues {
+  const all: VariableValues = { ...draft.variables, ...partyValues(draft.signatories), ...contractBoundValues(draft) };
+  if (!templateVariables) return all;
+  const allowed = new Set(templateVariables);
+  return Object.fromEntries(Object.entries(all).filter(([name]) => allowed.has(name)));
 }
 
 /** Roles the document needs a signatory for, in the order the template first mentions them. */

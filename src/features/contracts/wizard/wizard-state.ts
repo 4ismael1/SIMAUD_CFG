@@ -214,13 +214,13 @@ export function validateSignatoriesStep(draft: WizardDraft, variables: Variable[
   return errors;
 }
 
-/** Builds the API payload; assumes the steps were validated. */
-export function toContractInput(draft: WizardDraft): ContractInput {
+/** Builds the API payload; assumes the steps were validated. `templateVariables`: names the template uses. */
+export function toContractInput(draft: WizardDraft, templateVariables?: Iterable<string>): ContractInput {
   const money = validateMoney(draft.value);
   return {
     templateId: draft.templateId,
     title: draft.title.trim(),
-    variables: effectiveVariables(draft),
+    variables: effectiveVariables(draft, templateVariables),
     value: money.ok ? money.value : draft.value,
     startDate: draft.startDate,
     endDate: draft.endDate,

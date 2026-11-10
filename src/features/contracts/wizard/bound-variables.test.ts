@@ -78,3 +78,17 @@ describe('una tarjeta por persona del documento', () => {
     expect(withNeededSignatories(start, ['client', 'contractor'], (role) => card(role))).toHaveLength(2);
   });
 });
+
+describe('solo se envían los datos que usa la plantilla', () => {
+  it('quita los datos de una persona que la plantilla no imprime (la API los rechazaría)', () => {
+    const draft = {
+      startDate: '2026-11-10',
+      endDate: '2026-12-10',
+      value: '68000',
+      variables: { representante_cargo: 'Rectora' },
+      signatories: [person('contractor', 'Rosa Almonte Díaz', '00112345673'), person('client', 'Pedro Gómez Santana', '03145678904')],
+    };
+    const used = ['representante_nombre', 'representante_cedula', 'representante_cargo', 'cliente_nombre', 'valor_contrato'];
+    expect(Object.keys(effectiveVariables(draft, used)).sort()).toEqual([...used].sort());
+  });
+});

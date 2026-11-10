@@ -158,7 +158,7 @@ function Wizard({ contractId, initial }: WizardProps) {
     }
     setSubmitting(sendToApproval ? 'submit' : 'draft');
     try {
-      const input = toContractInput(draft);
+      const input = toContractInput(draft, variables.map((variable) => variable.name));
       const saved = isEdit ? await update.mutateAsync(input) : await create.mutateAsync(input);
       if (sendToApproval) await apiFetch(`/contracts/${saved.id}/submit`, { method: 'POST' });
       if (storageKey && !isEdit) clearLocalDraft(storageKey);
