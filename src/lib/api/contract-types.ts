@@ -156,10 +156,32 @@ export interface ApprovalQueueItem extends Approval {
     detailsChanged: boolean;
   } | null;
 }
-export interface SignatureInboxItem extends Contract {
+/** Lightweight contract row used by inboxes and lists (no document, no personal data of other parties). */
+export interface ContractListSummary {
+  id: string;
+  code: string;
+  title: string;
+  status: ContractStatus;
+  contractValue: string | null;
+  currency: string;
+  startDate: string | null;
+  endDate: string | null;
+  createdAt: string;
+  updatedAt: string;
+  archived: boolean;
+  creator: { id: string; name: string } | null;
+  signatory: {
+    id: string;
+    name: string;
+    role: SignatoryRole;
+    signingOrder: number;
+    status: SignatoryStatus;
+    signedAt: string | null;
+  } | null;
   myTurn: boolean;
-  signatory: Signatory;
+  signatures: { signed: number; total: number };
 }
+export type SignatureInboxItem = ContractListSummary;
 export interface SignatureInput {
   signature: Blob;
   acceptedDeclaration: true;

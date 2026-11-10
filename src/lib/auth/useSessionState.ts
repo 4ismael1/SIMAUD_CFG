@@ -43,7 +43,7 @@ export function useSessionState() {
     }
   }, []);
   useRestoreSession(loadUser, setUser, generation);
-  return { ...state, setUser };
+  return { ...state, setUser, refreshUser: loadUser };
 }
 function useRestoreSession(
   loadUser: () => Promise<void>,

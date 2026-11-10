@@ -40,3 +40,9 @@ export function useRunJob() {
       ]),
   });
 }
+/** Queues a test e-mail through the configured provider (Brevo/SMTP or Resend). */
+export function useSendTestMail() {
+  return useMutation({
+    mutationFn: (to: string) => apiFetch<unknown>("/system/mail/test", { method: "POST", body: { to } }),
+  });
+}

@@ -25,10 +25,12 @@ export interface AuthContextValue extends AuthState {
   hasRole: (...roles: Role[]) => boolean;
   /** Clears the temporary-password flag after a successful PATCH /me/password. */
   completePasswordChange: () => void;
+  /** Reloads the signed-in user (after editing the profile or the photo). */
+  refreshUser: () => Promise<void>;
 }
 const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const { status, user, setUser } = useSessionState();
+  const { status, user, setUser, refreshUser } = useSessionState();
   const login = useCallback(
     async (input: LoginInput) => {
       const response = await loginRequest(input);
@@ -55,8 +57,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       register: registerRequest,
       hasRole: (...roles) => Boolean(user && roles.includes(user.role)),
       completePasswordChange,
+      refreshUser,
     }),
-    [status, user, login, logout, completePasswordChange],
+    [status, user, login, logout, completePasswordChange, refreshUser],
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

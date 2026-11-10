@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiDownload, apiFetch } from "../client";
 import { keys } from "../keys";
 import { invalidateContract } from "./cache";
@@ -7,15 +7,17 @@ import type {
   SignatureInput,
   ContractDetail,
   MessageResponse,
+  Paginated,
 } from "../types";
-export function useSignatures(status: "pending" | "signed" = "pending") {
+export function useSignatures(status: "pending" | "signed" = "pending", page = 1, pageSize = 20) {
   return useQuery({
-    queryKey: keys.signatures.list(status),
+    queryKey: [...keys.signatures.list(status), page, pageSize],
     queryFn: ({ signal }) =>
-      apiFetch<SignatureInboxItem[]>("/me/signatures", {
-        query: { status },
+      apiFetch<Paginated<SignatureInboxItem>>("/me/signatures", {
+        query: { status, page, pageSize },
         signal,
       }),
+    placeholderData: keepPreviousData,
   });
 }
 export function useSignContract(id: string) {

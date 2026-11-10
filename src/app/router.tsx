@@ -17,6 +17,11 @@ const DashboardPage = lazy(() => import('../features/dashboard/DashboardPage').t
 const ContractsListPage = lazy(() => import('../features/contracts/ContractsListPage').then((m) => ({ default: m.ContractsListPage })));
 const SignContractPage = lazy(() => import('../features/signatures/SignContractPage').then((m) => ({ default: m.SignContractPage })));
 const ContractWizardPage = lazy(() => import('../features/contracts/wizard/ContractWizardPage').then((m) => ({ default: m.ContractWizardPage })));
+const SignaturesInboxPage = lazy(() => import('../features/signatures/SignaturesInboxPage').then((m) => ({ default: m.SignaturesInboxPage })));
+const ApprovalsPage = lazy(() => import('../features/approvals/ApprovalsPage').then((m) => ({ default: m.ApprovalsPage })));
+const UsersPage = lazy(() => import('../features/users/UsersPage').then((m) => ({ default: m.UsersPage })));
+const ProfilePage = lazy(() => import('../features/profile/ProfilePage').then((m) => ({ default: m.ProfilePage })));
+const SettingsPage = lazy(() => import('../features/settings/SettingsPage').then((m) => ({ default: m.SettingsPage })));
 const ContractDetailPage = lazy(() => import('../features/contracts/ContractDetailPage').then((m) => ({ default: m.ContractDetailPage })));
 
 export const router = createBrowserRouter([
@@ -62,6 +67,19 @@ export const router = createBrowserRouter([
           { index: true, element: <StaffHome dashboard={<DashboardPage />} /> },
           // Signers reach contracts through their inbox; the detail page itself is checked by the API.
           { path: 'contratos/:id', element: <ContractDetailPage /> },
+          { path: 'firmas', element: <SignaturesInboxPage /> },
+          { path: 'perfil', element: <ProfilePage /> },
+          {
+            element: <RoleRoute roles={['admin', 'supervisor']} />,
+            children: [{ path: 'aprobaciones', element: <ApprovalsPage /> }],
+          },
+          {
+            element: <RoleRoute roles={['admin']} />,
+            children: [
+              { path: 'usuarios', element: <UsersPage /> },
+              { path: 'configuracion', element: <SettingsPage /> },
+            ],
+          },
           {
             element: <RoleRoute roles={['admin', 'supervisor', 'gestor']} />,
             children: [

@@ -67,7 +67,7 @@ export interface SystemSettings {
     logo?: string | null;
   };
 }
-export type JobName = "contract-status" | "expiry-notifications" | "cleanup";
+export type JobName = "contract-status" | "expiry-notifications" | "cleanup" | "email-dispatch";
 export interface JobRun {
   id: string;
   name: JobName;
