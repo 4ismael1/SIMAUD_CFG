@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { Ellipsis, ShieldCheck, UserPlus, Users as UsersIcon } from 'lucide-react';
+import { Ellipsis, Pencil, ShieldCheck, UserPlus, Users as UsersIcon } from 'lucide-react';
 import {
   Avatar,
   Badge,
@@ -24,6 +24,7 @@ import { useCreateUser, useDeleteUser, useUpdateUser, useUsers } from '../../lib
 import type { Role, User } from '../../lib/api/core-types';
 import { roleStatus } from '../../lib/api/status';
 import { useAuth } from '../../lib/auth';
+import { EditUserDialog } from './EditUserDialog';
 import { formatDate } from '../../lib/format';
 import { formatCedula, validateCedula, validateEmail, validatePersonName, validatePhoneDo } from '../../lib/validation';
 
@@ -98,10 +99,12 @@ function UserActions({ user }: { user: User }) {
   const update = useUpdateUser(user.id);
   const remove = useDeleteUser(user.id);
   const isMe = me?.id === user.id;
+  const [editing, setEditing] = useState(false);
 
-  const items: MenuItem[] = ROLES.filter((value) => value !== user.role).map((value) => ({
+  const roleItems: MenuItem[] = ROLES.filter((value) => value !== user.role).map((value, index) => ({
     label: `Cambiar a ${roleStatus[value].label.toLowerCase()}`,
     icon: <ShieldCheck />,
+    separatorBefore: index === 0,
     // The API also refuses to remove the last administrator or your own admin role.
     disabled: isMe,
     onSelect: () =>
@@ -116,6 +119,7 @@ function UserActions({ user }: { user: User }) {
       }),
   }));
 
+  const items: MenuItem[] = [{ label: 'Editar datos…', icon: <Pencil />, onSelect: () => setEditing(true) }, ...roleItems];
   items.push(
     user.isActive
       ? {
@@ -160,14 +164,17 @@ function UserActions({ user }: { user: User }) {
   );
 
   return (
-    <Menu
-      items={items}
-      trigger={(props) => (
-        <IconButton label={`Acciones de ${user.name}`} size="sm" {...props}>
-          <Ellipsis />
-        </IconButton>
-      )}
-    />
+    <>
+      <Menu
+        items={items}
+        trigger={(props) => (
+          <IconButton label={`Acciones de ${user.name}`} size="sm" {...props}>
+            <Ellipsis />
+          </IconButton>
+        )}
+      />
+      <EditUserDialog user={user} open={editing} onClose={() => setEditing(false)} />
+    </>
   );
 }
 
