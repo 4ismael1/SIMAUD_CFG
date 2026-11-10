@@ -9,7 +9,7 @@ import { errorMessage } from '../../lib/errors';
 import { downloadFromApi } from '../../lib/download';
 import { formatDate } from '../../lib/format';
 import { DocumentView } from '../contracts/components/DocumentView';
-import { SIGNATORY_ROLE_LABELS } from '../contracts/components/SignatoriesPanel';
+import { signatoryRoleLabel } from '../contracts/components/SignatoriesPanel';
 import { SignaturePad, type SignaturePadHandle } from './SignaturePad';
 import { SignatureFullscreen } from './SignatureFullscreen';
 import { SignaturePreviewDialog } from './SignaturePreviewDialog';
@@ -191,7 +191,7 @@ export function SignContractPage() {
         <aside className="flex w-full flex-[1_1_360px] flex-col gap-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-pop lg:sticky lg:top-24 lg:max-w-[440px]">
           <div>
             <p className="text-xs font-semibold tracking-wider text-vino-600 uppercase">Tu firma</p>
-            <h1 className="text-xl font-semibold">Firmar como {SIGNATORY_ROLE_LABELS[mySignatory.role].toLowerCase()}</h1>
+            <h1 className="text-xl font-semibold">Firmar como {signatoryRoleLabel(mySignatory).toLowerCase()}</h1>
           </div>
           <Checkbox
             checked={accepted}

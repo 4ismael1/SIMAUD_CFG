@@ -1,14 +1,17 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
-import { ArrowDown, ArrowUp, ArrowRight, Copy, GripVertical, Plus, Trash2, UserCheck, Users } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowRight, Copy, GripVertical, PenLine, Plus, Trash2, UserCheck, Users } from 'lucide-react';
 import { Alert, Badge, Button, Field, IconButton, Input, Segmented, Select, cn, useToast } from '../../../ui';
 import { useUserLookup } from '../../../lib/api/hooks/users';
 import type { SignatoryRole } from '../../../lib/api/core-types';
+import type { TemplateSignatureSlot } from '../../../lib/api/catalog-types';
 import { formatCedula, validateCedula } from '../../../lib/validation';
 import { SIGNATORY_ROLE_LABELS } from '../components/SignatoriesPanel';
 import {
   MAX_SIGNATORIES,
   emptySignatory,
+  emptyWitness,
   newKey,
+  usesTemplateSlots,
   signingOrderFor,
   type FieldErrors,
   type SignatoryDraft,
@@ -20,6 +23,8 @@ interface StepSignatoriesProps {
   draft: WizardDraft;
   errors: FieldErrors;
   onChange: (patch: Partial<WizardDraft>) => void;
+  /** T19: the template's signature boxes; each one is a role with exactly one person. */
+  slots?: TemplateSignatureSlot[];
 }
 
 const MODE_HELP: Record<SigningMode, string> = {
@@ -30,8 +35,9 @@ const MODE_HELP: Record<SigningMode, string> = {
 
 const ROLE_OPTIONS: SignatoryRole[] = ['client', 'contractor', 'witness'];
 
-export function StepSignatories({ draft, errors, onChange }: StepSignatoriesProps) {
+export function StepSignatories({ draft, errors, onChange, slots }: StepSignatoriesProps) {
   const { signatories, signingMode } = draft;
+  const boxed = usesTemplateSlots(slots);
   const atLimit = signatories.length >= MAX_SIGNATORIES;
   const listRef = useRef<HTMLOListElement>(null);
   const toast = useToast();
@@ -73,7 +79,8 @@ export function StepSignatories({ draft, errors, onChange }: StepSignatoriesProp
   function add(role: SignatoryRole) {
     if (atLimit) return;
     const lastGroup = signatories.at(-1)?.group ?? 0;
-    onChange({ signatories: [...signatories, emptySignatory(role, lastGroup + 1)] });
+    const card = boxed && role === 'witness' ? emptyWitness(lastGroup + 1) : emptySignatory(role, lastGroup + 1);
+    onChange({ signatories: [...signatories, card] });
   }
 
   function duplicateAsNew(index: number) {
@@ -155,7 +162,8 @@ export function StepSignatories({ draft, errors, onChange }: StepSignatoriesProp
             onRemove={() => remove(signatory.key)}
             onMove={(delta) => move(index, delta)}
             onDuplicate={() => duplicateAsNew(index)}
-            canDuplicate={!atLimit}
+            canDuplicate={!atLimit && !boxed}
+            boxed={boxed}
             dragging={draggingKey === signatory.key}
             dragHandlers={
               signingMode === 'parallel'
@@ -171,6 +179,16 @@ export function StepSignatories({ draft, errors, onChange }: StepSignatoriesProp
         ))}
       </ol>
 
+      {boxed ? (
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-dashed border-slate-300 p-3">
+          <Button icon={<Plus />} onClick={() => add('witness')} disabled={atLimit}>
+            Añadir testigo
+          </Button>
+          <span className="text-xs text-slate-500">
+            Los roles salen de la plantilla. Un testigo firma en una casilla «TESTIGO» añadida al final.
+          </span>
+        </div>
+      ) : (
       <div className="flex flex-wrap items-center gap-2 rounded-xl border border-dashed border-slate-300 p-3">
         <Button icon={<Plus />} onClick={() => add('client')} disabled={atLimit}>
           Agregar firmante
@@ -185,6 +203,7 @@ export function StepSignatories({ draft, errors, onChange }: StepSignatoriesProp
           {signatories.length} de {MAX_SIGNATORIES}
         </span>
       </div>
+      )}
     </div>
   );
 }
@@ -201,6 +220,8 @@ interface SignatoryCardProps {
   onMove: (delta: -1 | 1) => void;
   onDuplicate: () => void;
   canDuplicate: boolean;
+  /** T19: the template defines the roles; a box's role cannot be changed nor its card removed. */
+  boxed: boolean;
   dragging: boolean;
   /** Absent when the order does not matter (everyone signs at once). */
   dragHandlers?: {
@@ -223,9 +244,11 @@ function SignatoryCard({
   onMove,
   onDuplicate,
   canDuplicate,
+  boxed,
   dragging,
   dragHandlers,
 }: SignatoryCardProps) {
+  const fixedRole = boxed && signatory.slotIndex !== null;
   const prefix = `sig:${signatory.key}:`;
   const cedulaCheck = validateCedula(signatory.cedula);
   const lookupCedula = cedulaCheck.ok ? cedulaCheck.value : '';
@@ -299,7 +322,7 @@ function SignatoryCard({
           <IconButton size="sm" label="Agregar otro con el mismo rol" disabled={!canDuplicate} onClick={onDuplicate}>
             <Copy />
           </IconButton>
-          <IconButton size="sm" label={`Quitar firmante ${index + 1}`} disabled={total === 1} onClick={onRemove} className="hover:bg-red-50 hover:text-red-600">
+          <IconButton size="sm" label={`Quitar firmante ${index + 1}`} disabled={total === 1 || fixedRole} onClick={onRemove} className="hover:bg-red-50 hover:text-red-600">
             <Trash2 />
           </IconButton>
         </div>
@@ -325,15 +348,24 @@ function SignatoryCard({
         <Field label="Teléfono" optional error={errors[`${prefix}phone`]}>
           <Input inputMode="tel" placeholder="809-000-0000" value={signatory.phone} onChange={(event) => onUpdate({ phone: event.target.value })} />
         </Field>
-        <Field label="Rol">
-          <Select value={signatory.role} onChange={(event) => onUpdate({ role: event.target.value as SignatoryRole })}>
-            {ROLE_OPTIONS.map((role) => (
-              <option key={role} value={role}>
-                {SIGNATORY_ROLE_LABELS[role]}
-              </option>
-            ))}
-          </Select>
-        </Field>
+        {boxed ? (
+          <Field label="Rol">
+            <span className="flex h-10 items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-800">
+              <PenLine className="size-3.5 shrink-0 text-vino-600" aria-hidden="true" />
+              <span className="truncate">{signatory.roleLabel || 'Testigo'}</span>
+            </span>
+          </Field>
+        ) : (
+          <Field label="Rol">
+            <Select value={signatory.role} onChange={(event) => onUpdate({ role: event.target.value as SignatoryRole })}>
+              {ROLE_OPTIONS.map((role) => (
+                <option key={role} value={role}>
+                  {SIGNATORY_ROLE_LABELS[role]}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        )}
         {mode === 'groups' && (
           <Field label="Paso" hint="Mismo paso = firman a la vez" error={errors[`${prefix}group`]}>
             <Input

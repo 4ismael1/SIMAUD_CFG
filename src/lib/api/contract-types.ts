@@ -13,10 +13,17 @@ export interface SignatoryInput {
   email: string;
   phone?: string;
   cedula?: string;
-  role: SignatoryRole;
+  /** Without template boxes (or for a witness): the fixed role. With boxes the server derives it. */
+  role?: SignatoryRole;
+  /** T19: the template box this person signs (0-based); null/absent = witness or no boxes. */
+  slotIndex?: number | null;
   signingOrder: number;
 }
-export interface Signatory extends Omit<SignatoryInput, "phone" | "cedula"> {
+export interface Signatory extends Omit<SignatoryInput, "phone" | "cedula" | "role" | "slotIndex"> {
+  role: SignatoryRole;
+  /** T19: the role to show (the label of the template box, «Testigo»…). */
+  roleLabel?: string;
+  slotIndex?: number | null;
   id: string;
   contractId: string;
   userId: string | null;
@@ -225,6 +232,9 @@ export interface ContractListSummary {
     id: string;
     name: string;
     role: SignatoryRole;
+    /** T19 */
+    roleLabel?: string;
+    slotIndex?: number | null;
     signingOrder: number;
     status: SignatoryStatus;
     signedAt: string | null;

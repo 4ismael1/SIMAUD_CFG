@@ -288,6 +288,8 @@ function signatures(node: Loose): BlockNode[] {
     type: "signatureSlot",
     attrs: {
       label: typeof slot.label === "string" ? slot.label.slice(0, 60) : "",
+      // T19: data prefix of the person in this box (cliente → cliente_nombre…); same rule as the API.
+      ...(typeof slot.party === "string" && /^[a-z][a-z0-9]{0,29}$/.test(slot.party) ? { party: slot.party } : {}),
       ...(slot.showName === false ? { showName: false } : {}),
       ...(slot.showId === false ? { showId: false } : {}),
     },

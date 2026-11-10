@@ -14,6 +14,11 @@ export const SIGNATORY_ROLE_LABELS: Record<SignatoryRole, string> = {
   contractor: 'Por la institución',
 };
 
+/** Role to show: the template's box label (T19) when the API sends it, otherwise the fixed role. */
+export function signatoryRoleLabel(signatory: { role: SignatoryRole; roleLabel?: string | null }): string {
+  return signatory.roleLabel?.trim() || SIGNATORY_ROLE_LABELS[signatory.role];
+}
+
 /** The first pending signatory in signing order is the one whose turn it is. */
 export function currentSignatory(signatories: Signatory[]): Signatory | undefined {
   return [...signatories].sort((a, b) => a.signingOrder - b.signingOrder).find((signatory) => signatory.status === 'pending');
@@ -62,7 +67,7 @@ export function SignatoriesPanel({ contract, canRemind }: { contract: ContractDe
               <span className="min-w-0 flex-1">
                 <span className="block truncate font-semibold">{signatory.name}</span>
                 <span className="block truncate text-xs text-slate-500">
-                  {SIGNATORY_ROLE_LABELS[signatory.role]} · {signatory.email}
+                  {signatoryRoleLabel(signatory)} · {signatory.email}
                 </span>
               </span>
               <SignatoryState signatory={signatory} isTurn={signatory.id === turn?.id} />

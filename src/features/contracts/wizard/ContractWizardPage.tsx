@@ -17,6 +17,8 @@ import {
   draftFromContract,
   emptyDraft,
   emptySignatory,
+  usesTemplateSlots,
+  withTemplateSlots,
   hasDraftContent,
   toContractInput,
   validateDetailsStep,
@@ -93,6 +95,8 @@ function Wizard({ contractId, initial }: WizardProps) {
 
   const template = useTemplate(draft.templateId);
   const variables = useMemo(() => template.data?.resolvedVariables ?? [], [template.data]);
+  // T19: the template's signature boxes are the signer roles (one person each).
+  const slots = template.data?.signatureSlots;
   const create = useCreateContract();
   const update = useUpdateContract(contractId ?? '');
   const step: StepId = WIZARD_STEPS[stepIndex].id;
@@ -115,7 +119,7 @@ function Wizard({ contractId, initial }: WizardProps) {
   function validateStep(target: StepId): FieldErrors {
     if (target === 'template') return validateTemplateStep(draft);
     if (target === 'details') return validateDetailsStep(draft, variables);
-    if (target === 'signatories') return validateSignatoriesStep(draft, variables);
+    if (target === 'signatories') return validateSignatoriesStep(draft, variables, slots);
     return {};
   }
 
@@ -140,7 +144,9 @@ function Wizard({ contractId, initial }: WizardProps) {
     const result = validateUpTo(index);
     const target = result.ok ? index : result.failedAt;
     // Arriving at «Firmantes»: one card per person the document names (client, institution…), ready to fill.
-    if (WIZARD_STEPS[target].id === 'signatories') {
+    if (WIZARD_STEPS[target].id === 'signatories' && usesTemplateSlots(slots)) {
+      setDraft((current) => ({ ...current, signatories: withTemplateSlots(current.signatories, slots) }));
+    } else if (WIZARD_STEPS[target].id === 'signatories') {
       const roles = rolesNeeded(variables);
       if (roles.length > 0) {
         setDraft((current) => ({ ...current, signatories: withNeededSignatories(current.signatories, roles, (role) => emptySignatory(role, 1)) }));
@@ -158,7 +164,7 @@ function Wizard({ contractId, initial }: WizardProps) {
     }
     setSubmitting(sendToApproval ? 'submit' : 'draft');
     try {
-      const input = toContractInput(draft, variables.map((variable) => variable.name));
+      const input = toContractInput(draft, variables.map((variable) => variable.name), slots);
       const saved = isEdit ? await update.mutateAsync(input) : await create.mutateAsync(input);
       if (sendToApproval) await apiFetch(`/contracts/${saved.id}/submit`, { method: 'POST' });
       if (storageKey && !isEdit) clearLocalDraft(storageKey);
@@ -214,7 +220,7 @@ function Wizard({ contractId, initial }: WizardProps) {
           />
         )}
         {step === 'details' && <StepDetails draft={draft} variables={variables} errors={errors} onChange={patch} />}
-        {step === 'signatories' && <StepSignatories draft={draft} errors={errors} onChange={patch} />}
+        {step === 'signatories' && <StepSignatories draft={draft} errors={errors} onChange={patch} slots={slots} />}
         {step === 'review' && <StepReview draft={draft} template={template.data} />}
       </div>
 

@@ -64,7 +64,7 @@ export function StepReview({ draft, template }: StepReviewProps) {
               <span className="min-w-0 flex-1">
                 <span className="block truncate font-medium">{signatory.name}</span>
                 <span className="block truncate text-xs text-slate-500">
-                  {SIGNATORY_ROLE_LABELS[signatory.role]} · {signatory.email}
+                  {signatory.roleLabel || SIGNATORY_ROLE_LABELS[signatory.role]} · {signatory.email}
                 </span>
               </span>
             </li>

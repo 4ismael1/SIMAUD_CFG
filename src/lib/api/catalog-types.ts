@@ -38,8 +38,20 @@ export interface Template extends TemplateInput {
   createdAt: string;
   updatedAt: string;
 }
+/** T19: one signature box of the template = one signer role (index = order in the document, 0-based). */
+export interface TemplateSignatureSlot {
+  index: number;
+  label: string;
+  /** Data prefix: «cliente» fills cliente_nombre, cliente_cedula… from the person in this box. */
+  party: string | null;
+  showName: boolean;
+  showId: boolean;
+}
 export interface TemplateDetail extends Template {
   resolvedVariables: Variable[];
+  /** T18/T19; absent on older APIs. */
+  hasSignatureBlock?: boolean;
+  signatureSlots?: TemplateSignatureSlot[];
 }
 export interface TemplateQuery extends ListQuery {
   status?: TemplateStatus;

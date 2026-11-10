@@ -8,11 +8,15 @@ import { cn } from '../../../ui';
 /**
  * «Firmas» block (rich-v2). In the editor it is ONE atomic node whose boxes live in `attrs.slots`
  * (simple to edit with inputs); `sanitizeRichDoc` turns it into the stored shape with `signatureSlot`
- * children, and `toEditorJson` turns it back. Box n is signed by the signer with signing order n.
+ * children, and `toEditorJson` turns it back. Each box is a signer role: when creating a contract
+ * there is one person per box, and their data fills the box's {{party_*}} variables.
  */
 
 export interface EditorSignatureSlot {
+  /** The signer role shown under the line («EL CONTRATISTA»). */
   label: string;
+  /** T19: data prefix filled from the person in this box: «cliente» → {{cliente_nombre}}, {{cliente_cedula}}… */
+  party?: string;
   showName?: boolean;
   showId?: boolean;
 }
@@ -190,6 +194,10 @@ function SignaturesView({ node, updateAttributes, deleteNode, selected, editor, 
           </button>
         </div>
       )}
+      <datalist id="signature-party-suggestions">
+        <option value="cliente" />
+        <option value="representante" />
+      </datalist>
       <div className="sig-grid" style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}>
         {slots.map((slot, index) => (
           <div key={index} className="sig-slot group/slot relative">
@@ -199,15 +207,39 @@ function SignaturesView({ node, updateAttributes, deleteNode, selected, editor, 
               {slot.showName !== false && <span className="sig-placeholder">[Firmante {offset + index + 1}]</span>}
               {slot.showId !== false && <span className="sig-placeholder">C.I. [cédula]</span>}
               {editable ? (
-                <input
-                  value={slot.label}
-                  maxLength={60}
-                  placeholder="Etiqueta (p. ej. EL CLIENTE)"
-                  aria-label={`Etiqueta de la firma ${offset + index + 1}`}
-                  onChange={(event) => setSlot(index, { label: event.target.value.toUpperCase() })}
-                  onKeyDown={(event) => event.stopPropagation()}
-                  className="sig-label-input"
-                />
+                <>
+                  <input
+                    value={slot.label}
+                    maxLength={60}
+                    placeholder="Rol (p. ej. EL CLIENTE)"
+                    aria-label={`Rol de la firma ${offset + index + 1}`}
+                    onChange={(event) => setSlot(index, { label: event.target.value.toUpperCase() })}
+                    onKeyDown={(event) => event.stopPropagation()}
+                    className="sig-label-input"
+                  />
+                  <label className="mt-1 flex items-center justify-center gap-1 font-sans text-[11px] text-slate-500">
+                    Datos:
+                    <input
+                      value={slot.party ?? ''}
+                      maxLength={30}
+                      list="signature-party-suggestions"
+                      placeholder="ninguno"
+                      title="Prefijo de los datos de esta persona: «cliente» rellena {{cliente_nombre}}, {{cliente_cedula}}, {{cliente_email}}, {{cliente_telefono}} y {{cliente_cargo}}."
+                      aria-label={`Datos que rellena la firma ${offset + index + 1}`}
+                      onChange={(event) => {
+                        const party = event.target.value.toLowerCase().replace(/[^a-z0-9]/g, '').replace(/^[0-9]+/, '');
+                        setSlot(index, { party: party || undefined });
+                      }}
+                      onKeyDown={(event) => event.stopPropagation()}
+                      className="w-28 rounded border border-slate-200 bg-white px-1.5 py-0.5 font-mono text-[11px] text-slate-700 focus:border-vino-400 focus:outline-none"
+                    />
+                  </label>
+                  {slot.party && (
+                    <span className="font-sans text-[10.5px] text-slate-400">
+                      {`{{${slot.party}_nombre}}, {{${slot.party}_cedula}}, {{${slot.party}_cargo}}…`}
+                    </span>
+                  )}
+                </>
               ) : (
                 slot.label && <strong className="sig-label">{slot.label}</strong>
               )}

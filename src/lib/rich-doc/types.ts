@@ -112,7 +112,8 @@ export type HeadingNumbering = "ordinal" | "decimal";
 /** rich-v2: one signature box; box n belongs to the signer with signing order n. */
 export interface SignatureSlotNode {
   type: "signatureSlot";
-  attrs: { label: string; showName?: boolean | null; showId?: boolean | null };
+  /** label = the signer role; party (T19) = data prefix filled from that person (cliente → cliente_nombre…). */
+  attrs: { label: string; party?: string; showName?: boolean | null; showId?: boolean | null };
 }
 
 /** rich-v2: signature boxes placed in the document; never split across pages. */

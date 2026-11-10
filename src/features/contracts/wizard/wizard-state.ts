@@ -1,6 +1,6 @@
 import type { ContractDetail, ContractInput } from '../../../lib/api/contract-types';
 import type { SignatoryRole, VariableValues } from '../../../lib/api/core-types';
-import type { Variable } from '../../../lib/api/catalog-types';
+import type { TemplateSignatureSlot, Variable } from '../../../lib/api/catalog-types';
 import {
   validateCedula,
   validateDateRange,
@@ -38,6 +38,10 @@ export interface SignatoryDraft {
   group: number;
   /** Filled when the cédula matched a registered user. */
   linkedUserId: string | null;
+  /** T19: the template box (role) this person signs; null = witness, or a template without boxes. */
+  slotIndex: number | null;
+  /** T19: the role shown on the card (box label or «Testigo»); empty without boxes. */
+  roleLabel: string;
 }
 
 export interface WizardDraft {
@@ -61,7 +65,40 @@ export function newKey() {
 }
 
 export function emptySignatory(role: SignatoryRole = 'client', group = 1): SignatoryDraft {
-  return { key: newKey(), name: '', cedula: '', email: '', phone: '', role, group, linkedUserId: null };
+  return { key: newKey(), name: '', cedula: '', email: '', phone: '', role, group, linkedUserId: null, slotIndex: null, roleLabel: '' };
+}
+
+export const WITNESS_LABEL = 'Testigo';
+
+export function emptyWitness(group = 1): SignatoryDraft {
+  return { ...emptySignatory('witness', group), roleLabel: WITNESS_LABEL };
+}
+
+/** Templates with signature boxes: one person per box (role), plus optional witnesses. */
+export function usesTemplateSlots(slots: TemplateSignatureSlot[] | undefined): slots is TemplateSignatureSlot[] {
+  return Boolean(slots && slots.length > 0);
+}
+
+/**
+ * One card per box of the template, in box order, then the witnesses. Cards already tied to a box keep
+ * their data; untied cards with data fill free boxes in order; leftovers with data stay as witnesses.
+ */
+export function withTemplateSlots(signatories: SignatoryDraft[], slots: TemplateSignatureSlot[]): SignatoryDraft[] {
+  const filled = (card: SignatoryDraft) => [card.name, card.cedula, card.email, card.phone].some((value) => value.trim() !== '');
+  const byBox = new Map<number, SignatoryDraft>();
+  for (const card of signatories) {
+    if (card.slotIndex !== null && card.slotIndex < slots.length && !byBox.has(card.slotIndex)) byBox.set(card.slotIndex, card);
+  }
+  const loose = signatories.filter((card) => !byBox.has(card.slotIndex ?? -1) || byBox.get(card.slotIndex ?? -1) !== card);
+  const witnesses = loose.filter((card) => card.role === 'witness' && card.slotIndex === null);
+  const movable = loose.filter((card) => !witnesses.includes(card) && filled(card));
+
+  const boxes = slots.map((slot) => {
+    const card = byBox.get(slot.index) ?? movable.shift() ?? emptySignatory('contractor', slot.index + 1);
+    return { ...card, slotIndex: slot.index, roleLabel: slot.label, role: card.role === 'witness' ? 'contractor' : card.role };
+  });
+  const extra = [...witnesses, ...movable].map((card) => ({ ...card, slotIndex: null, role: 'witness' as const, roleLabel: WITNESS_LABEL }));
+  return [...boxes, ...extra];
 }
 
 export function emptyDraft(): WizardDraft {
@@ -110,6 +147,8 @@ export function draftFromContract(contract: ContractDetail): WizardDraft {
       role: signatory.role,
       group: signatory.signingOrder,
       linkedUserId: signatory.userId,
+      slotIndex: signatory.slotIndex ?? null,
+      roleLabel: signatory.roleLabel ?? '',
     })),
   };
 }
@@ -159,11 +198,16 @@ export function validateDetailsStep(draft: WizardDraft, variables: Variable[]): 
   return errors;
 }
 
-export function validateSignatoriesStep(draft: WizardDraft, variables: Variable[] = []): FieldErrors {
+export function validateSignatoriesStep(draft: WizardDraft, variables: Variable[] = [], slots?: TemplateSignatureSlot[]): FieldErrors {
   const errors: FieldErrors = {};
+  const boxed = usesTemplateSlots(slots);
+  if (boxed) {
+    const missing = slots.filter((slot) => !draft.signatories.some((signatory) => signatory.slotIndex === slot.index));
+    if (missing.length > 0) errors.signatories = `Falta la persona de: ${missing.map((slot) => slot.label).join(', ')}.`;
+  }
   // The document needs this person's data: there must be a signatory with that role.
   const missingRoles = new Set<string>();
-  for (const variable of variables) {
+  for (const variable of boxed ? [] : variables) {
     const party = partyOf(variable.name);
     if (party && variable.required && !draft.signatories.some((signatory) => signatory.role === party.role)) missingRoles.add(party.label);
   }
@@ -218,7 +262,8 @@ export function validateSignatoriesStep(draft: WizardDraft, variables: Variable[
 }
 
 /** Builds the API payload; assumes the steps were validated. `templateVariables`: names the template uses. */
-export function toContractInput(draft: WizardDraft, templateVariables?: Iterable<string>): ContractInput {
+export function toContractInput(draft: WizardDraft, templateVariables?: Iterable<string>, slots?: TemplateSignatureSlot[]): ContractInput {
+  const boxed = usesTemplateSlots(slots);
   const money = validateMoney(draft.value);
   return {
     templateId: draft.templateId,
@@ -237,7 +282,12 @@ export function toContractInput(draft: WizardDraft, templateVariables?: Iterable
         email: email.ok ? email.value : signatory.email.trim(),
         cedula: signatory.cedula.trim() ? (cedula.ok ? cedula.value : signatory.cedula) : undefined,
         phone: signatory.phone.trim() ? (phone.ok ? phone.value : signatory.phone) : undefined,
-        role: signatory.role,
+        // With template boxes the server derives the role from the box; only witnesses say theirs.
+        ...(boxed
+          ? signatory.slotIndex !== null
+            ? { slotIndex: signatory.slotIndex }
+            : { slotIndex: null, role: 'witness' as const }
+          : { role: signatory.role }),
         signingOrder: signingOrderFor(draft, index),
       };
     }),

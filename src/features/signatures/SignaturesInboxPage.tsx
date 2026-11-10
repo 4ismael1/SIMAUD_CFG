@@ -6,7 +6,7 @@ import { useSignatures } from '../../lib/api/hooks/signatures';
 import type { SignatureInboxItem } from '../../lib/api/contract-types';
 import { errorMessage } from '../../lib/errors';
 import { formatDate, formatMoney } from '../../lib/format';
-import { SIGNATORY_ROLE_LABELS } from '../contracts/components/SignatoriesPanel';
+import { signatoryRoleLabel } from '../contracts/components/SignatoriesPanel';
 import { SignatureProgress, StatusBadge } from '../contracts/components/ContractBits';
 
 type Tab = 'turn' | 'waiting' | 'signed';
@@ -71,7 +71,7 @@ export function SignaturesInboxPage() {
 }
 
 function InboxRow({ row }: { row: SignatureInboxItem }) {
-  const role = row.signatory ? SIGNATORY_ROLE_LABELS[row.signatory.role] : null;
+  const role = row.signatory ? signatoryRoleLabel(row.signatory) : null;
   return (
     <li>
       <Card className="lift flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:p-5">
