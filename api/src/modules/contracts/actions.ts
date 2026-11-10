@@ -1,3 +1,4 @@
+import { assertAmendmentCanReopen } from "./amendments.js";
 import type { FastifyRequest } from "fastify";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import { z } from "zod";
@@ -189,7 +190,20 @@ async function cancelContract(context: ActionContext): Promise<ActionResult> {
 
   if (!contractService.canManage(contract, req.user)) throw contractService.forbidden();
   const cancel = parse(cancelInput, req.body);
-  next = transition(contract.status, "cancel");
+  next =
+    contract.amendsContractId && ["draft", "rejected", "pending_approval"].includes(contract.status)
+      ? "cancelled"
+      : transition(contract.status, "cancel");
+  if (next === "cancelled" && contract.status === "pending_approval")
+    await tx
+      .update(approvals)
+      .set({
+        status: "rejected",
+        reviewedBy: req.user.id,
+        reviewedAt: new Date(),
+        comments: cancel.description,
+      })
+      .where(and(eq(approvals.contractId, id), eq(approvals.status, "pending")));
   changes = { previousStatus: contract.status };
   await tx.insert(cancellations).values({
     contractId: id,
@@ -217,6 +231,7 @@ async function restoreContract(context: ActionContext): Promise<ActionResult> {
   let changes: Partial<typeof contracts.$inferInsert> = {};
 
   if (req.user.role !== "admin") throw contractService.forbidden();
+  await assertAmendmentCanReopen(tx, contract);
   next = transition(contract.status, "uncancel", contract.previousStatus);
   changes = { previousStatus: null };
   if (next === "pending_signatures") await contractService.nextSigners(tx, contract);
@@ -258,6 +273,9 @@ async function overrideContractStatus(context: ActionContext): Promise<ActionRes
   if (!can.override) throw contractService.forbidden();
   if (!input.reason || !input.status)
     throw contractService.invalid("Estado y motivo obligatorios.");
+  if (contract.amendsContractId && input.status === "active")
+    throw contractService.conflict("La enmienda debe activarse con todas las firmas.");
+  if (contract.status === "cancelled") await assertAmendmentCanReopen(tx, contract);
   next = overrideTransition(contract.status, input.status, contract.previousStatus);
   if (next === "pending_approval") {
     await tx

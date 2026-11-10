@@ -12,9 +12,11 @@ export const signingDeclaration =
 export interface EvidencePayload {
   format: "simaud-evidence-v1" | "simaud-evidence-v2";
   placement?: SignaturePlacement;
-  event?: "signed" | "resigned" | "placement_adjusted";
+  event?: "signed" | "resigned" | "placement_adjusted" | "superseded";
   supersedesEvidenceHash?: string | null;
   recordedAt?: string;
+  reason?: string;
+  eventUserId?: string;
   eventSessionId?: string;
   eventIp?: string;
   eventUserAgent?: string;
@@ -58,7 +60,7 @@ export async function recordEvidence(
   const current = await getContract(tx, contract.id, true);
   const evidence: EvidencePayload = {
     ...payload,
-    format: payload.placement ? "simaud-evidence-v2" : "simaud-evidence-v1",
+    format: payload.event || payload.placement ? "simaud-evidence-v2" : "simaud-evidence-v1",
     contractId: contract.id,
     contractVersion: contract.currentVersion,
     sequence: current.evidenceCount + 1,
@@ -124,6 +126,21 @@ async function verifySigner(
   currentVersion: number,
   latest: boolean,
 ) {
+  if (latest && payload.contractVersion === currentVersion && payload.event === "superseded") {
+    if (
+      !signer ||
+      signer.status === "signed" ||
+      signer.signaturePath ||
+      signer.signedAt ||
+      signer.placement ||
+      signer.viewedAt ||
+      signer.acceptedDeclarationAt ||
+      signer.ip ||
+      signer.userAgent
+    )
+      return false;
+    latest = false;
+  }
   if (
     latest &&
     payload.contractVersion === currentVersion &&
@@ -158,6 +175,8 @@ function originalSignature(payload: EvidencePayload) {
     event: _event,
     supersedesEvidenceHash: _supersedes,
     recordedAt: _recorded,
+    reason: _reason,
+    eventUserId: _actor,
     eventSessionId: _session,
     eventIp: _ip,
     eventUserAgent: _agent,
@@ -176,13 +195,24 @@ function validEvidenceSuccessor(
   if (payload.format === "simaud-evidence-v1") return !prior;
   if (
     payload.format !== "simaud-evidence-v2" ||
-    !payload.placement ||
+    (!payload.placement && payload.event !== "superseded") ||
     !payload.recordedAt ||
     !payload.event ||
     payload.supersedesEvidenceHash !== (prior?.evidenceHash ?? null) ||
     (prior ? payload.event === "signed" : payload.event !== "signed")
   )
     return false;
+  if (payload.event === "superseded")
+    return (
+      !!prior &&
+      prior.payload.event !== "superseded" &&
+      !!payload.reason?.trim() &&
+      payload.reason.length <= 500 &&
+      !!payload.eventUserId &&
+      !!payload.eventSessionId &&
+      originalSignature(payload) === originalSignature(prior.payload)
+    );
+  if (prior?.payload.event === "superseded" && payload.event !== "resigned") return false;
   if (payload.event === "placement_adjusted" && prior)
     return (
       !!payload.eventSessionId && originalSignature(payload) === originalSignature(prior.payload)
@@ -203,8 +233,10 @@ export async function verifyEvidenceChain(contractId: string, tx: Transaction | 
   if (
     rows.length !== contract.evidenceCount ||
     signers.filter((signer) => signer.status === "signed").length !==
-      [...latestBySigner.values()].filter((row) => row.contractVersion === contract.currentVersion)
-        .length
+      [...latestBySigner.values()].filter(
+        (row) =>
+          row.contractVersion === contract.currentVersion && row.payload.event !== "superseded",
+      ).length
   )
     return false;
   const previousBySigner = new Map<string, (typeof rows)[number]>();

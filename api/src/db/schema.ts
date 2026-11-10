@@ -38,6 +38,7 @@ export const contractStatus = pgEnum("contract_status", [
   "expired",
   "cancelled",
   "renewed",
+  "amended",
 ]);
 export const signatoryRole = pgEnum("signatory_role", ["client", "witness", "contractor"]);
 export const signatoryStatus = pgEnum("signatory_status", ["pending", "signed", "declined"]);
@@ -207,6 +208,20 @@ export const contracts = pgTable(
     evidenceHead: text("evidence_head"),
     evidenceCount: integer("evidence_count").default(0).notNull(),
     everSigned: boolean("ever_signed").default(false).notNull(),
+    everApproved: boolean("ever_approved").default(false).notNull(),
+    amendsContractId: uuid("amends_contract_id").references((): AnyPgColumn => contracts.id, {
+      onDelete: "restrict",
+    }),
+    amendmentRootId: uuid("amendment_root_id").references((): AnyPgColumn => contracts.id, {
+      onDelete: "restrict",
+    }),
+    amendedByContractId: uuid("amended_by_contract_id").references(
+      (): AnyPgColumn => contracts.id,
+      { onDelete: "restrict" },
+    ),
+    amendmentNumber: integer("amendment_number"),
+    amendmentSequence: integer("amendment_sequence").default(0).notNull(),
+    amendmentReason: text("amendment_reason"),
     previousStatus: contractStatus("previous_status"),
     title: text("title").notNull(),
     contentFormat: text("content_format")
@@ -247,6 +262,21 @@ export const contracts = pgTable(
     index("contracts_end_idx").on(t.endDate),
     index("contracts_archived_idx").on(t.archived),
     index("contracts_parent_idx").on(t.parentContractId),
+    index("contracts_amends_idx").on(t.amendsContractId),
+    uniqueIndex("contracts_amendment_number").on(t.amendmentRootId, t.amendmentNumber),
+    uniqueIndex("contracts_open_amendment")
+      .on(t.amendmentRootId)
+      .where(sql`${t.status} in ('draft', 'rejected', 'pending_approval', 'pending_signatures')`),
+    check(
+      "contracts_amendment_fields",
+      sql`
+      (${t.amendsContractId} is null and ${t.amendmentRootId} is null and ${t.amendmentNumber} is null and ${t.amendmentReason} is null)
+      or (${t.amendsContractId} is not null and ${t.amendmentRootId} is not null
+        and ${t.amendmentNumber} is not null and ${t.amendmentNumber} > 0
+        and ${t.amendmentReason} is not null and length(trim(${t.amendmentReason})) between 1 and 500
+        and ${t.amendsContractId} <> ${t.id})
+    `,
+    ),
     index("contracts_signed_pdf_hash_idx")
       .on(t.signedPdfSha256)
       .where(sql`${t.signedPdfSha256} is not null`),

@@ -1,3 +1,6 @@
+import { amendmentRoutes } from "./amendment-routes.js";
+import { hasOpenAmendment, hasOpenRenewal, mirrorAmendmentEvent } from "./amendments.js";
+import { canResetSignature } from "./amendment-permissions.js";
 import { ownSignatureSlot } from "./signature-placement.js";
 import { listContracts, contractListQuery } from "./list-queries.js";
 import { listApprovals, approvalQuery, getPendingApprovalRequester } from "./approval-queries.js";
@@ -57,11 +60,16 @@ export async function contractRoutes(app: FastifyInstance) {
         ...(await contractService.decorate(tx, contract)),
         signatories: allSignatories.map((item) => ({
           ...item,
+          canResetSignature: canResetSignature(contract, req.user, item),
           signatureFileId: signatureFiles.find((f) => f.path === item.signaturePath)?.id ?? null,
         })),
         signatureSlot: await ownSignatureSlot(tx, contract, allSignatories, req.user.id),
         can: {
           ...contractService.permissions(contract, req.user, allSignatories, requestedBy),
+          amend:
+            contractService.permissions(contract, req.user, allSignatories).amend &&
+            !(await hasOpenAmendment(tx, contract)) &&
+            !(await hasOpenRenewal(tx, contract.id)),
           reassign: canReassign(contract, req.user),
         },
       };
@@ -276,6 +284,7 @@ export async function contractRoutes(app: FastifyInstance) {
             "Reapertura administrativa",
             await historicalDefinitions(tx, contract),
           );
+        await mirrorAmendmentEvent(tx, req, contract, auditAction ?? action, { status: next });
         await contractService.record(tx, req, contract, auditAction ?? action, contract, {
           ...updated,
           reason: input.reason,
@@ -375,4 +384,5 @@ export async function contractRoutes(app: FastifyInstance) {
   );
   await adminContractRoutes(app, detail);
   await signatureRoutes(app);
+  await amendmentRoutes(app);
 }

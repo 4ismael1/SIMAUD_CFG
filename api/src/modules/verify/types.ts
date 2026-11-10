@@ -17,6 +17,11 @@ export interface RegisteredVerification {
   systemSignatureValid: boolean;
   pdfIntegrityValid: boolean;
   downloadAvailable: boolean;
-  amendedBy?: { verificationCode: string; title: string };
+  amendedBy?: {
+    verificationCode: string;
+    title: string;
+    code: string;
+    amendmentNumber: number | null;
+  };
 }
 export type PublicVerification = RegisteredVerification | { status: "not_found" | "revoked" };

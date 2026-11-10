@@ -1,3 +1,4 @@
+import { activateAmendment, mirrorAmendmentEvent } from "./amendments.js";
 import type { FastifyRequest } from "fastify";
 import { randomUUID } from "node:crypto";
 import { and, desc, eq } from "drizzle-orm";
@@ -99,7 +100,7 @@ export async function registerSignature(
         .where(eq(signatories.id, me.id));
       await recordEvidence(tx, contract, {
         placement,
-        event: resigning ? "resigned" : "signed",
+        event: previous ? "resigned" : "signed",
         supersedesEvidenceHash: previous?.evidenceHash ?? null,
         recordedAt: signedAt.toISOString(),
         signatoryId: me.id,
@@ -128,6 +129,10 @@ export async function registerSignature(
           .update(contracts)
           .set({ status: next, updatedAt: new Date() })
           .where(eq(contracts.id, id));
+      if (last) await activateAmendment(tx, req, contract);
+      await mirrorAmendmentEvent(tx, req, contract, resigning ? "signature_replaced" : "sign", {
+        signatoryId: me.id,
+      });
       if (last) await activateRenewalParent(tx, contract, req.user.id);
       if (last)
         await contractService.notify(

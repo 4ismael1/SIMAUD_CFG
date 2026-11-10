@@ -1,3 +1,9 @@
+import {
+  canAmend,
+  canResetSignature,
+  isContractEditor,
+  signaturesMutable,
+} from "./amendment-permissions.js";
 import { normalizeTemplateValues } from "../../lib/validation/template-values.js";
 import { addNotification, notificationLink } from "../notifications/service.js";
 import type { FastifyRequest } from "fastify";
@@ -75,6 +81,13 @@ export function permissions(
     canReview(contract, actor, requestedBy) && contract.status === "pending_approval";
   const me = signatories.find((item) => item.userId === actor.id);
   return {
+    amend: canAmend(contract, actor),
+    resetSignature: signatories.some((signer) => canResetSignature(contract, actor, signer)),
+    resetSignatures:
+      isContractEditor(contract, actor) &&
+      signaturesMutable(contract) &&
+      signatories.some((signer) => signer.status === "signed") &&
+      !signatories.some((signer) => signer.status === "signed" && signer.userId === actor.id),
     edit:
       editor &&
       editable &&
@@ -98,11 +111,14 @@ export function permissions(
       me?.status === "signed",
     cancel:
       canManage(contract, actor) &&
-      ["pending_signatures", "active", "expiring_soon"].includes(contract.status),
+      (["pending_signatures", "active", "expiring_soon"].includes(contract.status) ||
+        (!!contract.amendsContractId &&
+          ["draft", "rejected", "pending_approval"].includes(contract.status))),
     archive: canManage(contract, actor),
     delete:
       editor &&
       editable &&
+      !contract.everApproved &&
       !contract.everSigned &&
       !contract.signedPdfPath &&
       !contract.signedPdfSha256 &&

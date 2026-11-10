@@ -1,3 +1,4 @@
+import { hasOpenAmendment } from "../contracts/amendments.js";
 import { historicalDefinitions } from "../contracts/variable-history.js";
 import { santoDomingoToday } from "../../lib/sql.js";
 import type { FastifyRequest } from "fastify";
@@ -93,6 +94,8 @@ export async function requestRenewal(req: FastifyRequest, input: RenewalInput) {
     if (!contractService.canRead(contract, req.user, signatories)) throw contractService.notFound();
     if (!["active", "expiring_soon", "expired"].includes(contract.status))
       throw contractService.conflict();
+    if (await hasOpenAmendment(tx, contract))
+      throw contractService.conflict("Ya hay una enmienda abierta.");
     if (
       !contract.endDate ||
       input.proposedStartDate < contract.endDate ||

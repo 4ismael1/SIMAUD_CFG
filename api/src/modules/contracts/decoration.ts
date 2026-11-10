@@ -1,3 +1,4 @@
+import { amendmentChains } from "./amendment-chain.js";
 import { inArray, sql } from "drizzle-orm";
 import { db, type Transaction } from "../../db/client.js";
 import { contractTemplates, contractSignatories, users } from "../../db/schema.js";
@@ -11,6 +12,7 @@ export async function decorateMany(
   now = new Date(),
 ) {
   if (!contracts.length) return [];
+  const chains = await amendmentChains(connection, contracts);
   const signatures = await connection
     .select({
       contractId: contractSignatories.contractId,
@@ -50,6 +52,7 @@ export async function decorateMany(
   const creatorsById = new Map(creators.map((creator) => [creator.id, creator]));
   return contracts.map(({ originalCreatedBy: _origin, ...contract }) => ({
     ...contentResponse(contract),
+    amendmentChain: chains.get(contract.amendmentRootId ?? contract.id) ?? [],
     template: templatesById.get(contract.templateId ?? "") ?? null,
     creator: creatorsById.get(contract.createdBy ?? "") ?? null,
     signatures: countsByContract.get(contract.id) ?? { signed: 0, total: 0 },

@@ -6,14 +6,14 @@ export async function lockContractRows(connection: Transaction | typeof db, ids:
   if (!ids.length) return [];
   const resources = await connection.execute<{ id: string }>(sql`
     with recursive related as (
-      select id, parent_contract_id from contracts
+      select id, parent_contract_id, amends_contract_id from contracts
       where id in (${sql.join(
         ids.map((id) => sql`${id}::uuid`),
         sql`, `,
       )})
       union
-      select parent.id, parent.parent_contract_id from contracts parent
-      join related child on parent.id = child.parent_contract_id
+      select parent.id, parent.parent_contract_id, parent.amends_contract_id from contracts parent
+      join related child on parent.id = child.parent_contract_id or parent.id = child.amends_contract_id
     ) select id from related
   `);
   if (!resources.rows.length) return [];

@@ -105,6 +105,20 @@ async function verificationSnapshot(tx: Transaction, code: string): Promise<Publ
   const pdfIntegrityValid = pdf.valid;
   const valid = auditChainValid && evidenceChainValid && pdfIntegrityValid && systemSignatureValid;
   const signers = await getSignatories(tx, contract.id);
+  const [successor] = contract.amendedByContractId
+    ? await tx
+        .select({
+          verificationCode: contracts.verificationCode,
+          title: contracts.title,
+          code: contracts.code,
+          amendmentNumber: contracts.amendmentNumber,
+        })
+        .from(contracts)
+        .where(eq(contracts.id, contract.amendedByContractId))
+    : [];
+  const amendedBy = successor?.verificationCode
+    ? { ...successor, verificationCode: successor.verificationCode }
+    : undefined;
   return {
     status:
       contract.status === "cancelled"
@@ -112,8 +126,11 @@ async function verificationSnapshot(tx: Transaction, code: string): Promise<Publ
         : contract.revokedAt
           ? ("revoked" as const)
           : valid
-            ? ("registered" as const)
+            ? contract.status === "amended"
+              ? ("amended" as const)
+              : ("registered" as const)
             : ("integrity_error" as const),
+    ...(amendedBy ? { amendedBy } : {}),
     legacy: registration.legacy,
     downloadAvailable:
       !registration.legacy && valid && !contract.revokedAt && contract.status !== "cancelled",

@@ -35,6 +35,9 @@ export async function listEligibleRenewals(
           eligibleScope(actor),
           sql`
           ${contracts.status} in ('active', 'expiring_soon', 'expired')
+          and not exists (select 1 from contracts amendment
+            where amendment.amendment_root_id = coalesce(${contracts.amendmentRootId}, ${contracts.id})
+            and amendment.status in ('draft', 'rejected', 'pending_approval', 'pending_signatures'))
           and not exists (
             select 1
             from contract_renewals r

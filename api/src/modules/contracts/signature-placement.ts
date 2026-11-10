@@ -1,3 +1,4 @@
+import { signaturesMutable } from "./amendment-permissions.js";
 import type { FastifyRequest } from "fastify";
 import { and, desc, eq } from "drizzle-orm";
 import { db } from "../../db/client.js";
@@ -53,12 +54,7 @@ export async function ownSignatureSlot(
 }
 
 export function assertSignatureMutable(contract: service.Contract) {
-  if (
-    contract.status !== "pending_signatures" ||
-    contract.activatedAt ||
-    contract.signedPdfPath ||
-    contract.systemSeal
-  )
+  if (!signaturesMutable(contract))
     throw service.conflict("La firma solo se puede modificar antes de la activación.");
 }
 
