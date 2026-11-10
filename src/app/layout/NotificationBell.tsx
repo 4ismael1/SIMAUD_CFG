@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, BellOff } from 'lucide-react';
+import { Bell, BellOff, Trash2 } from 'lucide-react';
 import { EmptyState, IconButton, Skeleton, cn, useAction } from '../../ui';
 import {
+  useDeleteNotification,
   useNotifications,
   useReadAllNotifications,
   useReadNotification,
@@ -31,7 +32,10 @@ export function NotificationBell() {
   useEffect(() => {
     if (!open) return;
     function handlePointerDown(event: PointerEvent) {
-      if (!containerRef.current?.contains(event.target as Node)) setOpen(false);
+      const target = event.target as Element;
+      // A confirmation dialog opened from the panel lives outside it; clicking there must not close the panel.
+      if (target.closest?.('dialog')) return;
+      if (!containerRef.current?.contains(target)) setOpen(false);
     }
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') setOpen(false);
@@ -62,6 +66,7 @@ function NotificationPanel({ onClose }: { onClose: () => void }) {
   const notifications = useNotifications({ pageSize: PANEL_SIZE });
   const markRead = useReadNotification();
   const markAllRead = useReadAllNotifications();
+  const removeOne = useDeleteNotification();
   const { runAction } = useAction();
   const items = notifications.data?.data;
   const hasUnread = items?.some((item) => !item.readAt) ?? false;
@@ -73,6 +78,19 @@ function NotificationPanel({ onClose }: { onClose: () => void }) {
       onClose();
       navigate(path);
     }
+  }
+
+  function removeNotification(notification: Notification) {
+    void runAction({
+      confirm: {
+        title: '¿Borrar esta notificación?',
+        description: `«${notification.title}» desaparecerá de tu lista. No se puede recuperar.`,
+        confirmLabel: 'Borrar',
+        tone: 'danger',
+      },
+      run: () => removeOne.mutateAsync(notification.id),
+      success: 'Notificación borrada.',
+    });
   }
 
   return (
@@ -105,11 +123,11 @@ function NotificationPanel({ onClose }: { onClose: () => void }) {
         {items?.length === 0 && <EmptyState icon={<BellOff />} title="Sin notificaciones" description="Aquí verás avisos de firmas, aprobaciones y vencimientos." />}
         <ul>
           {items?.map((notification) => (
-            <li key={notification.id}>
+            <li key={notification.id} className={cn('group relative border-b border-slate-100', !notification.readAt && 'bg-vino-50/40')}>
               <button
                 type="button"
                 onClick={() => openNotification(notification)}
-                className={cn('flex w-full gap-3 border-b border-slate-100 px-4 py-3 text-left hover:bg-slate-50', !notification.readAt && 'bg-vino-50/40')}
+                className="flex w-full gap-3 px-4 py-3 pr-12 text-left hover:bg-slate-50"
               >
                 <span className={cn('mt-1.5 size-2 shrink-0 rounded-full', notification.readAt ? 'bg-transparent' : 'bg-vino-600')} aria-hidden="true" />
                 <span className="min-w-0 flex-1">
@@ -119,6 +137,14 @@ function NotificationPanel({ onClose }: { onClose: () => void }) {
                   {!notification.readAt && <span className="sr-only">(sin leer)</span>}
                 </span>
               </button>
+              <IconButton
+                size="sm"
+                label="Borrar notificación"
+                className="absolute top-2 right-2 opacity-100 focus-visible:opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
+                onClick={() => removeNotification(notification)}
+              >
+                <Trash2 />
+              </IconButton>
             </li>
           ))}
         </ul>
