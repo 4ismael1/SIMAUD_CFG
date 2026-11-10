@@ -88,3 +88,35 @@ export function sheetStyle(page: PageSettings | undefined): CSSProperties {
     '--sheet-line-height': String(resolved.lineHeight),
   } as CSSProperties;
 }
+
+export interface SheetGeometry {
+  /** Sheet height (px). */
+  pageHeight: number;
+  marginTop: number;
+  marginBottom: number;
+  marginLeft: number;
+  marginRight: number;
+  /** Writable height of one page (px). */
+  usable: number;
+  /** Distance from one page's writable area to the next (px): sheet height + gap between sheets. */
+  stride: number;
+}
+
+/** Geometry of the sheets for the width they currently have on screen. */
+export function sheetGeometry(page: PageSettings | undefined, sheetWidth: number, gap: number): SheetGeometry {
+  const resolved = resolvePage(page);
+  const paper = PAPER_SIZES[resolved.size];
+  const pxPerMm = sheetWidth / paper.widthMm;
+  const pageHeight = paper.heightMm * pxPerMm;
+  const marginTop = resolved.margins.top * pxPerMm;
+  const marginBottom = resolved.margins.bottom * pxPerMm;
+  return {
+    pageHeight,
+    marginTop,
+    marginBottom,
+    marginLeft: resolved.margins.left * pxPerMm,
+    marginRight: resolved.margins.right * pxPerMm,
+    usable: pageHeight - marginTop - marginBottom,
+    stride: pageHeight + gap,
+  };
+}

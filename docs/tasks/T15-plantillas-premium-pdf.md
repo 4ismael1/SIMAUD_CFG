@@ -20,8 +20,11 @@ nueva si hace falta, `api/test/t15-*.test.ts`. No toques `src/**` (front).
   usan los valores por defecto de v2 (Carta, 25 mm, Source Serif 11 pt, 1,5): así pantalla y PDF coinciden siempre.
   La constancia de T10 conserva su diseño pero usa el mismo papel.
 - Encabezado/pie según `Band` (texto, logo de la institución con su altura, «Página X de Y»; `skipFirstPage`).
-- Paginación: títulos con `headlineLevel`/`pageBreakBefore` para que nunca queden solos al pie; `signatures` irrompible;
-  `headerRows: 1` en tablas con fila de encabezado.
+- Paginación **idéntica a la del editor** (`src/lib/rich-doc/pagination.ts`, léelo): un bloque de primer nivel que cabe
+  en una página **no se parte** (si no cabe en lo que queda, pasa entero a la siguiente: párrafos, listas, tablas,
+  citas y `signatures`); solo un bloque más alto que una página continúa en la siguiente; un título va siempre con el
+  inicio del bloque siguiente (≈ 2 líneas); tras `pageBreak` empieza página nueva. En pdfmake: `unbreakable` en los
+  bloques que quepan en una página, `pageBreakBefore` para títulos huérfanos, `headerRows: 1` en tablas con encabezado.
 - Títulos numerados (`ordinal`/`decimal`) según la especificación, en español, por nivel.
 
 ## 3. Firmas en su casilla

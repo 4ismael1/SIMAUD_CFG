@@ -3,6 +3,7 @@ import StarterKit from "@tiptap/starter-kit";
 import Document from "@tiptap/extension-document";
 import Heading from "@tiptap/extension-heading";
 import { SignaturesNode } from "./SignaturesNode";
+import { Pagination } from "./pagination-extension";
 import TextAlign from "@tiptap/extension-text-align";
 import {
   Table,
@@ -246,6 +247,7 @@ export function editorExtensions(
     PagedDocument,
     NumberedHeading.configure({ levels: [1, 2, 3] }),
     SignaturesNode,
+    Pagination,
     TextAlign.configure({
       types: ["heading", "paragraph"],
       alignments: ["left", "center", "right", "justify"],

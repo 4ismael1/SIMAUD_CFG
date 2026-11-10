@@ -375,7 +375,7 @@ export function RichTextEditor({
           fullscreen ? "min-h-0 flex-1 overflow-y-auto" : "",
         )}
       >
-        <Sheet attrs={docAttrs} showPageBreaks>
+        <Sheet attrs={docAttrs} managed>
           <EditorContent editor={editor} />
           <SelectionToolbar editor={editor} />
         </Sheet>

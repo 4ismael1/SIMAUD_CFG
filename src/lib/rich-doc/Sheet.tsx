@@ -1,69 +1,107 @@
 import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { ImageIcon } from 'lucide-react';
 import { cn } from '../../ui';
-import { PAPER_SIZES, isBandEmpty, resolvePage, sheetStyle } from './page';
+import { isBandEmpty, sheetGeometry, sheetStyle, type SheetGeometry } from './page';
+import { SHEET_GAP_PX, blockKindOf, planPages } from './pagination';
 import type { BandSlot, DocAttrs, PageBand } from './types';
 
 /**
- * A sheet of paper with the document's real size, margins, font, header and footer (rich-v2).
- * Used by the editor and by every read-only view, so the screen matches the PDF.
+ * The document drawn as separate sheets of paper (real size, margins, font), one below the other with
+ * a gap, and the header/footer repeated on every sheet — like a word processor. Used by the editor and
+ * by every read-only view, so the screen matches the PDF.
  *
- * The page breaks drawn here are an estimate from the text height; the exact cut is the one in the
- * PDF preview (the API paginates). On narrow screens the sheet keeps its proportions but reflows text.
+ * Page ends follow lib/rich-doc/pagination.ts. In the editor the blank space before a block that
+ * moves to the next page is inserted by the Pagination extension (`managed`); in read-only views this
+ * component inserts it itself as top margin on the block.
  */
 
 interface SheetProps {
   attrs: DocAttrs | undefined;
   children: ReactNode;
-  /** Draw estimated page ends while editing. */
-  showPageBreaks?: boolean;
+  /** True in the editor: its Pagination extension inserts the page spacing. */
+  managed?: boolean;
   className?: string;
 }
 
-export function Sheet({ attrs, children, showPageBreaks = false, className }: SheetProps) {
-  const page = resolvePage(attrs?.page);
-  const paper = PAPER_SIZES[page.size];
-  const sheetRef = useRef<HTMLDivElement>(null);
-  const [pages, setPages] = useState(1);
-  const [pageHeight, setPageHeight] = useState(0);
+const PUSH_ATTRIBUTE = 'data-page-push';
+const BASE_ATTRIBUTE = 'data-page-base';
 
-  // Recount pages whenever the sheet or its text changes size.
+export function Sheet({ attrs, children, managed = false, className }: SheetProps) {
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const [layout, setLayout] = useState<{ geometry: SheetGeometry; pages: number } | null>(null);
+  const page = attrs?.page;
+
   useLayoutEffect(() => {
     const sheet = sheetRef.current;
-    if (!sheet) return;
-    const measure = () => {
-      const width = sheet.clientWidth;
-      const height = (width * paper.heightMm) / paper.widthMm;
-      const top = (width * page.margins.top) / paper.widthMm;
-      const bottom = (width * page.margins.bottom) / paper.widthMm;
-      const usable = height - top - bottom;
-      const content = sheet.querySelector<HTMLElement>('.sheet-body');
-      const contentHeight = content?.scrollHeight ?? 0;
-      setPageHeight(height);
-      setPages(Math.max(1, Math.ceil(contentHeight / Math.max(usable, 1))));
+    const body = bodyRef.current;
+    if (!sheet || !body) return;
+    let frame = 0;
+
+    const run = () => {
+      const geometry = sheetGeometry(page, sheet.clientWidth, SHEET_GAP_PX);
+      if (!managed) paginateReadOnly(body, geometry);
+      const contentHeight = body.scrollHeight - geometry.marginTop;
+      const pages = Math.max(1, Math.floor((Math.max(contentHeight, 1) - 0.5) / geometry.stride) + 1);
+      setLayout((previous) =>
+        previous && previous.pages === pages && previous.geometry.stride === geometry.stride && previous.geometry.usable === geometry.usable
+          ? previous
+          : { geometry, pages },
+      );
     };
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(sheet);
-    const body = sheet.querySelector('.sheet-body');
-    if (body) observer.observe(body);
-    return () => observer.disconnect();
-  }, [paper.heightMm, paper.widthMm, page.margins.top, page.margins.bottom]);
+    const schedule = () => {
+      window.clearTimeout(frame);
+      frame = window.setTimeout(run, 60);
+    };
+    run();
+    const resize = new ResizeObserver(schedule);
+    resize.observe(sheet);
+    resize.observe(body);
+    // Content changes (typing, data arriving, the editor inserting page spacing) → recount the pages.
+    const mutations = new MutationObserver(schedule);
+    mutations.observe(body, { childList: true, subtree: true, characterData: true });
+    return () => {
+      window.clearTimeout(frame);
+      resize.disconnect();
+      mutations.disconnect();
+    };
+  }, [page, managed]);
+
+  const geometry = layout?.geometry;
+  const pages = layout?.pages ?? 1;
+  const totalHeight = geometry ? pages * geometry.pageHeight + (pages - 1) * SHEET_GAP_PX : undefined;
 
   return (
     <div
       ref={sheetRef}
-      className={cn('sheet relative mx-auto w-full rounded-[3px] border border-slate-200 bg-paper shadow-doc', className)}
-      style={{
-        ...sheetStyle(attrs?.page),
-        maxWidth: 'var(--sheet-width)',
-        minHeight: pageHeight ? pageHeight * pages : undefined,
-        aspectRatio: pageHeight ? undefined : `${paper.widthMm} / ${paper.heightMm}`,
-      }}
+      className={cn('sheet relative mx-auto w-full', className)}
+      style={{ ...sheetStyle(page), maxWidth: 'var(--sheet-width)', minHeight: totalHeight, aspectRatio: geometry ? undefined : 'var(--sheet-ratio)' }}
     >
-      {!isBandEmpty(attrs?.header) && <BandPreview band={attrs?.header} edge="top" />}
+      {/* The paper: one sheet per page, behind the text. */}
+      {geometry &&
+        Array.from({ length: pages }, (_, index) => (
+          <div
+            key={index}
+            aria-hidden="true"
+            className="absolute inset-x-0 rounded-[3px] border border-slate-200 bg-paper shadow-doc"
+            style={{ top: index * geometry.stride, height: geometry.pageHeight }}
+          >
+            {!isBandEmpty(attrs?.header) && !(index === 0 && attrs?.header?.skipFirstPage) && (
+              <BandPreview band={attrs?.header} edge="top" geometry={geometry} page={index + 1} pages={pages} />
+            )}
+            {!isBandEmpty(attrs?.footer) && !(index === 0 && attrs?.footer?.skipFirstPage) && (
+              <BandPreview band={attrs?.footer} edge="bottom" geometry={geometry} page={index + 1} pages={pages} />
+            )}
+            {pages > 1 && (
+              <span className="absolute -bottom-[22px] left-1/2 -translate-x-1/2 font-sans text-[11px] text-slate-400">
+                Página {index + 1} de {pages}
+              </span>
+            )}
+          </div>
+        ))}
       <div
-        className="sheet-body"
+        ref={bodyRef}
+        className="sheet-body relative"
         style={{
           paddingTop: 'var(--sheet-margin-top)',
           paddingRight: 'var(--sheet-margin-right)',
@@ -73,65 +111,76 @@ export function Sheet({ attrs, children, showPageBreaks = false, className }: Sh
       >
         {children}
       </div>
-      {!isBandEmpty(attrs?.footer) && <BandPreview band={attrs?.footer} edge="bottom" />}
-      {showPageBreaks &&
-        pageHeight > 0 &&
-        Array.from({ length: pages - 1 }, (_, index) => (
-          <div
-            key={index}
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-x-0 border-t border-dashed border-slate-300"
-            style={{ top: pageHeight * (index + 1) }}
-            title="Corte aproximado; la vista previa muestra el corte exacto del PDF"
-          >
-            <span className="absolute -top-2.5 right-3 rounded bg-slate-100 px-1.5 font-sans text-[10px] text-slate-500">
-              Página {index + 2}
-            </span>
-          </div>
-        ))}
     </div>
   );
 }
 
-/** Header/footer drawn inside the top or bottom margin, three positions like the PDF. */
-function BandPreview({ band, edge }: { band: PageBand | undefined; edge: 'top' | 'bottom' }) {
+/** Read-only views: measure the blocks and push the ones that start a new page, as the editor does. */
+function paginateReadOnly(body: HTMLElement, geometry: SheetGeometry) {
+  const content = body.querySelector<HTMLElement>(':scope > .rich-content, :scope .rich-content');
+  if (!content) return;
+  const elements = Array.from(content.children).filter((child): child is HTMLElement => child instanceof HTMLElement);
+  const rootTop = body.getBoundingClientRect().top + geometry.marginTop;
+
+  // Natural positions: remove what we pushed last time from the measurements.
+  let inserted = 0;
+  const tops = elements.map((element) => {
+    inserted += Number(element.getAttribute(PUSH_ATTRIBUTE) ?? 0);
+    return element.getBoundingClientRect().top - rootTop - inserted;
+  });
+  const bottom = content.getBoundingClientRect().bottom - rootTop - inserted;
+  const blocks = elements.map((element, index) => ({
+    kind: blockKindOf(element),
+    top: tops[index],
+    height: (index + 1 < tops.length ? tops[index + 1] : bottom) - tops[index],
+  }));
+  const plan = planPages(blocks, geometry);
+
+  elements.forEach((element, index) => {
+    const push = Math.round(plan.spacers.get(index) ?? 0);
+    const previous = Number(element.getAttribute(PUSH_ATTRIBUTE) ?? 0);
+    if (push === previous) return;
+    // Padding (not margin): margins collapse between blocks and would make the push inexact.
+    if (!element.hasAttribute(BASE_ATTRIBUTE)) element.setAttribute(BASE_ATTRIBUTE, String(parseFloat(getComputedStyle(element).paddingTop) || 0));
+    const base = Number(element.getAttribute(BASE_ATTRIBUTE));
+    if (push > 0) element.setAttribute(PUSH_ATTRIBUTE, String(push));
+    else element.removeAttribute(PUSH_ATTRIBUTE);
+    element.style.paddingTop = push > 0 ? `${base + push}px` : '';
+  });
+}
+
+/** Header/footer inside the top or bottom margin of a sheet, three positions like the PDF. */
+function BandPreview({ band, edge, geometry, page, pages }: { band: PageBand | undefined; edge: 'top' | 'bottom'; geometry: SheetGeometry; page: number; pages: number }) {
   if (!band) return null;
   return (
     <div
-      className={cn(
-        'pointer-events-none absolute inset-x-0 grid grid-cols-3 items-center gap-2 font-sans text-slate-500',
-        edge === 'top' ? 'top-0' : 'bottom-0',
-      )}
+      className={cn('absolute inset-x-0 grid grid-cols-3 items-center gap-2 font-sans text-slate-500', edge === 'top' ? 'top-0' : 'bottom-0')}
       style={{
-        height: edge === 'top' ? 'var(--sheet-margin-top)' : 'var(--sheet-margin-bottom)',
-        paddingLeft: 'var(--sheet-margin-left)',
-        paddingRight: 'var(--sheet-margin-right)',
+        height: edge === 'top' ? geometry.marginTop : geometry.marginBottom,
+        paddingLeft: geometry.marginLeft,
+        paddingRight: geometry.marginRight,
       }}
     >
-      <div className="justify-self-start">{band.left && <SlotPreview slot={band.left} />}</div>
-      <div className="justify-self-center">{band.center && <SlotPreview slot={band.center} />}</div>
-      <div className="justify-self-end">{band.right && <SlotPreview slot={band.right} />}</div>
+      <div className="justify-self-start">{band.left && <SlotPreview slot={band.left} page={page} pages={pages} />}</div>
+      <div className="justify-self-center">{band.center && <SlotPreview slot={band.center} page={page} pages={pages} />}</div>
+      <div className="justify-self-end">{band.right && <SlotPreview slot={band.right} page={page} pages={pages} />}</div>
     </div>
   );
 }
 
 const PX_PER_MM = 96 / 25.4;
 
-function SlotPreview({ slot }: { slot: BandSlot }) {
+function SlotPreview({ slot, page, pages }: { slot: BandSlot; page: number; pages: number }) {
   if (slot.kind === 'text') {
     return <span style={{ fontSize: `${((slot.size ?? 9) * 96) / 72}px` }}>{slot.text}</span>;
   }
   if (slot.kind === 'logo') {
     const height = (slot.height ?? 14) * PX_PER_MM;
     return (
-      <span
-        className="grid place-items-center rounded border border-dashed border-slate-300 text-slate-400"
-        style={{ height, width: height * 2.2 }}
-        title="Logo de la institución"
-      >
+      <span className="grid place-items-center rounded border border-dashed border-slate-300 text-slate-400" style={{ height, width: height * 2.2 }} title="Logo de la institución">
         <ImageIcon className="size-4" />
       </span>
     );
   }
-  return <span className="text-[11px]">{slot.format === 'page' ? '1' : 'Página 1 de N'}</span>;
+  return <span className="text-[11px]">{slot.format === 'page' ? page : `Página ${page} de ${pages}`}</span>;
 }

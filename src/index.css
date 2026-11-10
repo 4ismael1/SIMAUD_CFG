@@ -147,6 +147,11 @@
   .rich-content.ProseMirror {
     @apply min-h-[420px];
   }
+  /* Space inserted by the page planner before a block that starts a new page (editor). */
+  .rich-content > .page-spacer {
+    margin: 0 !important;
+    pointer-events: none;
+  }
 
   /* Page set-up (rich-v2): a sheet sets these variables (lib/rich-doc/page.ts → sheetStyle). */
   .sheet .rich-content {
