@@ -38,6 +38,10 @@ export interface DashboardSignature extends DashboardContract {
   signatureStatus: SignatoryStatus;
   myTurn: boolean;
 }
+export interface DashboardExpiration extends DashboardContract {
+  endDate: string;
+  value: string | null;
+}
 /** One entry of the contract audit trail, as shown in the panels. */
 export interface DashboardActivity {
   id: string;
@@ -66,10 +70,7 @@ export interface AdminDashboard {
   monthly: { month: string; created: number; signed: number }[];
   byStatus: Record<ContractStatus, number>;
   pendingApprovals: DashboardApproval[];
-  upcomingExpirations: (DashboardContract & {
-    endDate: string;
-    value: string | null;
-  })[];
+  upcomingExpirations: DashboardExpiration[];
   /** The fields below arrived with T12a; an older API simply omits them. */
   totals?: {
     users: number;
@@ -96,6 +97,10 @@ export interface SupervisorDashboard {
   queue: DashboardApproval[];
   templateUsage: { templateId: string; title: string; count: number }[];
   myRecentDecisions: DashboardDecision[];
+  /** Added by T12a; an older API omits them. */
+  catalog?: { activeTemplates: number; variables: number; contractsFromTemplates: number };
+  templatesByCategory?: { category: string; count: number }[];
+  recentActivity?: DashboardActivity[];
 }
 export interface GestorDashboard {
   kpis: {
@@ -115,6 +120,10 @@ export interface GestorDashboard {
     value: string | null;
     updatedAt: string;
   })[];
+  /** Added by T12a; an older API omits them. */
+  monthly?: { month: string; created: number; signed: number; value: number }[];
+  byStatus?: { status: ContractStatus; count: number }[];
+  upcomingExpirations?: DashboardExpiration[];
 }
 export interface SignerDashboard {
   myTurn: DashboardSignature[];

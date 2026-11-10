@@ -1,105 +1,109 @@
 import { Link } from 'react-router-dom';
-import { PenLine } from 'lucide-react';
-import { Card, CardHeader, Kpi, cn } from '../../ui';
-import type { DashboardLane, GestorDashboard } from '../../lib/api/dashboard-types';
+import { CircleCheck, FilePlus2, FileText, PenLine, Wallet } from 'lucide-react';
+import { ButtonLink, Card, CardHeader, ChartLegend, ColumnChart, EmptyState, Kpi } from '../../ui';
+import type { ContractStatus } from '../../lib/api/types';
+import type { GestorDashboard } from '../../lib/api/dashboard-types';
 import { formatMoney, formatMoneyShort, formatRelative } from '../../lib/format';
-import { SignatureProgress, StatusBadge } from '../contracts/components/ContractBits';
-import { formatDecimal, formatPercent } from './metrics';
+import { StatusBadge } from '../contracts/components/ContractBits';
+import { ExpirationsCard } from './ExpirationsCard';
+import { GestorLanes } from './GestorLanes';
+import { StatusBreakdownCard } from './StatusBreakdownCard';
+import { formatDecimal, formatPercent, monthLabel } from './metrics';
+
+const CREATED_COLOR = '#8b2029';
+const SIGNED_COLOR = '#475569';
+
+function MonthlyCard({ monthly }: { monthly: NonNullable<GestorDashboard['monthly']> }) {
+  const labels = monthly.map((point) => monthLabel(point.month));
+  const summary = monthly.map((point) => `${monthLabel(point.month)}: ${point.created} creados, ${point.signed} firmados`).join('; ');
+
+  return (
+    <Card>
+      <CardHeader
+        title="Mi actividad"
+        description="Contratos creados y firmados, últimos 12 meses"
+        action={<ChartLegend items={[{ label: 'Creados', color: CREATED_COLOR }, { label: 'Firmados', color: SIGNED_COLOR }]} />}
+      />
+      <div className="px-3 pb-3">
+        <ColumnChart
+          labels={labels}
+          ariaLabel={summary}
+          formatValue={(value) => formatDecimal(value, 0)}
+          series={[
+            { label: 'Creados', color: CREATED_COLOR, values: monthly.map((point) => point.created) },
+            { label: 'Firmados', color: SIGNED_COLOR, values: monthly.map((point) => point.signed) },
+          ]}
+        />
+      </div>
+    </Card>
+  );
+}
+
+function RecentCard({ recent }: { recent: GestorDashboard['recent'] }) {
+  return (
+    <Card className="overflow-hidden">
+      <CardHeader title="Mis contratos recientes" action={<Link to="/app/contratos" className="text-[13px] font-medium text-vino-600">Ver todos</Link>} />
+      {recent.length === 0 ? (
+        <EmptyState
+          icon={<FileText />}
+          title="Aún no has creado contratos"
+          description="Parte de una plantilla oficial y envíalo a aprobación."
+          action={<ButtonLink to="/app/contratos/nuevo" variant="primary" size="sm" icon={<FilePlus2 />}>Nuevo contrato</ButtonLink>}
+        />
+      ) : (
+        <ul className="mt-3 divide-y divide-slate-100 border-t border-slate-100">
+          {recent.map((contract) => (
+            <li key={contract.id}>
+              <Link to={`/app/contratos/${contract.id}`} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-5 py-3 transition-colors hover:bg-slate-50">
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[13.5px] font-semibold text-slate-900">{contract.title}</span>
+                  <span className="block font-mono text-xs text-slate-500">{contract.code} · {formatRelative(contract.updatedAt)}</span>
+                </span>
+                <StatusBadge status={contract.status} />
+                <span className="tabular w-32 text-right text-sm text-slate-700 max-sm:hidden">{contract.value ? formatMoney(contract.value) : '—'}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
+  );
+}
+
+function statusCounts(rows: NonNullable<GestorDashboard['byStatus']>): Partial<Record<ContractStatus, number>> {
+  return Object.fromEntries(rows.map((row) => [row.status, row.count]));
+}
 
 export function GestorDashboardView({ data }: { data: GestorDashboard }) {
-  const { kpis, lanes } = data;
+  const { kpis } = data;
 
   return (
     <>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Kpi label="Mis contratos vigentes" value={formatDecimal(kpis.myActive, 0)} />
-        <Kpi label="Valor gestionado" value={formatMoneyShort(kpis.myValue)} />
+        <Kpi label="Mis contratos vigentes" icon={<FileText />} value={formatDecimal(kpis.myActive, 0)} />
+        <Kpi label="Valor gestionado" icon={<Wallet />} value={formatMoneyShort(kpis.myValue)} />
         <Kpi
           label="Aprobados a la primera"
+          icon={<CircleCheck />}
           value={formatPercent(kpis.firstTimeApprovalRate)}
           footer={<span>Media institucional: {formatPercent(kpis.institutionFirstTimeApprovalRate)}</span>}
         />
         <Kpi label="Firmas pendientes" icon={<PenLine />} value={formatDecimal(kpis.pendingSignatures, 0)} />
       </div>
 
-      <section className="flex flex-col gap-3" aria-labelledby="pendientes">
-        <h2 id="pendientes" className="text-base font-semibold">Tus pendientes</h2>
-        <div className="grid gap-3.5 lg:grid-cols-3">
-          <Lane title="Devueltos para corregir" dotClass="bg-red-600" items={lanes.returned} empty="Nada devuelto." editable>
-            {(item) => (
-              <>
-                {item.returnComment && <span className="rounded-md bg-red-50 px-2 py-1.5 text-[12.5px] text-red-800">«{item.returnComment}»</span>}
-                <span className="text-[12.5px] font-semibold text-vino-600">Corregir y reenviar</span>
-              </>
-            )}
-          </Lane>
-          <Lane title="Borradores sin enviar" dotClass="bg-slate-400" items={lanes.drafts} empty="No tienes borradores." editable>
-            {() => <span className="text-[12.5px] text-slate-500">Completa y envía a aprobación</span>}
-          </Lane>
-          <Lane title="Esperando firmas" dotClass="bg-blue-700" items={lanes.awaitingSignatures} empty="Ningún contrato espera firmas.">
-            {(item) =>
-              item.total !== undefined && (
-                <span className="flex items-center justify-between gap-2 text-[12.5px] text-slate-500">
-                  {item.total - (item.signed ?? 0)} pendiente(s)
-                  <SignatureProgress signed={item.signed ?? 0} total={item.total} />
-                </span>
-              )
-            }
-          </Lane>
+      <GestorLanes lanes={data.lanes} />
+
+      {(data.monthly || data.byStatus) && (
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+          {data.monthly && <MonthlyCard monthly={data.monthly} />}
+          {data.byStatus && <StatusBreakdownCard title="Mis contratos por estado" counts={statusCounts(data.byStatus)} />}
         </div>
-      </section>
+      )}
 
-      <Card className="overflow-hidden">
-        <CardHeader title="Mis contratos recientes" action={<Link to="/app/contratos" className="text-[13px] font-medium text-vino-600">Ver todos</Link>} />
-        <ul className="mt-3 divide-y divide-slate-100 border-t border-slate-100">
-          {data.recent.length === 0 && <li className="px-5 py-6 text-sm text-slate-500">Aún no has creado contratos.</li>}
-          {data.recent.map((contract) => (
-            <li key={contract.id}>
-              <Link to={`/app/contratos/${contract.id}`} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-5 py-3 hover:bg-slate-50">
-                <span className="min-w-0 flex-1">
-                  <span className="block font-semibold">{contract.title}</span>
-                  <span className="block font-mono text-xs text-slate-500">{contract.code} · {formatRelative(contract.updatedAt)}</span>
-                </span>
-                <StatusBadge status={contract.status} />
-                <span className="tabular w-36 text-right text-sm">{contract.value ? formatMoney(contract.value) : '—'}</span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </Card>
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+        <RecentCard recent={data.recent} />
+        {data.upcomingExpirations && <ExpirationsCard items={data.upcomingExpirations} title="Mis próximos vencimientos" emptyDescription="Ninguno de tus contratos vigentes está por vencer." />}
+      </div>
     </>
-  );
-}
-
-interface LaneProps {
-  title: string;
-  dotClass: string;
-  items: DashboardLane[];
-  empty: string;
-  editable?: boolean;
-  children: (item: DashboardLane) => React.ReactNode;
-}
-
-function Lane({ title, dotClass, items, empty, editable, children }: LaneProps) {
-  return (
-    <div className="flex min-w-0 flex-col gap-2.5 rounded-xl border border-slate-200 bg-slate-100/70 p-3">
-      <h3 className="flex items-center gap-2 text-[13.5px] font-semibold">
-        <span className={cn('size-2 rounded-full', dotClass)} aria-hidden="true" />
-        {title}
-        <span className="tabular ml-auto rounded-full border border-slate-200 bg-white px-2 text-xs text-slate-600">{items.length}</span>
-      </h3>
-      {items.length === 0 && <p className="px-1 py-2 text-[13px] text-slate-500">{empty}</p>}
-      {items.map((item) => (
-        <Link
-          key={item.id}
-          to={editable ? `/app/contratos/${item.id}/editar` : `/app/contratos/${item.id}`}
-          className="flex flex-col gap-1.5 rounded-lg border border-slate-200 bg-white p-3 shadow-card hover:border-slate-300"
-        >
-          <span className="text-[13.5px] font-semibold">{item.title}</span>
-          <span className="font-mono text-xs text-slate-500">{item.code}</span>
-          {children(item)}
-        </Link>
-      ))}
-    </div>
   );
 }

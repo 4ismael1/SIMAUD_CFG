@@ -1,23 +1,17 @@
 import { Link } from 'react-router-dom';
 import { CircleCheck, Clock, FileText, PenLine, TriangleAlert } from 'lucide-react';
-import { ButtonLink, Card, CardHeader, Delta, DonutChart, EmptyState, Kpi, LineChart, Sparkline, type DonutSlice } from '../../ui';
+import { ButtonLink, Card, CardHeader, Delta, EmptyState, Kpi, LineChart, Sparkline } from '../../ui';
 import type { AdminDashboard } from '../../lib/api/dashboard-types';
-import type { ContractStatus } from '../../lib/api/types';
-import { contractStatus } from '../../lib/api/status';
-import { CONTRACT_STATUS_COLORS } from '../../lib/api/status-colors';
-import { daysUntil, formatDate, formatMoney, formatMoneyShort } from '../../lib/format';
+import { formatMoneyShort } from '../../lib/format';
 import { daysLabel } from '../contracts/components/ContractBits';
 import { QuickActions, RecentActivityCard, TopManagersCard, TotalsStrip, UsersByRoleCard } from './AdminDashboardExtras';
 import { ApprovalRows } from './ApprovalRows';
+import { ExpirationsCard } from './ExpirationsCard';
+import { StatusBreakdownCard } from './StatusBreakdownCard';
 import { absoluteChange, formatDecimal, monthLabel, percentChange, toNumber, trendOf, trendValues } from './metrics';
-
-const STATUS_ORDER: ContractStatus[] = ['active', 'expiring_soon', 'pending_signatures', 'pending_approval', 'draft', 'rejected', 'renewed', 'expired', 'cancelled'];
 
 export function AdminDashboardView({ data }: { data: AdminDashboard }) {
   const { attention, kpis } = data;
-  const slices: DonutSlice[] = STATUS_ORDER.map((status) => ({ label: contractStatus[status].label, value: data.byStatus[status] ?? 0, color: CONTRACT_STATUS_COLORS[status] }))
-    .filter((slice) => slice.value > 0);
-  const totalContracts = slices.reduce((sum, slice) => sum + slice.value, 0);
 
   return (
     <>
@@ -68,28 +62,7 @@ export function AdminDashboardView({ data }: { data: AdminDashboard }) {
             />
           </div>
         </Card>
-        <Card>
-          <CardHeader title="Contratos por estado" action={<span className="text-xs text-slate-500">{totalContracts} en total</span>} />
-          <div className="flex flex-col gap-4 p-5">
-            <DonutChart
-              slices={slices}
-              centerValue={String(data.byStatus.active ?? 0)}
-              centerLabel="vigentes"
-              ariaLabel={slices.map((slice) => `${slice.label}: ${slice.value}`).join(', ')}
-            />
-            <ul className="grid grid-cols-2 gap-x-4 gap-y-2 text-[13px]">
-              {slices.map((slice) => (
-                <li key={slice.label} className="flex items-center justify-between gap-2">
-                  <span className="flex min-w-0 items-center gap-2">
-                    <span className="size-2.5 shrink-0 rounded-sm" style={{ background: slice.color }} />
-                    <span className="truncate">{slice.label}</span>
-                  </span>
-                  <b className="tabular">{slice.value}</b>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </Card>
+        <StatusBreakdownCard title="Contratos por estado" counts={data.byStatus} />
       </div>
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
@@ -105,34 +78,7 @@ export function AdminDashboardView({ data }: { data: AdminDashboard }) {
             <ApprovalRows items={data.pendingApprovals} />
           )}
         </Card>
-        <Card>
-          <CardHeader title="Próximos vencimientos" action={<Link to="/app/contratos?estado=expiring_soon" className="text-[13px] font-medium text-vino-600">Ver todos</Link>} />
-          {data.upcomingExpirations.length === 0 ? (
-            <EmptyState title="Sin vencimientos próximos" description="Ningún contrato vence en los próximos 30 días." />
-          ) : (
-            <ul className="mt-2 divide-y divide-slate-100 px-5 pb-2">
-              {data.upcomingExpirations.map((contract) => {
-                const days = daysUntil(contract.endDate);
-                return (
-                  <li key={contract.id}>
-                    <Link to={`/app/contratos/${contract.id}`} className="flex items-center gap-3 py-3">
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate font-medium">{contract.title}</span>
-                        <span className="block text-xs text-slate-500">
-                          {formatDate(contract.endDate)}
-                          {contract.value ? ` · ${formatMoney(contract.value)}` : ''}
-                        </span>
-                      </span>
-                      <span className={days <= 15 ? 'text-sm font-semibold text-red-600' : 'text-sm font-semibold text-amber-700'}>
-                        {daysLabel(Math.max(0, days))}
-                      </span>
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </Card>
+        <ExpirationsCard items={data.upcomingExpirations} />
       </div>
 
       {(data.recentActivity || data.topManagers || data.usersByRole) && (
