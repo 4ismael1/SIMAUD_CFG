@@ -6,7 +6,7 @@ T10 y T13.
 
 Alcance: `api/src/lib/rich-doc/**`, `api/src/lib/pdf.ts`, `api/src/modules/contracts/**` (PDF, constancia, preview,
 catálogo), `api/assets/fonts/**`, `api/src/modules/system/settings.ts` (solo lectura del logo), schema + migración
-nueva si hace falta, `api/test/t15-*.test.ts`. No toques `src/**` (front).
+nueva si hace falta (número **0013**; T16 en paralelo usa la 0014), `api/test/t15-*.test.ts`. No toques `src/**` (front).
 
 ## 1. Formato `rich-v2`
 - `content_format` admite `'rich-v2'`. Valida estrictamente `RICH_DOC_FORMAT_V2.md` (página, encabezado/pie, `signatures`,
