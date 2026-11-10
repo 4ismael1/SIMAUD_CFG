@@ -1,7 +1,7 @@
 # HANDOFF — SIMAUD: estado del trabajo y cómo continuar
 
 ## ⚡ ÚLTIMA ACTUALIZACIÓN (sesión 3, 10 nov 2026) — LEER PRIMERO
-Rama `feat/backend-propio-y-nueva-ui`. `main` intacta. Últimos commits: `cd3cb3f` (T11 + T09c), `1bf4a40` (sidebar, cuenta, Ctrl+K, aprobaciones), `f214b4c` (reportes), `5f62a82` (módulo avanzado de contratos). **Sin commitear: solo el trabajo en curso de Codex en `api/` (T10 y T12a).**
+Rama `feat/backend-propio-y-nueva-ui`. `main` intacta. Últimos commits de front: `1bf4a40`, `f214b4c`, `5f62a82`, `afbf8e8`, `e43de7f`, `0dfde5f`, `c4d4929`, `c3f6cdf` (detalle abajo); backend: `cd3cb3f` (T11 + T09c). **Sin commitear: solo el trabajo en curso de Codex en `api/` (T10 y T12a).**
 Lee también **`docs/PRINCIPIOS.md`** (obligatorio) y **`docs/CODE_STANDARDS.md`** (sección «Interfaz: acciones y avisos»).
 
 ### Modo de trabajo
@@ -29,19 +29,21 @@ Lee también **`docs/PRINCIPIOS.md`** (obligatorio) y **`docs/CODE_STANDARDS.md`
 - Instabox (staging autorizado; tocar SOLO la máquina `simaud` = `m_agq4fpcgma6kpfqey5ffoy2wui`): clave en `.env.ops` (ignorado por git). API `https://api.instabox.sh/v1`, cabecera `X-API-Key`; publicar puerto con `POST /v1/machines/<id>/ports`. Plan: override de compose para staging con nginx solo HTTP (p. ej. 8080), `TRUST_PROXY=2`, `APP_URL` pública.
 - Recordar al dueño **rotar** las claves de Resend, Instabox y Brevo (se pegaron en el chat).
 
-### Front hecho en la sesión 3 (commiteado; typecheck filtrado limpio; **nada verificado aún con sesión**)
+### Front hecho en la sesión 3 (commiteado; typecheck filtrado limpio y `npm run build` en verde; **nada verificado aún con sesión**)
 - **Sidebar** plegable a iconos (recuerda estado), con jerarquía por secciones, y **menú de cuenta** (`AccountMenu`). **Paleta Ctrl+K** rediseñada (`CommandPalette`). **Aprobaciones** rediseñada.
 - **Reportes** rehechos: `src/features/reports/*` (filtros de período/estado/plantilla/gestor, 8 indicadores con comparación contra el período anterior, evolución, estados, plantillas, rangos de valor, tabla por gestor, mayores contratos, aprobaciones, usuarios; exportar PDF/Excel/CSV). Gráficos propios en `src/ui/bar-charts.tsx`; colores de estado en `src/lib/api/status-colors.ts`. Depende de T12a.
-- **Módulo avanzado de contratos** (`src/features/contracts/ContractsListPage.tsx`, `ContractListFilters.tsx`, `admin/*`): filtros por plantilla, gestor y orden (en la URL); menú por fila según rol y estado (ver, editar/corregir, PDF, reasignar gestor, forzar estado, reactivar, archivar/desarchivar con «Deshacer», cancelar con motivo, eliminar SOLO borradores); para admin, selección múltiple y barra flotante de lote (archivar, desarchivar, cancelar con motivo). Hooks en `src/lib/api/hooks/contract-admin.ts`. Reasignar y lote dependen de T12a. En móvil no hay selección ni menú por fila (se entra al detalle).
+- **Módulo avanzado de contratos** (`src/features/contracts/ContractsListPage.tsx`, `ContractListFilters.tsx`, `admin/*`): filtros por plantilla, gestor y orden (en la URL); menú por fila según rol y estado; para admin, selección múltiple y barra de lote (archivar, desarchivar, cancelar con motivo). Hooks en `src/lib/api/hooks/contract-admin.ts`. Reasignar y lote dependen de T12a. En móvil no hay selección ni menú por fila.
+- **Detalle de contrato** (`c4d4929`): «Reasignar gestor…» si la API manda `can.reassign` (T12a); eliminar solo borradores, sin `confirm` en el cuerpo (así lo espera la API) y con texto correcto.
+- **Panel de admin** (`afbf8e8`): accesos rápidos, totales, mejores gestores, usuarios por rol, actividad reciente (`AdminDashboardExtras.tsx`).
+- **Paneles de supervisor y gestor** (`0dfde5f`): supervisor con catálogo, plantillas más usadas/por categoría, decisiones y actividad; gestor con carriles (`GestorLanes.tsx`), gráfico de 12 meses, estados y vencimientos. Tarjetas compartidas: `ExpirationsCard.tsx`, `StatusBreakdownCard.tsx`. Todos los campos de T12a son opcionales en `dashboard-types.ts`: con una API antigua simplemente no se pintan.
+- **Configuración › Almacenamiento** (`e43de7f`): `src/features/settings/StorageSection.tsx` + `src/lib/api/hooks/storage.ts` (disco/S3, «Probar conexión» con pasos y latencia, guardar con confirmación, aviso de destino pendiente y «Migrar ahora», sondeo mientras migra). El identificador de acceso hay que reescribirlo siempre al guardar S3 (la API lo exige); la clave secreta se puede dejar vacía si no cambian endpoint/bucket/identificador. **Sin probar contra un S3 real.**
+- **Usuarios** (`c3f6cdf`): «Editar datos…» (`EditUserDialog.tsx`: nombre, cédula, teléfono; el correo no se edita ahí).
 
 ### Pendiente de front (en este orden)
-1. **Panel de admin rico**: accesos rápidos, usuarios por rol, mejores gestores, actividad reciente (campos aditivos de T12a; tolerar su ausencia), usar `CONTRACT_STATUS_COLORS` en `AdminDashboardView`.
-2. Usuarios: diálogo de edición; filtros en plantillas/variables; borrar notificaciones (`useDeleteNotification`).
-3. **Configuración › Almacenamiento** (API de T11: `GET/PUT /system/storage`, `POST /system/storage/test` → `{ok, latencyMs, steps[]}`, `POST /system/storage/migrate` → 202 `{jobId}`, `GET /system/jobs` incluye `storage-migrate`).
-4. **Página pública `/verificar`** y envío de `method/fontId` en la firma (tras T10); corregir el `confirm` del borrado de borrador en `ContractActions` según lo que deje T10.
-5. **Barrido y pulido** de los paneles de supervisor, gestor y firmante, detalle de contrato, formularios y estados vacíos, coherente con el lienzo aprobado.
-6. Verificar TODO con el dueño con sesión a 1440/768/375 px y corregir; `npm run build`.
-7. Borrar código viejo (`src/components`, Supabase; pedir OK para `supabase/`), staging en Instabox y prueba completa con los 4 roles.
+1. **Página pública `/verificar`** y envío de `method/fontId` en la firma (tras T10; leer su informe para las rutas exactas).
+2. Filtros en plantillas/variables; borrar notificaciones (`useDeleteNotification`); repaso de formularios (asistente de contrato, editor de plantilla) y de la bandeja del firmante (`SignaturesInboxPage`, ya aceptable).
+3. Verificar TODO con el dueño con sesión a 1440/768/375 px y corregir (requiere actualizar `SIMAUD_RUN` con T12a/T10).
+4. Borrar código viejo (`src/components`, Supabase; pedir OK para `supabase/`), staging en Instabox y prueba completa con los 4 roles.
 
 ### Preguntas abiertas al dueño
 - Secreto de S3 cifrado en BD: ¿se acepta como excepción a PRINCIPIOS §5 o se mueve a variable de entorno?
