@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { clauseNumber, richDocToPlain, richDocToV1, toEditorJson } from './convert';
-import { sanitizeRichDoc } from './sanitize';
+import { sameDocument, sanitizeRichDoc } from './sanitize';
 import { compactPage, resolvePage } from './page';
 import type { RichDoc } from './types';
 
@@ -81,5 +81,39 @@ describe('numeración y página', () => {
   it('la página por defecto es Carta con 25 mm y no se guarda', () => {
     expect(resolvePage(undefined).size).toBe('letter');
     expect(compactPage(resolvePage(undefined))).toBeUndefined();
+  });
+});
+
+describe('sameDocument (cambios sin guardar)', () => {
+  const stored = {
+    type: 'doc',
+    content: [
+      { type: 'paragraph', content: [{ type: 'text', text: 'Hola', marks: [{ type: 'italic' }, { type: 'bold' }] }] },
+      { type: 'table', attrs: { borderless: true }, content: [{ type: 'tableRow', content: [{ type: 'tableCell', content: [{ type: 'paragraph' }] }] }] },
+    ],
+  };
+  // What the editor emits right after opening it: defaults filled in, its own mark order, a trailing empty line.
+  const fromEditor = {
+    type: 'doc',
+    attrs: { page: null, header: null, footer: null },
+    content: [
+      { type: 'paragraph', attrs: { textAlign: null }, content: [{ type: 'text', text: 'Hola', marks: [{ type: 'bold' }, { type: 'italic' }] }] },
+      {
+        type: 'table',
+        attrs: { borderless: true },
+        content: [{ type: 'tableRow', content: [{ type: 'tableCell', attrs: { colspan: 1, rowspan: 1, colwidth: null }, content: [{ type: 'paragraph', attrs: { textAlign: null } }] }] }],
+      },
+      { type: 'paragraph', attrs: { textAlign: null } },
+    ],
+  };
+
+  it('abrir una plantilla sin tocarla no cuenta como cambio', () => {
+    expect(sameDocument(stored, fromEditor)).toBe(true);
+  });
+
+  it('un cambio real sí cuenta', () => {
+    const edited = structuredClone(fromEditor);
+    edited.content[0].content![0].text = 'Hola!';
+    expect(sameDocument(stored, edited)).toBe(false);
   });
 });

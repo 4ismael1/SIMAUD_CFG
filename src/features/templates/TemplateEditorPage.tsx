@@ -39,6 +39,7 @@ import {
   richDocVariables,
 } from "../../lib/rich-doc/convert";
 import { isRichDoc, type RichDoc } from "../../lib/rich-doc/types";
+import { sameDocument } from "../../lib/rich-doc/sanitize";
 import { templateCategories } from "./catalog-filters";
 import { RichTextEditor } from "./rich/RichTextEditor";
 import { DocumentView } from "../contracts/components/DocumentView";
@@ -111,7 +112,14 @@ function Editor({ template }: { template?: TemplateDetail }) {
   /** Name to prefill in the "new variable" drawer ('' = blank); null = closed. */
   const [creating, setCreating] = useState<string | null>(null);
 
-  const dirty = !saved && JSON.stringify(draft) !== JSON.stringify(initial);
+  // Compared semantically: opening a template normalizes it (e.g. the editor adds a trailing empty line),
+  // which must not count as a change.
+  const dirty =
+    !saved &&
+    (draft.title !== initial.title ||
+      draft.category !== initial.category ||
+      draft.description !== initial.description ||
+      !sameDocument(draft.content, initial.content));
   // Set right before leaving after a successful save: the blocker reads it at navigation time, when the
   // `saved` state update has not been applied yet (otherwise «¿Salir sin guardar?» appeared after saving).
   const leavingAfterSave = useRef(false);

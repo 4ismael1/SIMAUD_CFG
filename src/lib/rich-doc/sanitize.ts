@@ -58,7 +58,9 @@ function marksOf(node: Loose): { marks?: RichMark[] } {
   for (const mark of node.marks as Loose[]) {
     if (MARKS.includes(mark.type as MarkType)) seen.add(mark.type as MarkType);
   }
-  return seen.size > 0 ? { marks: [...seen].map((type) => ({ type })) } : {};
+  // Fixed order (the list above), so the same formatting always serializes the same way.
+  const ordered = MARKS.filter((type) => seen.has(type));
+  return ordered.length > 0 ? { marks: ordered.map((type) => ({ type })) } : {};
 }
 
 function alignOf(node: Loose): TextAlign | undefined {
@@ -398,4 +400,26 @@ export function sanitizeRichDoc(json: unknown): RichDoc {
     ...(attrs ? { attrs } : {}),
     content: content.length > 0 ? content : [{ type: "paragraph" }],
   };
+}
+
+/** Empty paragraphs at the end are not content: the editor adds one so the cursor can go below a table. */
+function withoutTrailingEmpty(doc: RichDoc): RichDoc {
+  const content = [...doc.content];
+  while (content.length > 1) {
+    const last = content[content.length - 1];
+    if (last.type !== "paragraph" || (last.content?.length ?? 0) > 0 || last.attrs) break;
+    content.pop();
+  }
+  return { ...doc, content };
+}
+
+/**
+ * True when two documents have the same content and formatting, ignoring how they were serialized
+ * (attribute order, defaults, mark order) and trailing empty paragraphs. Used for «unsaved changes».
+ */
+export function sameDocument(a: unknown, b: unknown): boolean {
+  return (
+    JSON.stringify(withoutTrailingEmpty(sanitizeRichDoc(a))) ===
+    JSON.stringify(withoutTrailingEmpty(sanitizeRichDoc(b)))
+  );
 }
