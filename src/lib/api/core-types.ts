@@ -52,6 +52,9 @@ export interface User {
   updatedAt: string;
   /** True for accounts created with a temporary password (first admin); every other action is blocked until changed. */
   mustChangePassword?: boolean;
+  /** T12b: "invited" = invitation sent and not accepted yet. Absent on older APIs. */
+  status?: UserStatus;
+  invitedAt?: string | null;
 }
 export interface ProfileInput {
   name: string;
@@ -84,16 +87,18 @@ export interface ResetPasswordInput {
   token: string;
   password: string;
 }
+/** The admin never chooses a password: the API sends an invitation link (T12b). */
 export interface UserInput extends ProfileInput {
   email: string;
   role: Role;
-  password?: string;
 }
-export type UserPatch = Partial<Omit<UserInput, "password">> & {
+export type UserPatch = Partial<UserInput> & {
   isActive?: boolean;
 };
+export type UserStatus = "active" | "inactive" | "invited";
 export interface UserQuery extends ListQuery {
   role?: Role;
+  status?: UserStatus;
 }
 export type UserLookup = Pick<
   User,

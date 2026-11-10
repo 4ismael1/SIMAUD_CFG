@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import { Button, Dialog, Field, Input, useAction } from '../../ui';
 import { useUpdateUser } from '../../lib/api/hooks/users';
 import type { User, UserPatch } from '../../lib/api/core-types';
@@ -54,13 +54,6 @@ export function EditUserDialog({ user, open, onClose }: EditUserDialogProps) {
   const formId = `edit-user-${user.id}`;
   const patch = changesOf(user, form);
   const dirty = Object.keys(patch).length > 0;
-
-  useEffect(() => {
-    if (open) {
-      setForm(formOf(user));
-      setErrors({});
-    }
-  }, [open, user]);
 
   function set<K extends keyof EditForm>(key: K, value: EditForm[K]) {
     setForm((current) => ({ ...current, [key]: value }));

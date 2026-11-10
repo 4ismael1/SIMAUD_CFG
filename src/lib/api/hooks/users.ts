@@ -78,3 +78,23 @@ export function useDeleteUser(id: string) {
       ]),
   });
 }
+
+/** Email the user a one-hour link to set a new password; their sessions are closed (T12b). */
+export function useSendPasswordReset(id: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      apiFetch<MessageResponse>("/users/" + id + "/password-reset", { method: "POST" }),
+    onSuccess: () => invalidateKeys(client, [keys.users.all]),
+  });
+}
+
+/** Send a fresh invitation to an account that has not accepted it yet (409 once active). */
+export function useResendInvite(id: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      apiFetch<MessageResponse>("/users/" + id + "/resend-invite", { method: "POST" }),
+    onSuccess: () => invalidateKeys(client, [keys.users.all]),
+  });
+}

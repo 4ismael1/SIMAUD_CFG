@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { Ellipsis, Pencil, ShieldCheck, UserPlus, Users as UsersIcon } from 'lucide-react';
+import { Ellipsis, KeyRound, MailPlus, Pencil, ShieldCheck, UserPlus, Users as UsersIcon } from 'lucide-react';
 import {
   Avatar,
   Badge,
@@ -20,8 +20,8 @@ import {
   type Column,
   type MenuItem,
 } from '../../ui';
-import { useCreateUser, useDeleteUser, useUpdateUser, useUsers } from '../../lib/api/hooks/users';
-import type { Role, User } from '../../lib/api/core-types';
+import { useCreateUser, useDeleteUser, useResendInvite, useSendPasswordReset, useUpdateUser, useUsers } from '../../lib/api/hooks/users';
+import type { Role, User, UserStatus } from '../../lib/api/core-types';
 import { roleStatus } from '../../lib/api/status';
 import { useAuth } from '../../lib/auth';
 import { EditUserDialog } from './EditUserDialog';
@@ -34,9 +34,10 @@ const ROLES: Role[] = ['admin', 'supervisor', 'gestor', 'user'];
 export function UsersPage() {
   const [search, setSearch] = useState('');
   const [role, setRole] = useState<Role | ''>('');
+  const [status, setStatus] = useState<UserStatus | ''>('');
   const [page, setPage] = useState(1);
   const [inviting, setInviting] = useState(false);
-  const users = useUsers({ q: search || undefined, role: role || undefined, page, pageSize: PAGE_SIZE });
+  const users = useUsers({ q: search || undefined, role: role || undefined, status: status || undefined, page, pageSize: PAGE_SIZE });
 
   const columns: Column<User>[] = [
     {
@@ -56,8 +57,7 @@ export function UsersPage() {
     {
       key: 'status',
       header: 'Estado',
-      cell: (user) =>
-        !user.isActive ? <Badge tone="danger">Desactivado</Badge> : user.emailConfirmedAt ? <Badge tone="success">Activo</Badge> : <Badge tone="warning">Invitación enviada</Badge>,
+      cell: (user) => <UserStatusBadge user={user} />,
     },
     { key: 'last', header: 'Último acceso', hideOnMobile: true, cell: (user) => (user.lastLoginAt ? formatDate(user.lastLoginAt) : '—') },
     { key: 'actions', header: <span className="sr-only">Acciones</span>, align: 'right', cell: (user) => <UserActions user={user} /> },
@@ -75,6 +75,12 @@ export function UsersPage() {
         <Select value={role} onChange={(event) => { setRole(event.target.value as Role | ''); setPage(1); }} className="sm:w-48" aria-label="Filtrar por rol">
           <option value="">Todos los roles</option>
           {ROLES.map((value) => <option key={value} value={value}>{roleStatus[value].label}</option>)}
+        </Select>
+        <Select value={status} onChange={(event) => { setStatus(event.target.value as UserStatus | ''); setPage(1); }} className="sm:w-48" aria-label="Filtrar por estado">
+          <option value="">Todos los estados</option>
+          <option value="active">Activos</option>
+          <option value="invited">Invitación pendiente</option>
+          <option value="inactive">Desactivados</option>
         </Select>
       </div>
       <Card>
@@ -98,6 +104,8 @@ function UserActions({ user }: { user: User }) {
   const { runAction } = useAction();
   const update = useUpdateUser(user.id);
   const remove = useDeleteUser(user.id);
+  const sendReset = useSendPasswordReset(user.id);
+  const resendInvite = useResendInvite(user.id);
   const isMe = me?.id === user.id;
   const [editing, setEditing] = useState(false);
 
@@ -119,7 +127,44 @@ function UserActions({ user }: { user: User }) {
       }),
   }));
 
-  const items: MenuItem[] = [{ label: 'Editar datos…', icon: <Pencil />, onSelect: () => setEditing(true) }, ...roleItems];
+  const invited = statusOf(user) === 'invited';
+  // Access links: the admin never sees or chooses passwords; the user receives a one-hour link (T12b).
+  const accessItems: MenuItem[] = [
+    invited
+      ? {
+          label: 'Reenviar invitación',
+          icon: <MailPlus />,
+          onSelect: () =>
+            void runAction({
+              confirm: {
+                title: `¿Reenviar la invitación a ${user.name}?`,
+                description: `Se enviará un enlace nuevo a ${user.email}; el anterior deja de funcionar.`,
+                confirmLabel: 'Reenviar',
+              },
+              pending: 'Enviando invitación…',
+              run: () => resendInvite.mutateAsync(),
+              success: `Invitación reenviada a ${user.email}.`,
+            }),
+        }
+      : {
+          label: 'Enviar enlace para nueva contraseña',
+          icon: <KeyRound />,
+          disabled: !user.isActive,
+          onSelect: () =>
+            void runAction({
+              confirm: {
+                title: `¿Enviar a ${user.name} un enlace para cambiar su contraseña?`,
+                description: `Llegará a ${user.email} y caduca en una hora. Se cerrarán sus sesiones abiertas en todos los dispositivos.`,
+                confirmLabel: 'Enviar enlace',
+              },
+              pending: 'Enviando enlace…',
+              run: () => sendReset.mutateAsync(),
+              success: `Enlace enviado a ${user.email}.`,
+            }),
+        },
+  ];
+
+  const items: MenuItem[] = [{ label: 'Editar datos…', icon: <Pencil />, onSelect: () => setEditing(true) }, ...accessItems, ...roleItems];
   items.push(
     user.isActive
       ? {
@@ -173,9 +218,31 @@ function UserActions({ user }: { user: User }) {
           </IconButton>
         )}
       />
-      <EditUserDialog user={user} open={editing} onClose={() => setEditing(false)} />
+      {/* Mounted only while open, so it always starts from the user's current data. */}
+      {editing && <EditUserDialog user={user} open onClose={() => setEditing(false)} />}
     </>
   );
+}
+
+/** Status from the API (T12b) or, on older APIs, derived from the account fields. */
+function statusOf(user: User): UserStatus {
+  if (user.status) return user.status;
+  if (!user.isActive) return 'inactive';
+  return user.emailConfirmedAt ? 'active' : 'invited';
+}
+
+function UserStatusBadge({ user }: { user: User }) {
+  const status = statusOf(user);
+  if (status === 'inactive') return <Badge tone="danger">Desactivado</Badge>;
+  if (status === 'invited') {
+    return (
+      <span className="flex flex-col items-start gap-0.5">
+        <Badge tone="warning">Invitación pendiente</Badge>
+        {user.invitedAt && <span className="text-[11px] text-slate-500">Enviada {formatDate(user.invitedAt)}</span>}
+      </span>
+    );
+  }
+  return <Badge tone="success">Activo</Badge>;
 }
 
 interface InviteForm {
