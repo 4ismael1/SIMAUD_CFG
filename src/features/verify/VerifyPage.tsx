@@ -34,7 +34,7 @@ export function VerifyPage() {
           </span>
         </div>
       </header>
-      <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-4 py-8 sm:px-6 sm:py-12">
+      <main className="mx-auto flex w-full max-w-3xl flex-1 animate-page-in flex-col gap-6 px-4 py-8 sm:px-6 sm:py-12">
         <div className="flex flex-col gap-1.5">
           <h1 className="text-[26px] font-semibold text-slate-900">Verificar un contrato firmado</h1>
           <p className="text-slate-500">
@@ -67,7 +67,7 @@ function SearchForms({ initialCode }: { initialCode?: string }) {
     }
     setError(null);
     verifyFile.reset();
-    navigate(`/verificar/${normalized}`);
+    navigate(`/verificar/${normalized}`, { viewTransition: true });
   }
 
   function pickFile(file: File | undefined) {
@@ -125,8 +125,12 @@ function SearchForms({ initialCode }: { initialCode?: string }) {
           </div>
         </Card>
       </div>
-      {verifyFile.isError && <Alert tone="danger">{errorMessage(verifyFile.error)}</Alert>}
-      {verifyFile.data && <FileResult matches={verifyFile.data.matches} status={verifyFile.data.status} code={verifyFile.data.code} signatureValid={verifyFile.data.systemSignatureValid} />}
+      {verifyFile.isError && (
+        <div className="animate-pop-in">
+          <Alert tone="danger">{errorMessage(verifyFile.error)}</Alert>
+        </div>
+      )}
+      {verifyFile.data && <FileResult key={verifyFile.submittedAt} matches={verifyFile.data.matches} status={verifyFile.data.status} code={verifyFile.data.code} signatureValid={verifyFile.data.systemSignatureValid} />}
     </div>
   );
 }
@@ -134,23 +138,27 @@ function SearchForms({ initialCode }: { initialCode?: string }) {
 function FileResult({ matches, status, code, signatureValid }: { matches: boolean; status: VerificationStatus; code?: string; signatureValid: boolean }) {
   if (!matches) {
     return (
-      <Alert tone="danger" title="Este PDF no coincide con ningún contrato firmado">
-        Puede ser una copia modificada, otra versión o un documento que no salió de este sistema.
-      </Alert>
+      <div className="animate-pop-in">
+        <Alert tone="danger" title="Este PDF no coincide con ningún contrato firmado">
+          Puede ser una copia modificada, otra versión o un documento que no salió de este sistema.
+        </Alert>
+      </div>
     );
   }
   const ok = status === 'valid' && signatureValid;
   return (
-    <Alert tone={ok ? 'success' : 'warning'} title={ok ? 'El PDF es idéntico al contrato firmado' : 'El PDF coincide, pero revisa su estado'}>
-      <span>
-        Corresponde al contrato <span className="font-mono">{code}</span>.{' '}
-        {code && (
-          <Link to={`/verificar/${code}`} className="font-medium underline">
-            Ver la verificación completa
-          </Link>
-        )}
-      </span>
-    </Alert>
+    <div className="animate-pop-in">
+      <Alert tone={ok ? 'success' : 'warning'} title={ok ? 'El PDF es idéntico al contrato firmado' : 'El PDF coincide, pero revisa su estado'}>
+        <span>
+          Corresponde al contrato <span className="font-mono">{code}</span>.{' '}
+          {code && (
+            <Link to={`/verificar/${code}`} viewTransition className="font-medium underline">
+              Ver la verificación completa
+            </Link>
+          )}
+        </span>
+      </Alert>
+    </div>
   );
 }
 
@@ -183,15 +191,20 @@ const STATUS_VIEW: Record<VerificationStatus, { title: string; detail: string; t
 
 function CodeResult({ code }: { code: string }) {
   const result = useVerification(code);
-  if (result.isPending) return <Skeleton className="h-64 rounded-xl" />;
-  if (result.isError) return <Alert tone="danger">{errorMessage(result.error)}</Alert>;
+  if (result.isPending) return <Skeleton className="h-64 animate-fade-in rounded-xl" />;
+  if (result.isError)
+    return (
+      <div className="animate-pop-in">
+        <Alert tone="danger">{errorMessage(result.error)}</Alert>
+      </div>
+    );
   return <ResultCard result={result.data} code={code} />;
 }
 
 function ResultCard({ result, code }: { result: VerificationResult; code: string }) {
   const view = STATUS_VIEW[result.status];
   return (
-    <section aria-live="polite" className="flex flex-col gap-4">
+    <section aria-live="polite" className="flex animate-rise-in flex-col gap-4">
       <div className={cn('flex items-start gap-4 rounded-xl border p-5', view.tone)}>
         <span className="shrink-0">{view.icon}</span>
         <div className="min-w-0">

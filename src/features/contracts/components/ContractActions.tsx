@@ -126,7 +126,7 @@ export function ContractActions({ contract }: { contract: ContractDetail }) {
         <ButtonLink to="/app/aprobaciones" variant="primary">Revisar en aprobaciones</ButtonLink>
       )}
       {can.sign && (
-        <ButtonLink to={`/app/contratos/${contract.id}/firmar`} variant="primary" icon={<PenLine />}>
+        <ButtonLink to={`/app/contratos/${contract.id}/firmar`} viewTransition variant="primary" icon={<PenLine />}>
           Firmar
         </ButtonLink>
       )}

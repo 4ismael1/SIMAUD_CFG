@@ -418,3 +418,23 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* Route changes that opt in with React Router's `viewTransition` cross-fade instead of swapping the whole screen at once. */
+::view-transition-old(root) {
+  animation: 140ms ease-out both view-fade-out;
+}
+::view-transition-new(root) {
+  animation: 260ms var(--ease-out-expo) both view-fade-in;
+}
+@keyframes view-fade-out {
+  to { opacity: 0; }
+}
+@keyframes view-fade-in {
+  from { opacity: 0; transform: translateY(6px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none;
+  }
+}

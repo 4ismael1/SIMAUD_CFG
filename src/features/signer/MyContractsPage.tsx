@@ -90,7 +90,7 @@ function ContractRow({ row }: { row: SignatureInboxItem }) {
       </div>
       <div className="flex shrink-0 flex-wrap gap-2">
         {row.myTurn && (
-          <ButtonLink to={`/app/contratos/${row.id}/firmar`} variant="primary" size="sm" icon={<PenLine />}>
+          <ButtonLink to={`/app/contratos/${row.id}/firmar`} viewTransition variant="primary" size="sm" icon={<PenLine />}>
             Revisar y firmar
           </ButtonLink>
         )}

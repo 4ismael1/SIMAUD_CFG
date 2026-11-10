@@ -94,7 +94,7 @@ function InboxRow({ row }: { row: SignatureInboxItem }) {
         </div>
         <div className="flex shrink-0 items-center gap-2">
           {row.myTurn ? (
-            <ButtonLink to={`/app/contratos/${row.id}/firmar`} variant="primary" icon={<PenLine />}>
+            <ButtonLink to={`/app/contratos/${row.id}/firmar`} viewTransition variant="primary" icon={<PenLine />}>
               Firmar ahora
             </ButtonLink>
           ) : row.signatory?.signedAt ? (

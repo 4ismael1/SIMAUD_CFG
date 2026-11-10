@@ -67,7 +67,7 @@ export function SignContractPage() {
     if (captured) URL.revokeObjectURL(captured.url);
   }, [captured]);
 
-  if (contract.isPending) return <Skeleton className="m-6 h-[70dvh] rounded-xl" />;
+  if (contract.isPending) return <Skeleton className="m-6 h-[70dvh] animate-fade-in rounded-xl" />;
   if (contract.isError) {
     return <EmptyState className="min-h-dvh" title="No se pudo abrir el contrato" description={errorMessage(contract.error)} action={<ButtonLink to="/app/firmas">Volver</ButtonLink>} />;
   }
@@ -146,7 +146,7 @@ export function SignContractPage() {
   }
 
   return (
-    <div className="flex min-h-dvh flex-col bg-slate-50">
+    <div className="flex min-h-dvh animate-page-in flex-col bg-slate-50">
       <header className="sticky top-0 z-10 flex flex-wrap items-center gap-3 border-b border-slate-200 bg-white px-4 py-3 sm:px-7">
         <Logo variant="mark" className="h-7 sm:hidden" />
         <Logo className="hidden h-8 sm:block" />
@@ -292,7 +292,7 @@ function SignedScreen({ code, contractId, title }: { code: string; contractId: s
   }
 
   return (
-    <div className="flex min-h-dvh flex-col items-center justify-center gap-5 bg-slate-50 px-5 text-center">
+    <div className="flex min-h-dvh animate-rise-in flex-col items-center justify-center gap-5 bg-slate-50 px-5 text-center">
       <span className="grid size-16 place-items-center rounded-full bg-green-50 text-green-700">
         <CircleCheck className="size-8" aria-hidden="true" />
       </span>
@@ -302,9 +302,9 @@ function SignedScreen({ code, contractId, title }: { code: string; contractId: s
       </p>
       <div className="flex flex-wrap justify-center gap-2">
         <Button icon={<Download />} onClick={() => void download()}>Descargar PDF</Button>
-        <ButtonLink to="/app/firmas" variant="primary">Volver a mis firmas</ButtonLink>
+        <ButtonLink to="/app/firmas" viewTransition variant="primary">Volver a mis firmas</ButtonLink>
       </div>
-      <Link to={`/app/contratos/${contractId}`} className="text-sm text-vino-600">Ver el contrato</Link>
+      <Link to={`/app/contratos/${contractId}`} viewTransition className="text-sm text-vino-600">Ver el contrato</Link>
     </div>
   );
 }
