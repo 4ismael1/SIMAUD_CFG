@@ -4,8 +4,15 @@
 **`docs/tasks/T14-auditoria-global.REPORT.md`** (hallazgos y «Tareas propuestas»), más los informes T10, T12a, T12b y T13.
 
 Corrige los hallazgos **H06, H07, H08, H09, H10, H11, H12, H16, H17 y H18** tal como los describe el informe
-(escenario, corrección propuesta y pruebas faltantes de cada uno). **No** toques H01, H02, H03, H04, H05, H13, H14 ni
-H15: dependen de decisiones del dueño o de otra tarea.
+(escenario, corrección propuesta y pruebas faltantes de cada uno), y **H02 con la política decidida por el dueño**:
+- **El admin SÍ puede aprobar sus propios contratos y renovaciones** (decisión del 10 nov 2026). Debe quedar
+  registrado en la auditoría como autoaprobación (acción distinguible, p. ej. `approved_own`).
+- Supervisor y gestor **no** pueden aprobar ni devolver lo que crearon o solicitaron, **incluidas las renovaciones**
+  que ellos solicitaron. La autoría/solicitud original no cambia aunque se reasigne el gestor o cambie el rol.
+- `can.approve`/`can.reject` del detalle aplican la misma regla. Tests: admin sobre lo suyo (permitido y auditado),
+  supervisor y gestor sobre su contrato y su renovación (403), reasignación y cambio de rol entre solicitud y revisión.
+
+**No** toques H01, H03, H04, H05, H13, H14 ni H15: dependen de otras decisiones o de otra tarea.
 
 ## Coordinación (importante)
 - En paralelo trabaja **T15** (plantillas `rich-v2`, PDF, firmas estampadas): es dueño de `api/src/lib/rich-doc/**`,

@@ -64,6 +64,10 @@ Rama `feat/backend-propio-y-nueva-ui`. Commits de esta sesión: `aaba3ad` (fix /
   visor del PDF real (pdf.js) cuando exista `/templates/preview-pdf`, biblioteca de cláusulas.
 - **Ojo**: el PDF actual usa Roboto 10 pt A4 (distinto de la pantalla); T15 lo corrige.
 
+### Decisiones del dueño (10 nov, mañana)
+- **H02**: el admin SÍ puede aprobar sus propios contratos y renovaciones (queda auditado como autoaprobación); supervisor y gestor no, tampoco renovaciones que solicitaron. Incluido en `docs/tasks/T16-correcciones-auditoria.md`.
+- Pendientes: corrección de contrato firmado (enmienda vs directa), S3 en BD (H15), H01/H03/H04/H05 para una T17.
+
 ### Otros cambios de esta sesión
 - Admin: añadido módulo **Variables** al menú (`/app/variables`). El admin ya ve todas las pantallas existentes.
 - Pregunta abierta nueva: corregir un contrato **ya firmado** — «enmienda con nueva firma» (recomendado) o
