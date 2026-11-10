@@ -157,7 +157,7 @@ export function SignContractPage() {
           <p className={readToEnd ? 'flex items-center gap-1.5 text-xs font-semibold text-green-700' : 'text-xs text-slate-500'}>
             {readToEnd ? <><Check className="size-4" aria-hidden="true" />Leíste el documento completo</> : 'Desplázate hasta el final del documento para poder firmar.'}
           </p>
-          <DocumentView escapedContent={data.generatedContent} heading={data.title} subheading={`${data.code} · versión ${data.currentVersion}`}>
+          <DocumentView content={data.generatedContent} heading={data.title} subheading={`${data.code} · versión ${data.currentVersion}`}>
             <div ref={endOfDocumentRef} className="h-px" aria-hidden="true" />
           </DocumentView>
         </section>

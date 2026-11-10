@@ -1,3 +1,4 @@
+import type { ContentFormat, DocumentContent, RichDoc } from "../rich-doc/types";
 import type {
   ListQuery,
   VariableType,
@@ -20,7 +21,9 @@ export interface Variable extends VariableInput {
 }
 export interface TemplateInput {
   title: string;
-  content: string;
+  /** Absent = plain. */
+  contentFormat?: ContentFormat;
+  content: DocumentContent;
   description?: string | null;
   category?: string;
   status?: TemplateStatus;
@@ -43,10 +46,11 @@ export interface TemplateQuery extends ListQuery {
   category?: string;
 }
 export interface PreviewInput {
-  content: string;
+  contentFormat?: ContentFormat;
+  content: DocumentContent;
   values: VariableValues;
 }
-export interface PreviewResponse {
-  html: string;
-  missing: string[];
-}
+/** Plain: `html` (escaped text). rich-v1: `document`. Older APIs omit contentFormat. */
+export type PreviewResponse =
+  | { contentFormat?: "plain"; html: string; missing: string[] }
+  | { contentFormat: "rich-v1"; document: RichDoc; missing: string[] };

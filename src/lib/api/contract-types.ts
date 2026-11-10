@@ -1,3 +1,4 @@
+import type { ContentFormat, DocumentContent } from "../rich-doc/types";
 import type {
   ContractStatus,
   SignatoryRole,
@@ -55,8 +56,10 @@ export interface Contract {
   template: { id: string; title: string } | null;
   createdBy: string | null;
   creator: { id: string; name: string } | null;
-  content: string;
-  generatedContent: string;
+  /** Format of content/generatedContent; absent on APIs older than T13 (= plain). */
+  contentFormat?: ContentFormat;
+  content: DocumentContent;
+  generatedContent: DocumentContent;
   variablesData: VariableValues;
   contractValue: string | null;
   currency: string;
@@ -115,8 +118,10 @@ export interface ContractVersion {
   id: string;
   contractId: string;
   versionNumber: number;
-  content: string;
-  generatedContent: string;
+  /** Format of content/generatedContent; absent on APIs older than T13 (= plain). */
+  contentFormat?: ContentFormat;
+  content: DocumentContent;
+  generatedContent: DocumentContent;
   variablesData: VariableValues;
   snapshot: Record<string, unknown>;
   changeSummary: string | null;

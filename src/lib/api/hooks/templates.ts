@@ -6,6 +6,7 @@ import {
 } from "@tanstack/react-query";
 import { apiFetch } from "../client";
 import { keys } from "../keys";
+import type { DocumentContent } from "../../rich-doc/types";
 import type {
   Template,
   TemplateDetail,
@@ -84,4 +85,19 @@ export function usePreviewTemplate() {
     mutationFn: (body: PreviewInput) =>
       apiFetch<PreviewResponse>("/templates/preview", { method: "POST", body }),
   });
+}
+
+/** The rendered body of a preview, whatever its format. */
+export function previewContent(response: PreviewResponse): DocumentContent {
+  return response.contentFormat === "rich-v1" ? response.document : response.html;
+}
+
+/**
+ * Whether the API stores formatted documents (task T13). Older APIs do not send `contentFormat`
+ * in templates; until then the editor saves plain text.
+ */
+export function useRichDocsSupported(): boolean | undefined {
+  const templates = useTemplates();
+  if (!templates.data) return undefined;
+  return templates.data.some((template) => "contentFormat" in template);
 }

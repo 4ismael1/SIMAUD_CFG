@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { CalendarRange, CircleDollarSign, FileText, Users } from 'lucide-react';
 import { Alert, Skeleton } from '../../../ui';
-import { usePreviewTemplate } from '../../../lib/api/hooks/templates';
+import { previewContent, usePreviewTemplate } from '../../../lib/api/hooks/templates';
 import type { TemplateDetail } from '../../../lib/api/catalog-types';
 import { errorMessage } from '../../../lib/errors';
 import { formatDate, formatMoney } from '../../../lib/format';
@@ -19,10 +19,11 @@ export function StepReview({ draft, template }: StepReviewProps) {
   const preview = usePreviewTemplate();
   const { mutate } = preview;
   const content = template?.content;
+  const contentFormat = template?.contentFormat;
 
   useEffect(() => {
-    if (content) mutate({ content, values: draft.variables });
-  }, [content, draft.variables, mutate]);
+    if (content) mutate({ contentFormat, content, values: draft.variables });
+  }, [content, contentFormat, draft.variables, mutate]);
 
   const money = validateMoney(draft.value);
 
@@ -35,7 +36,7 @@ export function StepReview({ draft, template }: StepReviewProps) {
           <Alert tone="warning">Faltan datos en el documento: {preview.data.missing.join(', ')}.</Alert>
         )}
         {preview.data ? (
-          <DocumentView escapedContent={preview.data.html} heading={draft.title} subheading="Borrador · vista previa" className="max-h-[70dvh] overflow-y-auto" />
+          <DocumentView content={previewContent(preview.data)} heading={draft.title} subheading="Borrador · vista previa" className="max-h-[70dvh] overflow-y-auto" />
         ) : (
           <Skeleton className="h-[60dvh] rounded-md" />
         )}

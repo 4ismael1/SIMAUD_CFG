@@ -1,5 +1,7 @@
 import { useMemo } from 'react';
 import { cn } from '../../../ui';
+import { RichDocumentBody } from '../../../lib/rich-doc/RichDocumentBody';
+import { isRichDoc, type DocumentContent } from '../../../lib/rich-doc/types';
 
 /**
  * The API returns the rendered contract as HTML-escaped text. We decode it back to plain text and render it
@@ -23,21 +25,26 @@ function Paragraph({ text }: { text: string }) {
 }
 
 interface DocumentViewProps {
-  escapedContent: string;
+  /** Escaped plain text (format `plain`) or a formatted document (format `rich-v1`). */
+  content: DocumentContent;
+  /** Labels for variables not yet filled in (template preview). */
+  variableLabels?: ReadonlyMap<string, string>;
   heading?: string;
   subheading?: string;
   children?: React.ReactNode;
   className?: string;
 }
 
-export function DocumentView({ escapedContent, heading, subheading, children, className }: DocumentViewProps) {
+export function DocumentView({ content, variableLabels, heading, subheading, children, className }: DocumentViewProps) {
   const paragraphs = useMemo(
     () =>
-      decodeEscapedText(escapedContent)
-        .split(/\n\s*\n/)
-        .map((paragraph) => paragraph.trim())
-        .filter(Boolean),
-    [escapedContent],
+      isRichDoc(content)
+        ? []
+        : decodeEscapedText(content)
+            .split(/\n\s*\n/)
+            .map((paragraph) => paragraph.trim())
+            .filter(Boolean),
+    [content],
   );
 
   return (
@@ -49,9 +56,11 @@ export function DocumentView({ escapedContent, heading, subheading, children, cl
     >
       {heading && <h2 className="text-center font-serif text-base font-bold tracking-[0.08em] uppercase">{heading}</h2>}
       {subheading && <p className="-mt-2 text-center font-mono text-xs text-slate-400">{subheading}</p>}
-      {paragraphs.map((paragraph, index) => (
-        <Paragraph key={index} text={paragraph} />
-      ))}
+      {isRichDoc(content) ? (
+        <RichDocumentBody doc={content} variableLabels={variableLabels} />
+      ) : (
+        paragraphs.map((paragraph, index) => <Paragraph key={index} text={paragraph} />)
+      )}
       {children}
     </article>
   );

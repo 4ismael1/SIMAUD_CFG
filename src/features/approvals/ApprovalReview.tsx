@@ -61,7 +61,7 @@ export function ApprovalReview({ item, position, total, onPrevious, onNext, onBa
 
       {detail.isError && <Alert tone="danger">{errorMessage(detail.error)}</Alert>}
       {detail.data ? (
-        <DocumentView escapedContent={detail.data.generatedContent} heading={detail.data.title} subheading={`${detail.data.code} · versión ${item.versionNumber}`} />
+        <DocumentView content={detail.data.generatedContent} heading={detail.data.title} subheading={`${detail.data.code} · versión ${item.versionNumber}`} />
       ) : (
         !detail.isError && <Skeleton className="h-[60dvh] rounded-md" />
       )}

@@ -1,15 +1,18 @@
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useBlocker, useNavigate, useParams } from 'react-router-dom';
-import { Braces, Plus, Save } from 'lucide-react';
-import { Alert, Button, ButtonLink, Card, CardHeader, EmptyState, Field, Input, PageHeader, Skeleton, Textarea, cn, useAction, useConfirm } from '../../ui';
-import { useCreateTemplate, usePreviewTemplate, useTemplate, useUpdateTemplate } from '../../lib/api/hooks/templates';
+import { Braces, CircleAlert, Plus, Save } from 'lucide-react';
+import { Alert, Button, ButtonLink, Card, CardHeader, EmptyState, Field, Input, PageHeader, Skeleton, cn, useAction, useConfirm } from '../../ui';
+import { useCreateTemplate, useRichDocsSupported, useTemplate, useTemplates, useUpdateTemplate } from '../../lib/api/hooks/templates';
 import { useVariables } from '../../lib/api/hooks/variables';
-import type { TemplateDetail, Variable } from '../../lib/api/catalog-types';
+import type { TemplateDetail, TemplateInput, Variable } from '../../lib/api/catalog-types';
 import { errorMessage } from '../../lib/errors';
-import { DocumentView } from '../contracts/components/DocumentView';
+import { plainToRichDoc, richDocText, richDocToPlain, richDocVariables } from '../../lib/rich-doc/convert';
+import { isRichDoc, type RichDoc } from '../../lib/rich-doc/types';
+import { templateCategories } from './catalog-filters';
+import { RichTextEditor } from './rich/RichTextEditor';
 import { VARIABLE_TYPE_LABELS, VariableDialog } from './TemplatesPage';
 
-const PREVIEW_DELAY_MS = 500;
+const MIN_CONTENT_LENGTH = 20;
 
 /** /app/plantillas/nueva and /app/plantillas/:id */
 export function TemplateEditorPage() {
@@ -26,7 +29,14 @@ interface Draft {
   title: string;
   category: string;
   description: string;
-  content: string;
+  content: RichDoc;
+}
+
+/** Templates saved before the formatted editor are plain text: open them converted, nothing is lost. */
+function initialDocument(template: TemplateDetail | undefined): RichDoc {
+  if (!template) return plainToRichDoc('');
+  if (template.contentFormat === 'rich-v1' && isRichDoc(template.content)) return template.content;
+  return plainToRichDoc(typeof template.content === 'string' ? template.content : '');
 }
 
 function Editor({ template }: { template?: TemplateDetail }) {
@@ -34,19 +44,22 @@ function Editor({ template }: { template?: TemplateDetail }) {
   const confirm = useConfirm();
   const { runAction, running } = useAction();
   const variables = useVariables();
+  const templates = useTemplates();
+  const richSupported = useRichDocsSupported();
   const create = useCreateTemplate();
   const update = useUpdateTemplate(template?.id ?? '');
-  const preview = usePreviewTemplate();
-  const { mutate: requestPreview } = preview;
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const initial = useMemo<Draft>(
-    () => ({ title: template?.title ?? '', category: template?.category ?? 'General', description: template?.description ?? '', content: template?.content ?? '' }),
+    () => ({
+      title: template?.title ?? '',
+      category: template?.category ?? 'General',
+      description: template?.description ?? '',
+      content: initialDocument(template),
+    }),
     [template],
   );
   const [draft, setDraft] = useState<Draft>(initial);
   const [saved, setSaved] = useState(false);
-  const [suggest, setSuggest] = useState<{ query: string; index: number } | null>(null);
   const [errors, setErrors] = useState<{ title?: string; content?: string }>({});
   /** Name to prefill in the "new variable" drawer ('' = blank); null = closed. */
   const [creating, setCreating] = useState<string | null>(null);
@@ -59,70 +72,32 @@ function Editor({ template }: { template?: TemplateDetail }) {
       answer ? blocker.proceed() : blocker.reset(),
     );
   }, [blocker, confirm]);
-
-  const used = useMemo(() => new Set([...draft.content.matchAll(/\{\{\s*([a-z0-9_]+)\s*\}\}/g)].map((match) => match[1])), [draft.content]);
-  const unknown = [...used].filter((name) => !(variables.data ?? []).some((variable) => variable.name === name));
-  const hasUnknown = unknown.length > 0;
-
-  // Live preview. No values are sent: the API validates them by type (a date must be AAAA-MM-DD),
-  // so the placeholders are swapped for each variable's label here instead.
   useEffect(() => {
-    if (!draft.content.trim() || hasUnknown) return;
-    const timer = window.setTimeout(() => requestPreview({ content: draft.content, values: {} }), PREVIEW_DELAY_MS);
-    return () => window.clearTimeout(timer);
-  }, [draft.content, hasUnknown, requestPreview]);
-  const previewHtml = useMemo(
-    () => (preview.data ? labelPlaceholders(preview.data.html, variables.data ?? []) : undefined),
-    [preview.data, variables.data],
-  );
-  const suggestions = suggest ? (variables.data ?? []).filter((variable) => variable.name.includes(suggest.query) || variable.label.toLowerCase().includes(suggest.query)) : [];
+    if (!dirty) return;
+    const warn = (event: BeforeUnloadEvent) => event.preventDefault();
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [dirty]);
 
-  function insertVariable(variable: Variable) {
-    const element = textareaRef.current;
-    if (!element) return;
-    const start = element.selectionStart;
-    const before = draft.content.slice(0, start);
-    const after = draft.content.slice(element.selectionEnd);
-    // Replace a partially typed "{{nam" if the user is completing a suggestion.
-    const prefixMatch = before.match(/\{\{\s*([a-z0-9_]*)$/);
-    const head = prefixMatch ? before.slice(0, before.length - prefixMatch[0].length) : before;
-    const token = `{{${variable.name}}}`;
-    setDraft({ ...draft, content: head + token + after });
-    setSuggest(null);
-    requestAnimationFrame(() => {
-      element.focus();
-      const caret = head.length + token.length;
-      element.setSelectionRange(caret, caret);
-    });
-  }
-
-  function updateSuggestions(value: string, caret: number) {
-    const match = value.slice(0, caret).match(/\{\{\s*([a-z0-9_]*)$/);
-    setSuggest(match ? { query: match[1], index: 0 } : null);
-  }
-
-  function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
-    if (!suggest || suggestions.length === 0) return;
-    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-      event.preventDefault();
-      const delta = event.key === 'ArrowDown' ? 1 : -1;
-      setSuggest({ ...suggest, index: (suggest.index + delta + suggestions.length) % suggestions.length });
-    } else if (event.key === 'Enter' || event.key === 'Tab') {
-      event.preventDefault();
-      insertVariable(suggestions[suggest.index]);
-    } else if (event.key === 'Escape') {
-      setSuggest(null);
-    }
-  }
+  const variableList = useMemo(() => variables.data ?? [], [variables.data]);
+  const used = useMemo(() => richDocVariables(draft.content), [draft.content]);
+  const unknown = used.filter((name) => !variableList.some((variable) => variable.name === name));
+  const categories = useMemo(() => templateCategories(templates.data ?? []), [templates.data]);
 
   async function handleSave() {
     const next: typeof errors = {};
     if (draft.title.trim().length < 3) next.title = 'Escribe un título de al menos 3 caracteres.';
-    if (draft.content.trim().length < 20) next.content = 'El contenido es demasiado corto.';
-    if (unknown.length > 0) next.content = `Variables que no existen: ${unknown.join(', ')}. Créalas en la pestaña Variables o corrígelas.`;
+    if (richDocText(draft.content).length < MIN_CONTENT_LENGTH) next.content = 'El contenido es demasiado corto.';
+    if (unknown.length > 0) next.content = `Hay datos que no existen: ${unknown.join(', ')}. Créalos o quítalos del texto.`;
     setErrors(next);
     if (Object.keys(next).length > 0) return;
-    const body = { title: draft.title.trim(), category: draft.category.trim() || 'General', description: draft.description.trim() || null, content: draft.content };
+
+    const body: TemplateInput = {
+      title: draft.title.trim(),
+      category: draft.category.trim() || 'General',
+      description: draft.description.trim() || null,
+      ...(richSupported ? { contentFormat: 'rich-v1' as const, content: draft.content } : { content: richDocToPlain(draft.content) }),
+    };
     const result = await runAction({
       run: () => (template ? update.mutateAsync(body) : create.mutateAsync(body)),
       success: template ? 'Plantilla guardada.' : 'Plantilla creada.',
@@ -137,7 +112,7 @@ function Editor({ template }: { template?: TemplateDetail }) {
     <>
       <PageHeader
         title={template ? 'Editar plantilla' : 'Nueva plantilla'}
-        description="Escribe el texto del contrato. Inserta datos con {{variable}}: al teclear «{{» aparecen las sugerencias."
+        description="Redacta el contrato como en un procesador de texto. Los datos que cambian en cada contrato se insertan con «{{»."
         actions={
           <>
             <ButtonLink to="/app/plantillas" variant="ghost">Cancelar</ButtonLink>
@@ -148,131 +123,106 @@ function Editor({ template }: { template?: TemplateDetail }) {
       {template && template.usageCount ? (
         <Alert tone="info">Los {template.usageCount} contratos ya creados con esta plantilla no cambian: conservan su propia versión.</Alert>
       ) : null}
+      {richSupported === false && (
+        <Alert tone="warning" title="El servidor todavía guarda solo texto">
+          Se conservan los párrafos, la negrita y los datos; títulos, cursiva, listas, tablas y alineación se guardarán cuando se actualice la API.
+        </Alert>
+      )}
 
-      <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-        <Card>
-          <div className="flex flex-col gap-4 p-5">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Título" error={errors.title}>
-                <Input value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} />
-              </Field>
-              <Field label="Categoría">
-                <Input value={draft.category} onChange={(event) => setDraft({ ...draft, category: event.target.value })} />
-              </Field>
-            </div>
+      <Card>
+        <div className="grid gap-4 p-5 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+          <Field label="Título" error={errors.title}>
+            <Input value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} />
+          </Field>
+          <Field label="Categoría">
+            <Input list="template-categories" value={draft.category} onChange={(event) => setDraft({ ...draft, category: event.target.value })} />
+          </Field>
+          <datalist id="template-categories">
+            {categories.map((category) => <option key={category} value={category} />)}
+          </datalist>
+          <div className="md:col-span-2">
             <Field label="Descripción" optional>
               <Input value={draft.description} onChange={(event) => setDraft({ ...draft, description: event.target.value })} />
             </Field>
-            <div className="relative">
-              <Field label="Contenido" error={errors.content} hint="Separa las cláusulas con una línea en blanco. **texto** se muestra en negrita.">
-                <Textarea
-                  ref={textareaRef}
-                  rows={20}
-                  className="font-serif text-[14px] leading-relaxed"
-                  value={draft.content}
-                  onChange={(event) => {
-                    setDraft({ ...draft, content: event.target.value });
-                    updateSuggestions(event.target.value, event.target.selectionStart);
-                  }}
-                  onKeyDown={handleKeyDown}
-                  onBlur={() => window.setTimeout(() => setSuggest(null), 150)}
-                />
-              </Field>
-              {suggest && suggestions.length > 0 && (
-                <ul role="listbox" aria-label="Variables sugeridas" className="absolute right-3 bottom-3 left-3 z-10 max-h-56 animate-pop-in overflow-y-auto rounded-lg border border-slate-200 bg-white py-1 shadow-pop">
-                  {suggestions.map((variable, index) => (
-                    <li key={variable.id} role="option" aria-selected={index === suggest.index}>
-                      <button
-                        type="button"
-                        onMouseDown={(event) => {
-                          event.preventDefault();
-                          insertVariable(variable);
-                        }}
-                        className={cn('flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm', index === suggest.index ? 'bg-vino-50' : 'hover:bg-slate-50')}
-                      >
-                        <span className="font-mono text-xs">{`{{${variable.name}}}`}</span>
-                        <span className="truncate text-xs text-slate-500">{variable.label}</span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-            <VariablePalette variables={variables.data ?? []} used={used} onInsert={insertVariable} onCreate={() => setCreating('')} />
           </div>
-        </Card>
+        </div>
+      </Card>
 
-        <section className="flex min-w-0 flex-col gap-3 xl:sticky xl:top-24">
-          <CardHeader title="Vista previa" description="Con los nombres de los datos en lugar de valores reales." className="px-0 pt-0" />
-          {hasUnknown ? (
-            <Alert tone="warning">
-              <div className="flex flex-col gap-2">
-                <span>Estas variables no existen todavía. Créalas o corrige el nombre para ver la vista previa:</span>
-                <div className="flex flex-wrap gap-1.5">
-                  {unknown.map((name) => (
-                    <Button key={name} size="sm" icon={<Plus />} onClick={() => setCreating(name)}>
-                      <span className="font-mono text-xs">{name}</span>
-                    </Button>
-                  ))}
-                </div>
-              </div>
-            </Alert>
+      <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_300px]">
+        <section className="flex min-w-0 flex-col gap-2" aria-labelledby="template-content-label">
+          <div className="flex items-baseline justify-between gap-3">
+            <h2 id="template-content-label" className="text-sm font-medium text-slate-900">Contenido</h2>
+          </div>
+          {variables.isPending ? (
+            <Skeleton className="h-[480px] rounded-lg" />
           ) : (
-            preview.isError && <Alert tone="danger">{errorMessage(preview.error)}</Alert>
+            <RichTextEditor
+              label="Contenido de la plantilla"
+              initialValue={initial.content}
+              onChange={(content) => setDraft((current) => ({ ...current, content }))}
+              variables={variableList}
+              onCreateVariable={(name) => setCreating(name)}
+              invalid={Boolean(errors.content)}
+            />
           )}
-          {draft.content.trim() && previewHtml !== undefined && !hasUnknown ? (
-            <DocumentView escapedContent={previewHtml} heading={draft.title || 'Sin título'} className="max-h-[75dvh] overflow-y-auto" />
-          ) : (
-            <Card><EmptyState icon={<Braces />} title="Escribe el contenido" description="La vista previa aparecerá aquí." /></Card>
+          {errors.content && (
+            <p className="flex items-center gap-1.5 text-[13px] text-red-700" role="alert">
+              <CircleAlert className="size-4 shrink-0" />
+              {errors.content}
+            </p>
           )}
         </section>
+
+        <UsedVariablesPanel used={used} unknown={unknown} variables={variableList} onCreate={setCreating} />
       </div>
       {creating !== null && <VariableDialog variable={null} initialName={creating} onClose={() => setCreating(null)} />}
     </>
   );
 }
 
-const HTML_ESCAPES: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
-
-/** Replace the `{{name}}` left in the escaped preview text with «[Label]», escaped the same way. */
-function labelPlaceholders(escapedHtml: string, variables: Variable[]): string {
-  const labels = new Map(variables.map((variable) => [variable.name, variable.label]));
-  return escapedHtml.replace(/\{\{\s*([a-z0-9_]+)\s*\}\}/g, (match, name: string) => {
-    const label = labels.get(name);
-    return label ? `[${label}]`.replace(/[&<>"']/g, (char) => HTML_ESCAPES[char]) : match;
-  });
-}
-
-interface VariablePaletteProps {
+interface UsedVariablesPanelProps {
+  used: string[];
+  unknown: string[];
   variables: Variable[];
-  used: Set<string>;
-  onInsert: (variable: Variable) => void;
-  onCreate: () => void;
+  onCreate: (name: string) => void;
 }
 
-function VariablePalette({ variables, used, onInsert, onCreate }: VariablePaletteProps) {
+/** Which data the template asks for, in order of appearance, and which ones still need to be created. */
+function UsedVariablesPanel({ used, unknown, variables, onCreate }: UsedVariablesPanelProps) {
+  const byName = new Map(variables.map((variable) => [variable.name, variable]));
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-xs font-semibold text-slate-500">Insertar variable</span>
-        <Button size="sm" variant="ghost" icon={<Plus />} onClick={onCreate}>Nueva variable</Button>
-      </div>
-      <div className="flex flex-wrap gap-1.5">
-        {variables.map((variable) => (
-          <button
-            key={variable.id}
-            type="button"
-            title={`${variable.label} · ${VARIABLE_TYPE_LABELS[variable.type]}`}
-            onClick={() => onInsert(variable)}
-            className={cn(
-              'rounded-md border px-2 py-1 font-mono text-[11.5px] transition-colors',
-              used.has(variable.name) ? 'border-vino-200 bg-vino-50 text-vino-700' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300',
-            )}
-          >
-            {variable.name}
-          </button>
-        ))}
-      </div>
-    </div>
+    <Card className="xl:sticky xl:top-[76px]">
+      <CardHeader
+        title="Datos del contrato"
+        description="Se piden al crear cada contrato con esta plantilla."
+        action={<Button size="sm" variant="ghost" icon={<Plus />} onClick={() => onCreate('')}>Nuevo</Button>}
+      />
+      {used.length === 0 ? (
+        <EmptyState icon={<Braces />} title="Sin datos todavía" description="Teclea «{{» en el texto o usa «Insertar dato»." />
+      ) : (
+        <ul className="flex flex-col gap-1 px-3 pb-4">
+          {used.map((name) => {
+            const variable = byName.get(name);
+            const missing = unknown.includes(name);
+            return (
+              <li key={name} className={cn('flex items-center justify-between gap-2 rounded-md px-2 py-1.5', missing && 'bg-amber-50')}>
+                <span className="min-w-0">
+                  <span className="block truncate text-sm text-slate-800">{variable?.label ?? name}</span>
+                  <span className="block truncate font-mono text-[11px] text-slate-400">
+                    {name}
+                    {variable && ` · ${VARIABLE_TYPE_LABELS[variable.type]}${variable.required ? '' : ' · opcional'}`}
+                  </span>
+                </span>
+                {missing && (
+                  <Button size="sm" icon={<Plus />} onClick={() => onCreate(name)}>
+                    Crear
+                  </Button>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </Card>
   );
 }

@@ -70,7 +70,7 @@ export function ContractVersions({ contractId, currentVersion }: { contractId: s
           })}
         </ul>
       </Card>
-      <DocumentView escapedContent={shown.generatedContent} subheading={`Versión ${shown.versionNumber}`} />
+      <DocumentView content={shown.generatedContent} subheading={`Versión ${shown.versionNumber}`} />
     </div>
   );
 }

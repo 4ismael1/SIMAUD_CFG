@@ -78,7 +78,7 @@ export function ContractDetailPage() {
 
       {tab === 'documento' && (
         <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
-          <DocumentView escapedContent={data.generatedContent} heading={data.title} subheading={`${data.code} · versión ${data.currentVersion}`} />
+          <DocumentView content={data.generatedContent} heading={data.title} subheading={`${data.code} · versión ${data.currentVersion}`} />
           <aside className="flex flex-col gap-4">
             <SummaryCard contract={data} />
             <SignatoriesPanel contract={data} canRemind={data.can.cancel} />

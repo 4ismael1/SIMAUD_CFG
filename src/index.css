@@ -131,6 +131,87 @@
  * Set --stagger-step / --stagger-delay on the container to tune timing.
  */
 @layer components {
+  /* Rich text editor (TipTap). Looks like the final document so what you see is what gets signed. */
+  .rich-content {
+    @apply min-h-[420px] font-serif text-[15px] leading-[1.8] text-slate-800 outline-none;
+  }
+  .rich-content > * + * {
+    @apply mt-3;
+  }
+  .rich-content h1 {
+    @apply mt-5 text-[1.35em] leading-snug font-bold text-slate-900;
+  }
+  .rich-content h2 {
+    @apply mt-4 text-[1.15em] leading-snug font-bold text-slate-900;
+  }
+  .rich-content h3 {
+    @apply mt-3 text-[1em] font-bold tracking-[0.02em] text-slate-900 uppercase;
+  }
+  .rich-content ul {
+    @apply ml-6 list-disc marker:text-slate-400;
+  }
+  .rich-content ol {
+    @apply ml-6 list-decimal marker:text-slate-500;
+  }
+  .rich-content li > * + * {
+    @apply mt-1;
+  }
+  .rich-content blockquote {
+    @apply border-l-[3px] border-slate-300 pl-4 text-slate-700 italic;
+  }
+  .rich-content hr {
+    @apply my-4 border-slate-300;
+  }
+  .rich-content hr.ProseMirror-selectednode {
+    @apply border-vino-500;
+  }
+  .rich-content mark {
+    @apply rounded-[2px] bg-amber-100 px-0.5 text-inherit;
+  }
+  .rich-content .tableWrapper {
+    @apply my-4 overflow-x-auto;
+  }
+  .rich-content table {
+    @apply w-full table-fixed border-collapse text-[0.93em];
+  }
+  .rich-content td,
+  .rich-content th {
+    @apply relative border border-slate-300 px-2.5 py-1.5 align-top;
+  }
+  .rich-content th {
+    @apply bg-slate-50 text-left font-semibold;
+  }
+  .rich-content .selectedCell::after {
+    @apply pointer-events-none absolute inset-0 bg-vino-500/10 content-[''];
+  }
+  .rich-content .column-resize-handle {
+    @apply pointer-events-none absolute top-0 -right-0.5 bottom-0 w-1 bg-vino-400;
+  }
+  .rich-content.resize-cursor {
+    @apply cursor-col-resize;
+  }
+  .rich-content p.is-editor-empty:first-child::before {
+    @apply pointer-events-none float-left h-0 text-slate-400 content-[attr(data-placeholder)];
+  }
+  .rich-content [data-variable] {
+    @apply rounded bg-vino-50 px-1 font-sans text-[0.85em] whitespace-nowrap text-vino-700 ring-1 ring-vino-200/70 ring-inset;
+  }
+  .rich-content [data-variable].is-unknown {
+    @apply bg-amber-50 text-amber-800 ring-amber-300;
+  }
+  .rich-content [data-variable].ProseMirror-selectednode {
+    @apply ring-2 ring-vino-500;
+  }
+  .rich-content [data-page-break] {
+    @apply relative my-6 border-t border-dashed border-slate-300;
+  }
+  .rich-content [data-page-break]::after {
+    @apply absolute -top-2.5 left-1/2 -translate-x-1/2 bg-paper px-2 font-sans text-[10px] tracking-wider text-slate-400 uppercase content-['Salto_de_página'];
+  }
+  .rich-content [data-page-break].ProseMirror-selectednode {
+    @apply border-vino-500;
+  }
+
   .stagger > * {
     animation: var(--animate-rise-in);
     animation-delay: calc(var(--stagger-delay, 0ms) + var(--i, 0) * var(--stagger-step, 70ms));
