@@ -31,7 +31,8 @@ listItem   { type: "listItem", content: (paragraph | bulletList | orderedList)[]
 blockquote { type: "blockquote", content: (paragraph | heading | bulletList | orderedList)[] }
 horizontalRule { type: "horizontalRule" }
 pageBreak  { type: "pageBreak" }                           (salto de página en el PDF; en pantalla, una línea discontinua)
-table      { type: "table", content: tableRow[] }          (1..200 filas, 1..12 columnas)
+table      { type: "table", attrs?: { borderless?: true }, content: tableRow[] }   (1..200 filas, 1..12 columnas)
+           borderless = columnas sin líneas (bloques de firma); en el PDF, layout "noBorders" y columnas iguales.
 tableRow   { type: "tableRow", content: (tableCell | tableHeader)[] }
 tableCell / tableHeader
            { type, attrs?: { colspan?: 1..12, rowspan?: 1..200, colwidth?: (int 20..2000)[] | null },

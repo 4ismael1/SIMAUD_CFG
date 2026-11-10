@@ -1,5 +1,5 @@
-import type { ReactNode } from 'react';
-import { useEditorState, type Editor } from '@tiptap/react';
+import type { ReactNode } from "react";
+import { useEditorState, type Editor } from "@tiptap/react";
 import {
   AlignCenter,
   AlignJustify,
@@ -24,16 +24,53 @@ import {
   Table,
   Underline,
   Undo2,
-} from 'lucide-react';
-import { Menu, cn, type MenuItem } from '../../../ui';
+} from "lucide-react";
+import { Menu, cn, type MenuItem } from "../../../ui";
 
-type BlockStyle = 'paragraph' | 'h1' | 'h2' | 'h3';
+type BlockStyle = "paragraph" | "h1" | "h2" | "h3";
+
+/** Two centred signature columns with a line, role and name; replaces aligning with spaces. */
+function signatureCell(role: string) {
+  const centred = { textAlign: "center" };
+  return {
+    type: "tableCell",
+    content: [
+      { type: "paragraph", attrs: centred },
+      {
+        type: "paragraph",
+        attrs: centred,
+        content: [{ type: "text", text: "__________________" }],
+      },
+      {
+        type: "paragraph",
+        attrs: centred,
+        content: [{ type: "text", text: role, marks: [{ type: "bold" }] }],
+      },
+      {
+        type: "paragraph",
+        attrs: centred,
+        content: [{ type: "text", text: "Nombre" }],
+      },
+    ],
+  };
+}
+
+const SIGNATURE_BLOCK = {
+  type: "table",
+  attrs: { borderless: true },
+  content: [
+    {
+      type: "tableRow",
+      content: [signatureCell("EL CLIENTE"), signatureCell("EL CONTRATISTA")],
+    },
+  ],
+};
 
 const BLOCK_STYLES: { value: BlockStyle; label: string }[] = [
-  { value: 'paragraph', label: 'Texto normal' },
-  { value: 'h1', label: 'Título 1' },
-  { value: 'h2', label: 'Título 2' },
-  { value: 'h3', label: 'Título 3' },
+  { value: "paragraph", label: "Texto normal" },
+  { value: "h1", label: "Título 1" },
+  { value: "h2", label: "Título 2" },
+  { value: "h3", label: "Título 3" },
 ];
 
 interface ToolButtonProps {
@@ -46,7 +83,14 @@ interface ToolButtonProps {
 }
 
 /** Keeps the editor selection: mousedown is cancelled so focus never leaves the text. */
-function ToolButton({ label, shortcut, icon, active = false, disabled = false, onClick }: ToolButtonProps) {
+function ToolButton({
+  label,
+  shortcut,
+  icon,
+  active = false,
+  disabled = false,
+  onClick,
+}: ToolButtonProps) {
   const title = shortcut ? `${label} (${shortcut})` : label;
   return (
     <button
@@ -58,9 +102,10 @@ function ToolButton({ label, shortcut, icon, active = false, disabled = false, o
       onMouseDown={(event) => event.preventDefault()}
       onClick={onClick}
       className={cn(
-        'inline-grid size-8 shrink-0 place-items-center rounded-md text-slate-600 transition-colors [&_svg]:size-4',
-        'hover:bg-slate-100 hover:text-slate-900 disabled:pointer-events-none disabled:opacity-40',
-        active && 'bg-vino-50 text-vino-700 hover:bg-vino-100 hover:text-vino-800',
+        "inline-grid size-8 shrink-0 place-items-center rounded-md text-slate-600 transition-colors [&_svg]:size-4",
+        "hover:bg-slate-100 hover:text-slate-900 disabled:pointer-events-none disabled:opacity-40",
+        active &&
+          "bg-vino-50 text-vino-700 hover:bg-vino-100 hover:text-vino-800",
       )}
     >
       {icon}
@@ -69,7 +114,9 @@ function ToolButton({ label, shortcut, icon, active = false, disabled = false, o
 }
 
 function Divider() {
-  return <span className="mx-1 h-5 w-px shrink-0 bg-slate-200" aria-hidden="true" />;
+  return (
+    <span className="mx-1 h-5 w-px shrink-0 bg-slate-200" aria-hidden="true" />
+  );
 }
 
 interface EditorToolbarProps {
@@ -79,29 +126,37 @@ interface EditorToolbarProps {
   onInsertVariable: () => void;
 }
 
-export function EditorToolbar({ editor, fullscreen, onToggleFullscreen, onInsertVariable }: EditorToolbarProps) {
+export function EditorToolbar({
+  editor,
+  fullscreen,
+  onToggleFullscreen,
+  onInsertVariable,
+}: EditorToolbarProps) {
   const state = useEditorState({
     editor,
     selector: ({ editor: current }) => ({
-      block: (current.isActive('heading', { level: 1 })
-        ? 'h1'
-        : current.isActive('heading', { level: 2 })
-          ? 'h2'
-          : current.isActive('heading', { level: 3 })
-            ? 'h3'
-            : 'paragraph') as BlockStyle,
-      bold: current.isActive('bold'),
-      italic: current.isActive('italic'),
-      underline: current.isActive('underline'),
-      strike: current.isActive('strike'),
-      superscript: current.isActive('superscript'),
-      subscript: current.isActive('subscript'),
-      highlight: current.isActive('highlight'),
-      align: (['center', 'right', 'justify'].find((align) => current.isActive({ textAlign: align })) ?? 'left') as string,
-      bulletList: current.isActive('bulletList'),
-      orderedList: current.isActive('orderedList'),
-      blockquote: current.isActive('blockquote'),
-      inTable: current.isActive('table'),
+      block: (current.isActive("heading", { level: 1 })
+        ? "h1"
+        : current.isActive("heading", { level: 2 })
+          ? "h2"
+          : current.isActive("heading", { level: 3 })
+            ? "h3"
+            : "paragraph") as BlockStyle,
+      bold: current.isActive("bold"),
+      italic: current.isActive("italic"),
+      underline: current.isActive("underline"),
+      strike: current.isActive("strike"),
+      superscript: current.isActive("superscript"),
+      subscript: current.isActive("subscript"),
+      highlight: current.isActive("highlight"),
+      align: (["center", "right", "justify"].find((align) =>
+        current.isActive({ textAlign: align }),
+      ) ?? "left") as string,
+      bulletList: current.isActive("bulletList"),
+      orderedList: current.isActive("orderedList"),
+      blockquote: current.isActive("blockquote"),
+      inTable: current.isActive("table"),
+      borderless: Boolean(current.getAttributes("table").borderless),
       canUndo: current.can().undo(),
       canRedo: current.can().redo(),
       canMerge: current.can().mergeCells(),
@@ -120,32 +175,118 @@ export function EditorToolbar({ editor, fullscreen, onToggleFullscreen, onInsert
       command();
       return;
     }
-    editor.once('focus', () => window.setTimeout(command, 0));
+    editor.once("focus", () => window.setTimeout(command, 0));
     editor.commands.focus();
   };
 
   function setBlockStyle(style: BlockStyle) {
-    if (style === 'paragraph') chain().setParagraph().run();
-    else chain().setHeading({ level: Number(style.slice(1)) as 1 | 2 | 3 }).run();
+    if (style === "paragraph") chain().setParagraph().run();
+    else
+      chain()
+        .setHeading({ level: Number(style.slice(1)) as 1 | 2 | 3 })
+        .run();
   }
 
   const tableItems: MenuItem[] = state.inTable
     ? [
-        { label: 'Insertar fila arriba', onSelect: later(() => chain().addRowBefore().run()) },
-        { label: 'Insertar fila abajo', onSelect: later(() => chain().addRowAfter().run()) },
-        { label: 'Insertar columna a la izquierda', onSelect: later(() => chain().addColumnBefore().run()) },
-        { label: 'Insertar columna a la derecha', onSelect: later(() => chain().addColumnAfter().run()) },
-        { label: 'Combinar celdas', disabled: !state.canMerge, onSelect: later(() => chain().mergeCells().run()), separatorBefore: true },
-        { label: 'Dividir celda', disabled: !state.canSplit, onSelect: later(() => chain().splitCell().run()) },
-        { label: 'Fila de encabezado sí/no', onSelect: later(() => chain().toggleHeaderRow().run()) },
-        { label: 'Eliminar fila', danger: true, onSelect: later(() => chain().deleteRow().run()), separatorBefore: true },
-        { label: 'Eliminar columna', danger: true, onSelect: later(() => chain().deleteColumn().run()) },
-        { label: 'Eliminar tabla', danger: true, onSelect: later(() => chain().deleteTable().run()) },
+        {
+          label: "Insertar fila arriba",
+          onSelect: later(() => chain().addRowBefore().run()),
+        },
+        {
+          label: "Insertar fila abajo",
+          onSelect: later(() => chain().addRowAfter().run()),
+        },
+        {
+          label: "Insertar columna a la izquierda",
+          onSelect: later(() => chain().addColumnBefore().run()),
+        },
+        {
+          label: "Insertar columna a la derecha",
+          onSelect: later(() => chain().addColumnAfter().run()),
+        },
+        {
+          label: "Combinar celdas",
+          disabled: !state.canMerge,
+          onSelect: later(() => chain().mergeCells().run()),
+          separatorBefore: true,
+        },
+        {
+          label: "Dividir celda",
+          disabled: !state.canSplit,
+          onSelect: later(() => chain().splitCell().run()),
+        },
+        {
+          label: "Fila de encabezado sí/no",
+          onSelect: later(() => chain().toggleHeaderRow().run()),
+        },
+        {
+          label: state.borderless
+            ? "Mostrar bordes"
+            : "Quitar bordes (columnas)",
+          onSelect: later(() =>
+            chain()
+              .updateAttributes("table", { borderless: !state.borderless })
+              .run(),
+          ),
+        },
+        {
+          label: "Eliminar fila",
+          danger: true,
+          onSelect: later(() => chain().deleteRow().run()),
+          separatorBefore: true,
+        },
+        {
+          label: "Eliminar columna",
+          danger: true,
+          onSelect: later(() => chain().deleteColumn().run()),
+        },
+        {
+          label: "Eliminar tabla",
+          danger: true,
+          onSelect: later(() => chain().deleteTable().run()),
+        },
       ]
     : [
-        { label: 'Tabla de 2 × 2', onSelect: later(() => chain().insertTable({ rows: 2, cols: 2, withHeaderRow: false }).run()) },
-        { label: 'Tabla de 3 × 3 con encabezado', onSelect: later(() => chain().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()) },
-        { label: 'Tabla de 4 × 4 con encabezado', onSelect: later(() => chain().insertTable({ rows: 4, cols: 4, withHeaderRow: true }).run()) },
+        {
+          label: "Bloque de firmas (2 columnas)",
+          onSelect: later(() => chain().insertContent(SIGNATURE_BLOCK).run()),
+        },
+        {
+          label: "Columnas sin bordes (2)",
+          onSelect: later(() =>
+            chain()
+              .insertTable({ rows: 1, cols: 2, withHeaderRow: false })
+              .updateAttributes("table", { borderless: true })
+              .run(),
+          ),
+          separatorBefore: false,
+        },
+        {
+          label: "Tabla de 2 × 2",
+          separatorBefore: true,
+          onSelect: later(() =>
+            chain()
+              .insertTable({ rows: 2, cols: 2, withHeaderRow: false })
+              .run(),
+          ),
+        },
+        {
+          label: "Tabla de 3 × 3 con encabezado",
+          onSelect: later(() =>
+            chain()
+              .insertTable({ rows: 3, cols: 3, withHeaderRow: true })
+              .run(),
+          ),
+        },
+        {
+          label: "Tabla de 4 × 4 con encabezado",
+          onSelect: later(() =>
+            chain()
+              .insertTable({ rows: 4, cols: 4, withHeaderRow: true })
+              .run(),
+          ),
+        },
       ];
 
   return (
@@ -154,8 +295,20 @@ export function EditorToolbar({ editor, fullscreen, onToggleFullscreen, onInsert
       aria-label="Formato del texto"
       className="flex items-center gap-0.5 overflow-x-auto border-b border-slate-200 bg-white px-2 py-1.5 [scrollbar-width:thin] sm:flex-wrap sm:overflow-visible"
     >
-      <ToolButton label="Deshacer" shortcut="Ctrl+Z" icon={<Undo2 />} disabled={!state.canUndo} onClick={() => chain().undo().run()} />
-      <ToolButton label="Rehacer" shortcut="Ctrl+Y" icon={<Redo2 />} disabled={!state.canRedo} onClick={() => chain().redo().run()} />
+      <ToolButton
+        label="Deshacer"
+        shortcut="Ctrl+Z"
+        icon={<Undo2 />}
+        disabled={!state.canUndo}
+        onClick={() => chain().undo().run()}
+      />
+      <ToolButton
+        label="Rehacer"
+        shortcut="Ctrl+Y"
+        icon={<Redo2 />}
+        disabled={!state.canRedo}
+        onClick={() => chain().redo().run()}
+      />
       <Divider />
       <label className="shrink-0">
         <span className="sr-only">Estilo del párrafo</span>
@@ -165,27 +318,102 @@ export function EditorToolbar({ editor, fullscreen, onToggleFullscreen, onInsert
           className="h-8 rounded-md border border-slate-200 bg-white pr-7 pl-2 text-[13px] text-slate-700 hover:border-slate-300 focus:outline-2 focus:outline-vino-600"
         >
           {BLOCK_STYLES.map((style) => (
-            <option key={style.value} value={style.value}>{style.label}</option>
+            <option key={style.value} value={style.value}>
+              {style.label}
+            </option>
           ))}
         </select>
       </label>
       <Divider />
-      <ToolButton label="Negrita" shortcut="Ctrl+B" icon={<Bold />} active={state.bold} onClick={() => chain().toggleBold().run()} />
-      <ToolButton label="Cursiva" shortcut="Ctrl+I" icon={<Italic />} active={state.italic} onClick={() => chain().toggleItalic().run()} />
-      <ToolButton label="Subrayado" shortcut="Ctrl+U" icon={<Underline />} active={state.underline} onClick={() => chain().toggleUnderline().run()} />
-      <ToolButton label="Tachado" icon={<Strikethrough />} active={state.strike} onClick={() => chain().toggleStrike().run()} />
-      <ToolButton label="Resaltar" icon={<Highlighter />} active={state.highlight} onClick={() => chain().toggleHighlight().run()} />
-      <ToolButton label="Superíndice" icon={<Superscript />} active={state.superscript} onClick={() => chain().toggleSuperscript().run()} />
-      <ToolButton label="Subíndice" icon={<Subscript />} active={state.subscript} onClick={() => chain().toggleSubscript().run()} />
+      <ToolButton
+        label="Negrita"
+        shortcut="Ctrl+B"
+        icon={<Bold />}
+        active={state.bold}
+        onClick={() => chain().toggleBold().run()}
+      />
+      <ToolButton
+        label="Cursiva"
+        shortcut="Ctrl+I"
+        icon={<Italic />}
+        active={state.italic}
+        onClick={() => chain().toggleItalic().run()}
+      />
+      <ToolButton
+        label="Subrayado"
+        shortcut="Ctrl+U"
+        icon={<Underline />}
+        active={state.underline}
+        onClick={() => chain().toggleUnderline().run()}
+      />
+      <ToolButton
+        label="Tachado"
+        icon={<Strikethrough />}
+        active={state.strike}
+        onClick={() => chain().toggleStrike().run()}
+      />
+      <ToolButton
+        label="Resaltar"
+        icon={<Highlighter />}
+        active={state.highlight}
+        onClick={() => chain().toggleHighlight().run()}
+      />
+      <ToolButton
+        label="Superíndice"
+        icon={<Superscript />}
+        active={state.superscript}
+        onClick={() => chain().toggleSuperscript().run()}
+      />
+      <ToolButton
+        label="Subíndice"
+        icon={<Subscript />}
+        active={state.subscript}
+        onClick={() => chain().toggleSubscript().run()}
+      />
       <Divider />
-      <ToolButton label="Alinear a la izquierda" icon={<AlignLeft />} active={state.align === 'left'} onClick={() => chain().setTextAlign('left').run()} />
-      <ToolButton label="Centrar" icon={<AlignCenter />} active={state.align === 'center'} onClick={() => chain().setTextAlign('center').run()} />
-      <ToolButton label="Alinear a la derecha" icon={<AlignRight />} active={state.align === 'right'} onClick={() => chain().setTextAlign('right').run()} />
-      <ToolButton label="Justificar" icon={<AlignJustify />} active={state.align === 'justify'} onClick={() => chain().setTextAlign('justify').run()} />
+      <ToolButton
+        label="Alinear a la izquierda"
+        icon={<AlignLeft />}
+        active={state.align === "left"}
+        onClick={() => chain().setTextAlign("left").run()}
+      />
+      <ToolButton
+        label="Centrar"
+        icon={<AlignCenter />}
+        active={state.align === "center"}
+        onClick={() => chain().setTextAlign("center").run()}
+      />
+      <ToolButton
+        label="Alinear a la derecha"
+        icon={<AlignRight />}
+        active={state.align === "right"}
+        onClick={() => chain().setTextAlign("right").run()}
+      />
+      <ToolButton
+        label="Justificar"
+        icon={<AlignJustify />}
+        active={state.align === "justify"}
+        onClick={() => chain().setTextAlign("justify").run()}
+      />
       <Divider />
-      <ToolButton label="Lista con viñetas" icon={<List />} active={state.bulletList} onClick={() => chain().toggleBulletList().run()} />
-      <ToolButton label="Lista numerada" icon={<ListOrdered />} active={state.orderedList} onClick={() => chain().toggleOrderedList().run()} />
-      <ToolButton label="Cita" icon={<Quote />} active={state.blockquote} onClick={() => chain().toggleBlockquote().run()} />
+      <ToolButton
+        label="Lista con viñetas"
+        icon={<List />}
+        active={state.bulletList}
+        onClick={() => chain().toggleBulletList().run()}
+      />
+      <ToolButton
+        label="Lista numerada"
+        icon={<ListOrdered />}
+        active={state.orderedList}
+        onClick={() => chain().toggleOrderedList().run()}
+      />
+      <ToolButton
+        label="Cita"
+        icon={<Quote />}
+        active={state.blockquote}
+        onClick={() => chain().toggleBlockquote().run()}
+      />
       <Divider />
       <Menu
         items={tableItems}
@@ -193,12 +421,14 @@ export function EditorToolbar({ editor, fullscreen, onToggleFullscreen, onInsert
           <button
             type="button"
             {...props}
-            aria-label={state.inTable ? 'Opciones de la tabla' : 'Insertar tabla'}
-            title={state.inTable ? 'Opciones de la tabla' : 'Insertar tabla'}
+            aria-label={
+              state.inTable ? "Opciones de la tabla" : "Insertar tabla"
+            }
+            title={state.inTable ? "Opciones de la tabla" : "Insertar tabla"}
             onMouseDown={(event) => event.preventDefault()}
             className={cn(
-              'inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md px-2 text-[13px] text-slate-600 hover:bg-slate-100 hover:text-slate-900 [&_svg]:size-4',
-              state.inTable && 'bg-vino-50 text-vino-700',
+              "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md px-2 text-[13px] text-slate-600 hover:bg-slate-100 hover:text-slate-900 [&_svg]:size-4",
+              state.inTable && "bg-vino-50 text-vino-700",
             )}
           >
             <Table />
@@ -206,9 +436,21 @@ export function EditorToolbar({ editor, fullscreen, onToggleFullscreen, onInsert
           </button>
         )}
       />
-      <ToolButton label="Línea separadora" icon={<Minus />} onClick={() => chain().setHorizontalRule().run()} />
-      <ToolButton label="Salto de página (PDF)" icon={<SeparatorHorizontal />} onClick={() => chain().setPageBreak().run()} />
-      <ToolButton label="Quitar formato" icon={<RemoveFormatting />} onClick={() => chain().unsetAllMarks().clearNodes().run()} />
+      <ToolButton
+        label="Línea separadora"
+        icon={<Minus />}
+        onClick={() => chain().setHorizontalRule().run()}
+      />
+      <ToolButton
+        label="Salto de página (PDF)"
+        icon={<SeparatorHorizontal />}
+        onClick={() => chain().setPageBreak().run()}
+      />
+      <ToolButton
+        label="Quitar formato"
+        icon={<RemoveFormatting />}
+        onClick={() => chain().unsetAllMarks().clearNodes().run()}
+      />
       <Divider />
       <button
         type="button"
@@ -233,7 +475,11 @@ export function EditorToolbar({ editor, fullscreen, onToggleFullscreen, onInsert
           Salir
         </button>
       ) : (
-        <ToolButton label="Pantalla completa" icon={<Maximize2 />} onClick={onToggleFullscreen} />
+        <ToolButton
+          label="Pantalla completa"
+          icon={<Maximize2 />}
+          onClick={onToggleFullscreen}
+        />
       )}
     </div>
   );

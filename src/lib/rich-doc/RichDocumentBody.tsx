@@ -1,40 +1,50 @@
-import type { ReactNode } from 'react';
-import { cn } from '../../ui';
-import type { BlockNode, InlineNode, ListItemNode, RichDoc, RichMark, TableCellNode, TextAlign } from './types';
+import type { CSSProperties, ReactNode } from "react";
+import type {
+  BlockNode,
+  InlineNode,
+  ListItemNode,
+  RichDoc,
+  RichMark,
+  TableCellNode,
+  TableNode,
+  TextAlign,
+} from "./types";
 
 /**
  * Renders a `rich-v1` document with React elements only (never innerHTML).
- * Unknown nodes or marks are skipped: the API validates the document, this is just a safety net.
+ *
+ * It emits the same plain tags the editor produces (p, h1–h3, ul, table…) inside `.rich-content`,
+ * so both share ONE stylesheet (src/index.css): what the author sees while editing is exactly what
+ * the preview, the contract page and the signing page show. Do not add styling here; change
+ * `.rich-content` instead. Unknown nodes or marks are skipped (the API validates the document).
  */
 
-const ALIGN_CLASS: Record<TextAlign, string> = {
-  left: 'text-left',
-  center: 'text-center',
-  right: 'text-right',
-  justify: 'text-justify',
-};
-
-function alignClass(align: TextAlign | null | undefined): string | undefined {
-  return align ? ALIGN_CLASS[align] : undefined;
+function alignStyle(
+  align: TextAlign | null | undefined,
+): CSSProperties | undefined {
+  return align && align !== "left" ? { textAlign: align } : undefined;
 }
 
-function applyMarks(content: ReactNode, marks: RichMark[] | undefined): ReactNode {
+function applyMarks(
+  content: ReactNode,
+  marks: RichMark[] | undefined,
+): ReactNode {
   return (marks ?? []).reduce<ReactNode>((inner, mark) => {
     switch (mark.type) {
-      case 'bold':
+      case "bold":
         return <strong>{inner}</strong>;
-      case 'italic':
+      case "italic":
         return <em>{inner}</em>;
-      case 'underline':
+      case "underline":
         return <u>{inner}</u>;
-      case 'strike':
+      case "strike":
         return <s>{inner}</s>;
-      case 'superscript':
+      case "superscript":
         return <sup>{inner}</sup>;
-      case 'subscript':
+      case "subscript":
         return <sub>{inner}</sub>;
-      case 'highlight':
-        return <mark className="rounded-[2px] bg-amber-100 px-0.5 text-inherit">{inner}</mark>;
+      case "highlight":
+        return <mark>{inner}</mark>;
       default:
         return inner;
     }
@@ -46,17 +56,28 @@ interface RenderOptions {
   variableLabels?: ReadonlyMap<string, string>;
 }
 
-function Inline({ nodes, options }: { nodes: InlineNode[] | undefined; options: RenderOptions }) {
+function Inline({
+  nodes,
+  options,
+}: {
+  nodes: InlineNode[] | undefined;
+  options: RenderOptions;
+}) {
   return (
     <>
       {(nodes ?? []).map((node, index) => {
-        if (node.type === 'text') return <span key={index}>{applyMarks(node.text, node.marks)}</span>;
-        if (node.type === 'hardBreak') return <br key={index} />;
-        if (node.type === 'variable') {
-          const label = options.variableLabels?.get(node.attrs.name) ?? node.attrs.name;
+        if (node.type === "text")
+          return <span key={index}>{applyMarks(node.text, node.marks)}</span>;
+        if (node.type === "hardBreak") return <br key={index} />;
+        if (node.type === "variable") {
+          const label = options.variableLabels?.get(node.attrs.name);
           return (
-            <span key={index} className="rounded bg-vino-50 px-1 font-sans text-[0.85em] text-vino-700 ring-1 ring-vino-200/70 ring-inset">
-              {applyMarks(`[${label}]`, node.marks)}
+            <span
+              key={index}
+              data-variable={node.attrs.name}
+              className={label ? undefined : "is-unknown"}
+            >
+              {applyMarks(`[${label ?? node.attrs.name}]`, node.marks)}
             </span>
           );
         }
@@ -66,112 +87,148 @@ function Inline({ nodes, options }: { nodes: InlineNode[] | undefined; options: 
   );
 }
 
-function ListItems({ items, options }: { items: ListItemNode[]; options: RenderOptions }) {
+function ListItems({
+  items,
+  options,
+}: {
+  items: ListItemNode[];
+  options: RenderOptions;
+}) {
   return (
     <>
       {items.map((item, index) => (
-        <li key={index} className="pl-1">
-          <Blocks blocks={item.content} options={options} compact />
+        <li key={index}>
+          <Blocks blocks={item.content} options={options} />
         </li>
       ))}
     </>
   );
 }
 
-function Cell({ cell, options }: { cell: TableCellNode; options: RenderOptions }) {
-  const Tag = cell.type === 'tableHeader' ? 'th' : 'td';
+function Cell({
+  cell,
+  options,
+}: {
+  cell: TableCellNode;
+  options: RenderOptions;
+}) {
+  const Tag = cell.type === "tableHeader" ? "th" : "td";
   return (
     <Tag
       colSpan={cell.attrs?.colspan ?? undefined}
       rowSpan={cell.attrs?.rowspan ?? undefined}
-      className={cn('border border-slate-300 px-2.5 py-1.5 align-top', cell.type === 'tableHeader' && 'bg-slate-50 text-left font-semibold')}
     >
-      <Blocks blocks={cell.content} options={options} compact />
+      <Blocks blocks={cell.content} options={options} />
     </Tag>
   );
 }
 
-function Block({ block, options }: { block: BlockNode; options: RenderOptions }) {
+function Table({
+  table,
+  options,
+}: {
+  table: TableNode;
+  options: RenderOptions;
+}) {
+  return (
+    <div className="tableWrapper">
+      <table data-borderless={table.attrs?.borderless ? "" : undefined}>
+        <tbody>
+          {table.content.map((row, rowIndex) => (
+            <tr key={rowIndex}>
+              {row.content.map((cell, cellIndex) => (
+                <Cell key={cellIndex} cell={cell} options={options} />
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function Block({
+  block,
+  options,
+}: {
+  block: BlockNode;
+  options: RenderOptions;
+}) {
   switch (block.type) {
-    case 'paragraph':
+    case "paragraph":
       return (
-        <p className={cn('min-h-[1em]', alignClass(block.attrs?.textAlign))}>
-          <Inline nodes={block.content} options={options} />
+        <p style={alignStyle(block.attrs?.textAlign)}>
+          {/* An empty paragraph is a blank line, as in the editor (ProseMirror puts a <br> there too). */}
+          {block.content?.length ? (
+            <Inline nodes={block.content} options={options} />
+          ) : (
+            <br />
+          )}
         </p>
       );
-    case 'heading': {
-      const level = block.attrs.level;
-      const className = cn(
-        'font-serif font-bold text-slate-900',
-        level === 1 && 'mt-2 text-[1.35em] leading-snug',
-        level === 2 && 'mt-1.5 text-[1.15em] leading-snug',
-        level === 3 && 'text-[1em] tracking-[0.02em] uppercase',
-        alignClass(block.attrs.textAlign),
-      );
-      const content = <Inline nodes={block.content} options={options} />;
-      if (level === 1) return <h3 className={className}>{content}</h3>;
-      if (level === 2) return <h4 className={className}>{content}</h4>;
-      return <h5 className={className}>{content}</h5>;
-    }
-    case 'bulletList':
+    case "heading": {
+      const Tag =
+        block.attrs.level === 1 ? "h1" : block.attrs.level === 2 ? "h2" : "h3";
       return (
-        <ul className="ml-6 flex list-disc flex-col gap-1.5 marker:text-slate-400">
+        <Tag style={alignStyle(block.attrs.textAlign)}>
+          <Inline nodes={block.content} options={options} />
+        </Tag>
+      );
+    }
+    case "bulletList":
+      return (
+        <ul>
           <ListItems items={block.content} options={options} />
         </ul>
       );
-    case 'orderedList':
+    case "orderedList":
       return (
-        <ol start={block.attrs?.start ?? undefined} className="ml-6 flex list-decimal flex-col gap-1.5 marker:text-slate-500">
+        <ol start={block.attrs?.start ?? undefined}>
           <ListItems items={block.content} options={options} />
         </ol>
       );
-    case 'blockquote':
+    case "blockquote":
       return (
-        <blockquote className="border-l-[3px] border-slate-300 pl-4 text-slate-700 italic">
-          <Blocks blocks={block.content} options={options} compact />
+        <blockquote>
+          <Blocks blocks={block.content} options={options} />
         </blockquote>
       );
-    case 'horizontalRule':
-      return <hr className="my-2 border-slate-300" />;
-    case 'pageBreak':
+    case "horizontalRule":
+      return <hr />;
+    case "pageBreak":
       return (
-        <div role="separator" aria-label="Salto de página" className="relative my-3 border-t border-dashed border-slate-300 print:break-after-page print:border-0">
-          <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 bg-paper px-2 font-sans text-[10px] tracking-wider text-slate-400 uppercase print:hidden">
-            Salto de página
-          </span>
-        </div>
+        <div data-page-break="" role="separator" aria-label="Salto de página" />
       );
-    case 'table':
-      return (
-        <div className="-mx-1 overflow-x-auto px-1">
-          <table className="w-full border-collapse text-[0.93em]">
-            <tbody>
-              {block.content.map((row, rowIndex) => (
-                <tr key={rowIndex}>
-                  {row.content.map((cell, cellIndex) => (
-                    <Cell key={cellIndex} cell={cell} options={options} />
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      );
+    case "table":
+      return <Table table={block} options={options} />;
     default:
       return null;
   }
 }
 
-function Blocks({ blocks, options, compact = false }: { blocks: BlockNode[]; options: RenderOptions; compact?: boolean }) {
+function Blocks({
+  blocks,
+  options,
+}: {
+  blocks: BlockNode[];
+  options: RenderOptions;
+}) {
   return (
-    <div className={cn('flex min-w-0 flex-col', compact ? 'gap-1.5' : 'gap-3.5')}>
+    <>
       {blocks.map((block, index) => (
         <Block key={index} block={block} options={options} />
       ))}
-    </div>
+    </>
   );
 }
 
-export function RichDocumentBody({ doc, variableLabels }: { doc: RichDoc } & RenderOptions) {
-  return <Blocks blocks={doc.content} options={{ variableLabels }} />;
+export function RichDocumentBody({
+  doc,
+  variableLabels,
+}: { doc: RichDoc } & RenderOptions) {
+  return (
+    <div className="rich-content">
+      <Blocks blocks={doc.content} options={{ variableLabels }} />
+    </div>
+  );
 }

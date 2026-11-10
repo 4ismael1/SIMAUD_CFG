@@ -4,28 +4,35 @@
  * viewer only understand the nodes and marks listed here.
  */
 
-export type ContentFormat = 'plain' | 'rich-v1';
+export type ContentFormat = "plain" | "rich-v1";
 
-export type TextAlign = 'left' | 'center' | 'right' | 'justify';
+export type TextAlign = "left" | "center" | "right" | "justify";
 
-export type MarkType = 'bold' | 'italic' | 'underline' | 'strike' | 'superscript' | 'subscript' | 'highlight';
+export type MarkType =
+  | "bold"
+  | "italic"
+  | "underline"
+  | "strike"
+  | "superscript"
+  | "subscript"
+  | "highlight";
 
 export interface RichMark {
   type: MarkType;
 }
 
 export interface TextNode {
-  type: 'text';
+  type: "text";
   text: string;
   marks?: RichMark[];
 }
 
 export interface HardBreakNode {
-  type: 'hardBreak';
+  type: "hardBreak";
 }
 
 export interface VariableNode {
-  type: 'variable';
+  type: "variable";
   attrs: { name: string };
   marks?: RichMark[];
 }
@@ -33,59 +40,65 @@ export interface VariableNode {
 export type InlineNode = TextNode | HardBreakNode | VariableNode;
 
 export interface ParagraphNode {
-  type: 'paragraph';
+  type: "paragraph";
   attrs?: { textAlign?: TextAlign | null };
   content?: InlineNode[];
 }
 
 export interface HeadingNode {
-  type: 'heading';
+  type: "heading";
   attrs: { level: 1 | 2 | 3; textAlign?: TextAlign | null };
   content?: InlineNode[];
 }
 
 export interface ListItemNode {
-  type: 'listItem';
+  type: "listItem";
   content: (ParagraphNode | BulletListNode | OrderedListNode)[];
 }
 
 export interface BulletListNode {
-  type: 'bulletList';
+  type: "bulletList";
   content: ListItemNode[];
 }
 
 export interface OrderedListNode {
-  type: 'orderedList';
+  type: "orderedList";
   attrs?: { start?: number | null };
   content: ListItemNode[];
 }
 
 export interface BlockquoteNode {
-  type: 'blockquote';
+  type: "blockquote";
   content: (ParagraphNode | HeadingNode | BulletListNode | OrderedListNode)[];
 }
 
 export interface HorizontalRuleNode {
-  type: 'horizontalRule';
+  type: "horizontalRule";
 }
 
 export interface PageBreakNode {
-  type: 'pageBreak';
+  type: "pageBreak";
 }
 
 export interface TableCellNode {
-  type: 'tableCell' | 'tableHeader';
-  attrs?: { colspan?: number | null; rowspan?: number | null; colwidth?: number[] | null };
+  type: "tableCell" | "tableHeader";
+  attrs?: {
+    colspan?: number | null;
+    rowspan?: number | null;
+    colwidth?: number[] | null;
+  };
   content: (ParagraphNode | BulletListNode | OrderedListNode)[];
 }
 
 export interface TableRowNode {
-  type: 'tableRow';
+  type: "tableRow";
   content: TableCellNode[];
 }
 
 export interface TableNode {
-  type: 'table';
+  type: "table";
+  /** borderless: columns without lines (signature blocks). */
+  attrs?: { borderless?: boolean | null };
   content: TableRowNode[];
 }
 
@@ -100,7 +113,7 @@ export type BlockNode =
   | TableNode;
 
 export interface RichDoc {
-  type: 'doc';
+  type: "doc";
   content: BlockNode[];
 }
 
@@ -108,7 +121,15 @@ export interface RichDoc {
 export type DocumentContent = string | RichDoc;
 
 export function isRichDoc(value: unknown): value is RichDoc {
-  return typeof value === 'object' && value !== null && (value as { type?: unknown }).type === 'doc' && Array.isArray((value as { content?: unknown }).content);
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    (value as { type?: unknown }).type === "doc" &&
+    Array.isArray((value as { content?: unknown }).content)
+  );
 }
 
-export const EMPTY_RICH_DOC: RichDoc = { type: 'doc', content: [{ type: 'paragraph' }] };
+export const EMPTY_RICH_DOC: RichDoc = {
+  type: "doc",
+  content: [{ type: "paragraph" }],
+};

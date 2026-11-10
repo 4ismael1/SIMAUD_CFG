@@ -132,8 +132,12 @@
  */
 @layer components {
   /* Rich text editor (TipTap). Looks like the final document so what you see is what gets signed. */
+  /* Shared by the editor (.ProseMirror) and every read-only view (RichDocumentBody): one source of truth. */
   .rich-content {
-    @apply min-h-[420px] font-serif text-[15px] leading-[1.8] text-slate-800 outline-none;
+    @apply font-serif text-[15px] leading-[1.8] break-words whitespace-pre-wrap text-slate-800 outline-none;
+  }
+  .rich-content.ProseMirror {
+    @apply min-h-[420px];
   }
   .rich-content > * + * {
     @apply mt-3;
@@ -180,6 +184,15 @@
   }
   .rich-content th {
     @apply bg-slate-50 text-left font-semibold;
+  }
+  /* Borderless tables lay out columns (signature blocks): invisible when read, faint guides while editing. */
+  .rich-content table[data-borderless] td,
+  .rich-content table[data-borderless] th {
+    @apply border-transparent bg-transparent px-3;
+  }
+  .rich-content.ProseMirror table[data-borderless] td,
+  .rich-content.ProseMirror table[data-borderless] th {
+    @apply border-dashed border-slate-200;
   }
   .rich-content .selectedCell::after {
     @apply pointer-events-none absolute inset-0 bg-vino-500/10 content-[''];
