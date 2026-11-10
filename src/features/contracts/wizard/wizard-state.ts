@@ -10,6 +10,7 @@ import {
   validatePersonName,
   validatePhoneDo,
 } from '../../../lib/validation';
+import { effectiveVariables, isContractBound } from './bound-variables';
 
 export const WIZARD_STEPS = [
   { id: 'template', label: 'Plantilla' },
@@ -134,8 +135,11 @@ export function validateDetailsStep(draft: WizardDraft, variables: Variable[]): 
     if (!range.ok) errors.endDate = range.message;
   }
 
+  const values = effectiveVariables(draft);
   for (const variable of variables) {
-    const raw = draft.variables[variable.name];
+    // Filled from the contract fields above (already validated there).
+    if (isContractBound(variable.name)) continue;
+    const raw = values[variable.name];
     const text = raw === null || raw === undefined ? '' : String(raw).trim();
     if (variable.required && text === '') {
       errors[`var:${variable.name}`] = `«${variable.label}» es obligatorio.`;
@@ -207,7 +211,7 @@ export function toContractInput(draft: WizardDraft): ContractInput {
   return {
     templateId: draft.templateId,
     title: draft.title.trim(),
-    variables: draft.variables,
+    variables: effectiveVariables(draft),
     value: money.ok ? money.value : draft.value,
     startDate: draft.startDate,
     endDate: draft.endDate,
