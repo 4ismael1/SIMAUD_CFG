@@ -4,7 +4,9 @@ import {
   ChartColumn,
   CircleCheck,
   FileText,
+  FolderOpen,
   House,
+  ShieldCheck,
   Layers,
   PenLine,
   RefreshCw,
@@ -34,7 +36,10 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     items: [
       { to: '/app', label: 'Panel general', icon: House, roles: ['admin', 'supervisor', 'gestor'] },
+      { to: '/app', label: 'Inicio', icon: House, roles: ['user'] },
       { to: '/app/firmas', label: 'Por firmar', icon: PenLine, roles: ['admin', 'supervisor', 'gestor', 'user'], badge: 'pendingSignatures' },
+      { to: '/app/mis-contratos', label: 'Mis contratos', icon: FolderOpen, roles: ['user'] },
+      { to: '/verificar', label: 'Verificar un contrato', icon: ShieldCheck, roles: ['user'] },
     ],
   },
   {
@@ -67,6 +72,13 @@ export function navigationFor(role: Role): NavGroup[] {
 }
 
 /** Where each role lands after signing in. */
+/** Every role lands on /app: staff see their dashboard, signers their own home. */
 export function homePathFor(role: Role): string {
-  return role === 'user' ? '/app/firmas' : '/app';
+  void role;
+  return '/app';
+}
+
+/** Where «volver» from a contract leads: the staff list, or the signer's own contracts. */
+export function contractsPathFor(role: Role | undefined): string {
+  return role === 'user' ? '/app/mis-contratos' : '/app/contratos';
 }

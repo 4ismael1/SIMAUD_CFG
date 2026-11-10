@@ -1,3 +1,4 @@
+import { Suspense, lazy } from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { ShieldOff } from 'lucide-react';
 import { ButtonLink, EmptyState, Spinner } from '../ui';
@@ -47,9 +48,18 @@ export function RoleRoute({ roles }: { roles: Role[] }) {
 export function StaffHome({ dashboard }: { dashboard: React.ReactNode }) {
   const { user } = useAuth();
   if (!user) return null;
-  if (user.role === 'user') return <Navigate to={homePathFor(user.role)} replace />;
+  // Signers get their own home: what needs their signature, what waits on others, their contracts.
+  if (user.role === 'user') {
+    return (
+      <Suspense fallback={<FullPageSpinner />}>
+        <SignerHomePage />
+      </Suspense>
+    );
+  }
   return <>{dashboard}</>;
 }
+
+const SignerHomePage = lazy(() => import('../features/signer/SignerHomePage').then((module) => ({ default: module.SignerHomePage })));
 
 export function Forbidden() {
   return (

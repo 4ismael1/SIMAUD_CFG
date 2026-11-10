@@ -10,6 +10,8 @@ import { ContractActions } from './components/ContractActions';
 import { DocumentView } from './components/DocumentView';
 import { SignatoriesPanel } from './components/SignatoriesPanel';
 import { ContractActivity, ContractVersions } from './components/ContractHistory';
+import { useAuth } from '../../lib/auth';
+import { contractsPathFor } from '../../app/navigation';
 
 type DetailTab = 'documento' | 'versiones' | 'actividad';
 
@@ -23,6 +25,10 @@ export function ContractDetailPage() {
   const { id = '' } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const contract = useContract(id);
+  const { user } = useAuth();
+  // Signers cannot open the staff list: «volver» leads to their own contracts.
+  const backTo = contractsPathFor(user?.role);
+  const backLabel = user?.role === 'user' ? 'Mis contratos' : 'Contratos';
   const tabParam = searchParams.get('vista');
   const tab: DetailTab = tabParam === 'versiones' || tabParam === 'actividad' ? tabParam : 'documento';
 
@@ -34,7 +40,7 @@ export function ContractDetailPage() {
           icon={<FileQuestion />}
           title="Contrato no disponible"
           description="No existe o no tienes permiso para verlo."
-          action={<ButtonLink to="/app/contratos">Volver a contratos</ButtonLink>}
+          action={<ButtonLink to={backTo}>Volver a {backLabel.toLowerCase()}</ButtonLink>}
         />
       );
     }
@@ -45,9 +51,9 @@ export function ContractDetailPage() {
 
   return (
     <>
-      <Link to="/app/contratos" className="flex items-center gap-1.5 self-start text-sm font-medium text-slate-500 hover:text-slate-900">
+      <Link to={backTo} className="flex items-center gap-1.5 self-start text-sm font-medium text-slate-500 hover:text-slate-900">
         <ArrowLeft className="size-4" aria-hidden="true" />
-        Contratos
+        {backLabel}
       </Link>
 
       <div className="flex flex-wrap items-start justify-between gap-4">

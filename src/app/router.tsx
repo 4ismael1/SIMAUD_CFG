@@ -37,6 +37,8 @@ const app = {
   profile: page(() => import('../features/profile/ProfilePage'), (m) => m.ProfilePage),
   settings: page(() => import('../features/settings/SettingsPage'), (m) => m.SettingsPage),
   templates: page(() => import('../features/templates/TemplatesPage'), (m) => m.TemplatesPage),
+  myContracts: page(() => import('../features/signer/MyContractsPage'), (m) => m.MyContractsPage),
+  signerHome: page(() => import('../features/signer/SignerHomePage'), (m) => m.SignerHomePage),
   audit: page(() => import('../features/audit/AuditPage'), (m) => m.AuditPage),
   variables: page(() => import('../features/templates/VariablesPage'), (m) => m.VariablesPage),
   templateEditor: page(() => import('../features/templates/TemplateEditorPage'), (m) => m.TemplateEditorPage),
@@ -83,6 +85,7 @@ export const router = createBrowserRouter([
           // Signers reach contracts through their inbox; the detail page itself is checked by the API.
           { path: 'contratos/:id', lazy: app.contract },
           { path: 'firmas', lazy: app.inbox },
+          { path: 'mis-contratos', lazy: app.myContracts },
           { path: 'perfil', lazy: app.profile },
           {
             element: <RoleRoute roles={['admin', 'supervisor']} />,
