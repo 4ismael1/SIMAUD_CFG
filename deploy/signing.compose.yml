@@ -1,0 +1,15 @@
+services:
+  api:
+    secrets:
+      - source: signing_key
+        target: signing-key.pem
+      - source: signing_cert
+        target: signing-cert.pem
+    volumes:
+      - ${SIGNING_TRUST_DIR:?Defina SIGNING_TRUST_DIR}:/run/signing-trust:ro
+
+secrets:
+  signing_key:
+    file: ${SIGNING_KEY_FILE:?Defina SIGNING_KEY_FILE}
+  signing_cert:
+    file: ${SIGNING_CERT_FILE:?Defina SIGNING_CERT_FILE}

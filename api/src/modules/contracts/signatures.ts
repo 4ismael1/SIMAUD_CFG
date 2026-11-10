@@ -1,4 +1,7 @@
 import { signatureInbox } from "./signature-inbox.js";
+import { signatureMethod } from "./signature-style.js";
+import { recordEvidence, signingDeclaration } from "./evidence.js";
+import { sha256 } from "../../lib/crypto/canonical.js";
 import { activateRenewalParent } from "../renewals/routes.js";
 import { saveFinalPdf, finalPdfName, removeFinalPdf } from "./pdf.js";
 import { sanitizePng } from "../../lib/storage-png.js";
@@ -34,21 +37,28 @@ export async function signatureRoutes(app: FastifyInstance) {
     let buffer: Buffer | undefined;
     let accepted: string | undefined;
     let viewedAt: string | undefined;
+    const methodFields: Record<string, string> = {};
     for await (const part of req.parts({
-      limits: { fileSize: 500 * 1024, files: 1, fields: 2, parts: 3 },
+      limits: { fileSize: 500 * 1024, files: 1, fields: 4, parts: 5 },
     })) {
       if (part.type === "file") {
-        if (part.fieldname !== "signature" || part.mimetype !== "image/png")
+        if (buffer || part.fieldname !== "signature" || part.mimetype !== "image/png")
           throw contractService.invalid("La firma debe ser PNG.");
         buffer = await part.toBuffer();
       } else if (part.fieldname === "acceptedDeclaration" && accepted === undefined)
         accepted = String(part.value);
       else if (part.fieldname === "viewedAt" && viewedAt === undefined)
         viewedAt = String(part.value);
+      else if (
+        ["method", "fontId"].includes(part.fieldname) &&
+        methodFields[part.fieldname] === undefined
+      )
+        methodFields[part.fieldname] = String(part.value);
       else throw contractService.invalid("Campo multipart inválido.");
     }
     if (!buffer) throw contractService.invalid("Selecciona una firma PNG.");
     buffer = sanitizePng(buffer);
+    const method = parse(signatureMethod, methodFields);
     if (accepted !== "true") throw contractService.invalid("Debes aceptar la declaración.");
     const viewed = parse(z.iso.datetime({ offset: true }), viewedAt);
     if (Date.parse(viewed) > Date.now())
@@ -82,18 +92,38 @@ export async function signatureRoutes(app: FastifyInstance) {
               size: buffer!.length,
             })
             .returning();
+          const signedAt = new Date();
           await tx
             .update(signatories)
             .set({
               status: "signed",
               signaturePath: name,
-              signedAt: new Date(),
+              signedAt,
               viewedAt: new Date(viewed),
-              acceptedDeclarationAt: new Date(),
+              acceptedDeclarationAt: signedAt,
               ip: req.ip,
               userAgent: req.headers["user-agent"],
             })
             .where(eq(signatories.id, me.id));
+          await recordEvidence(tx, contract, {
+            signatoryId: me.id,
+            userId: req.user.id,
+            name: me.name,
+            role: me.role,
+            signedAt: signedAt.toISOString(),
+            viewedAt: new Date(viewed).toISOString(),
+            acceptedDeclarationAt: signedAt.toISOString(),
+            declaration: signingDeclaration,
+            declarationVersion: 1,
+            sessionId: req.sessionId!,
+            authenticationMethod: "password-session",
+            signatureImageSha256: sha256(buffer!),
+            signaturePath: name,
+            ip: req.ip,
+            userAgent: req.headers["user-agent"] ?? "",
+            method: method.method,
+            fontId: method.fontId ?? null,
+          });
           const last = allSignatories.every(
             (item) => item.id === me.id || item.status === "signed",
           );

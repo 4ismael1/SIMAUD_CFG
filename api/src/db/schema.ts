@@ -86,6 +86,7 @@ export const users = pgTable(
       .default({ emailOnSignatureRequired: true, emailOnApprovalResult: true, emailOnExpiry: true })
       .notNull(),
     avatarPath: text("avatar_path"),
+    signatureStyle: jsonb("signature_style").$type<{ text: string; fontId: string }>(),
     pendingEmail: text("pending_email"),
     emailConfirmedAt: time("email_confirmed_at"),
     isActive: boolean("is_active").default(true).notNull(),
@@ -190,6 +191,16 @@ export const contracts = pgTable(
       .unique(),
     signedPdfPath: text("signed_pdf_path"),
     signedPdfSha256: text("signed_pdf_sha256"),
+    verificationCode: text("verification_code").unique(),
+    documentSha256: text("document_sha256"),
+    activatedAt: time("activated_at"),
+    revokedAt: time("revoked_at"),
+    systemSeal: jsonb("system_seal").$type<import("../lib/crypto/system-signing.js").SystemSeal>(),
+    auditHead: text("audit_head"),
+    auditCount: integer("audit_count").default(0).notNull(),
+    evidenceHead: text("evidence_head"),
+    evidenceCount: integer("evidence_count").default(0).notNull(),
+    everSigned: boolean("ever_signed").default(false).notNull(),
     previousStatus: contractStatus("previous_status"),
     title: text("title").notNull(),
     content: text("content").notNull(),
@@ -314,6 +325,10 @@ export const contractAuditLogs = pgTable(
       onDelete: "set null",
     }),
     action: text("action").notNull(),
+    chainContractId: uuid("chain_contract_id"),
+    sequence: integer("sequence"),
+    entryHash: text("entry_hash"),
+    previousHash: text("previous_hash"),
     entityType: text("entity_type").notNull(),
     entityId: uuid("entity_id"),
     oldValues: jsonb("old_values"),
@@ -326,8 +341,31 @@ export const contractAuditLogs = pgTable(
   (t) => [
     index("audit_contract_created_idx").on(t.contractId, t.createdAt),
     index("audit_entity_idx").on(t.entityType, t.entityId),
+    uniqueIndex("audit_chain_sequence").on(t.chainContractId, t.sequence),
   ],
 );
+export const signatureEvidence = pgTable(
+  "signature_evidence",
+  {
+    id: id(),
+    contractId: uuid("contract_id")
+      .notNull()
+      .references(() => contracts.id, { onDelete: "restrict" }),
+    signatoryId: uuid("signatory_id").notNull(),
+    contractVersion: integer("contract_version").notNull(),
+    sequence: integer("sequence").notNull(),
+    payload: jsonb("payload")
+      .$type<import("../modules/contracts/evidence.js").EvidencePayload>()
+      .notNull(),
+    previousEvidenceHash: text("previous_evidence_hash"),
+    evidenceHash: text("evidence_hash").notNull(),
+  },
+  (table) => [
+    uniqueIndex("evidence_contract_sequence").on(table.contractId, table.sequence),
+    uniqueIndex("evidence_signatory_version").on(table.signatoryId, table.contractVersion),
+  ],
+);
+
 export const contractRenewals = pgTable(
   "contract_renewals",
   {
@@ -468,6 +506,18 @@ export const storageMigrationObjects = pgTable(
     check("storage_migration_objects_size_check", sql`${table.size} >= 0`),
     check("storage_migration_objects_sha256_check", sql`${table.sha256} ~ '^[a-f0-9]{64}$'`),
   ],
+);
+
+export const storageMigrationFailures = pgTable(
+  "storage_migration_failures",
+  {
+    jobId: uuid("job_id")
+      .notNull()
+      .references(() => jobRuns.id, { onDelete: "cascade" }),
+    key: text("key").notNull(),
+    reason: text("reason").notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.jobId, table.key] })],
 );
 
 export const expiryDeliveries = pgTable(

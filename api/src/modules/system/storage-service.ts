@@ -62,6 +62,17 @@ export async function probeStorage(driver: StorageDriver) {
     if (!bytes.equals(received))
       throw new StorageError("unreachable", "Los bytes leídos no coinciden con los enviados.");
     steps.push({ name: step, ok: true, message: "Contenido verificado." });
+    step = "immutability";
+    let immutable = false;
+    try {
+      await driver.put(key, randomBytes(64), { contentType: "application/octet-stream" });
+    } catch (error) {
+      if (error instanceof StorageError && error.reason === "conflict") immutable = true;
+      else throw error;
+    }
+    if (!immutable)
+      throw new StorageError("unreachable", "El proveedor no impide sobrescribir objetos");
+    steps.push({ name: step, ok: true, message: "El proveedor impide sobrescribir objetos." });
   } catch (error) {
     steps.push({
       name: step,
@@ -86,7 +97,7 @@ export async function probeStorage(driver: StorageDriver) {
     }
   }
   return {
-    ok: steps.length === 4 && steps.every((item) => item.ok),
+    ok: steps.length === 5 && steps.every((item) => item.ok),
     latencyMs: Math.round(performance.now() - start),
     steps,
   };

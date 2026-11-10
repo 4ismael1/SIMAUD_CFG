@@ -71,6 +71,13 @@
       "when": 1794275656467,
       "tag": "0009_t11_storage",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1794275656468,
+      "tag": "0010_t10_certified_signatures",
+      "breakpoints": true
     }
   ]
 }

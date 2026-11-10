@@ -55,6 +55,14 @@ const schema = z.object({
     .string()
     .regex(/^[a-f0-9]{64}$/i, "Debe contener 32 bytes en hexadecimal")
     .optional(),
+  SIGNING_KEY_PATH: z.string().min(1).optional(),
+  SIGNING_CERT_PATH: z.string().min(1).optional(),
+  SIGNING_KEY_PASSPHRASE: z.string().min(1).optional(),
+  SIGNING_TRUST_PATH: z.string().min(1).optional(),
+  SIGNATURE_BACKFILL_PENDING: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((value) => value === "true"),
   MAIL_REPLY_TO: z.email().optional(),
   SMTP_URL: z
     .string()
@@ -98,6 +106,8 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env) {
     throw new Error("MAIL_PAYLOAD_KEY es obligatoria fuera de test");
   if (config.NODE_ENV !== "test" && !config.SETTINGS_ENCRYPTION_KEY)
     throw new Error("SETTINGS_ENCRYPTION_KEY es obligatoria fuera de test");
+  if (config.NODE_ENV === "production" && (!config.SIGNING_KEY_PATH || !config.SIGNING_CERT_PATH))
+    throw new Error("SIGNING_KEY_PATH y SIGNING_CERT_PATH son obligatorias en producción");
   return parsed.data;
 }
 export const env = loadEnv();

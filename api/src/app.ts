@@ -23,9 +23,13 @@ import { meRoutes } from "./modules/me/routes.js";
 import { catalogRoutes } from "./modules/contracts/catalog.js";
 import { contractRoutes } from "./modules/contracts/routes.js";
 import { userRoutes } from "./modules/users/routes.js";
+import { initializeSigning } from "./lib/crypto/system-signing.js";
+import { verifyRoutes } from "./modules/verify/routes.js";
+import { signatureStyleRoutes } from "./modules/contracts/signature-style.js";
 export async function buildApp(
   options: { logger?: boolean; mailer?: Mailer } = {},
 ): Promise<FastifyInstance> {
+  initializeSigning();
   const app = Fastify({
     logger: options.logger ?? env.NODE_ENV !== "test",
     trustProxy:
@@ -82,6 +86,8 @@ export async function buildApp(
       await dashboardRoutes(routes);
       await reportRoutes(routes);
       await pdfRoutes(routes);
+      await verifyRoutes(routes);
+      await signatureStyleRoutes(routes);
       await meRoutes(routes);
       await catalogRoutes(routes);
       await contractRoutes(routes);

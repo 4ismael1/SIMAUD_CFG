@@ -7,6 +7,7 @@ export interface StorageDriver {
   exists(key: string): Promise<boolean>;
   list(prefix?: string): Promise<string[]>;
   purge(today: string): Promise<number>;
+  encryptLegacySignature?(key: string, expectedSha256?: string): Promise<boolean>;
 }
 
 export class StorageError extends ApiError {

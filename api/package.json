@@ -16,6 +16,8 @@
     "db:migrate": "tsx src/db/migrate.ts",
     "db:seed": "tsx src/db/seed.ts",
     "db:reset": "tsx src/db/reset.ts",
+    "db:encrypt-signatures": "tsx src/db/encrypt-legacy-signatures.ts",
+    "db:generate-signing-key": "tsx src/db/generate-signing-key.ts",
     "format": "prettier --write src test",
     "format:check": "prettier --check src test"
   },

@@ -370,15 +370,9 @@ it("recordatorio 1/h persistente y decline notifica rechazo al creador", async (
   expect(again.statusCode, again.body).toBe(200);
   expect(again.json().signatories[0].status).toBe("pending");
 });
-it("delete exige código al admin, gestor solo propios en draft y auditoría sobrevive", async () => {
+it("delete permite borradores sin código y la auditoría sobrevive", async () => {
   const c = await create();
-  expect((await request(admin, "DELETE", "/contracts/" + c.id, {})).statusCode).toBe(400);
-  expect(
-    (await request(admin, "DELETE", "/contracts/" + c.id, { confirm: "incorrecto" })).statusCode,
-  ).toBe(400);
-  expect(
-    (await request(admin, "DELETE", "/contracts/" + c.id, { confirm: c.code })).statusCode,
-  ).toBe(200);
+  expect((await request(admin, "DELETE", "/contracts/" + c.id, {})).statusCode).toBe(200);
   const logs = await db.select().from(contractAuditLogs);
   expect(logs.at(-1)!.action).toBe("delete");
   expect(logs.at(-1)!.contractId).toBeNull();
@@ -386,7 +380,7 @@ it("delete exige código al admin, gestor solo propios en draft y auditoría sob
   expect((await request(gestor, "DELETE", "/contracts/" + own.id)).statusCode).toBe(200);
   const submitted = await create();
   await request(gestor, "POST", "/contracts/" + submitted.id + "/submit", {});
-  expect((await request(gestor, "DELETE", "/contracts/" + submitted.id)).statusCode).toBe(403);
+  expect((await request(gestor, "DELETE", "/contracts/" + submitted.id)).statusCode).toBe(409);
 });
 it("variables en uso, plantillas en uso, extracción y gestor solo activas", async () => {
   const [v] = await db.select().from(templateVariables);

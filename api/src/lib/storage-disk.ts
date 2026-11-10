@@ -9,7 +9,7 @@ import {
   validateKey,
   type StorageDriver,
 } from "./storage-types.js";
-import { decryptFile, encryptFile } from "./storage-encryption.js";
+import { decryptFile, encryptFile, legacySignatureReplacement } from "./storage-encryption.js";
 
 export const storageDirectory = path.resolve("storage");
 const missing = (error: unknown) => (error as NodeJS.ErrnoException).code === "ENOENT";
@@ -65,6 +65,38 @@ async function checkStorageRoot(root: string, create: boolean) {
 
 export class DiskStorage implements StorageDriver {
   constructor(readonly root = storageDirectory) {}
+
+  async encryptLegacySignature(key: string, expectedSha256?: string) {
+    validateKey(key);
+    const filename = await this.safePath(key);
+    const source = await open(filename, constants.O_RDONLY | constants.O_NOFOLLOW);
+    const original = await source.readFile().finally(() => source.close());
+    const replacement = legacySignatureReplacement(key, original, expectedSha256);
+    if (!replacement) return false;
+    const temporary = path.join(path.dirname(filename), ".tmp-" + randomUUID());
+    const handle = await open(
+      temporary,
+      constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW,
+      0o600,
+    );
+    try {
+      try {
+        await handle.writeFile(replacement);
+        await handle.sync();
+      } finally {
+        await handle.close();
+      }
+      const check = await open(await this.safePath(key), constants.O_RDONLY | constants.O_NOFOLLOW);
+      const current = await check.readFile().finally(() => check.close());
+      if (!current.equals(original))
+        throw new StorageError("conflict", "La firma cambió durante el backfill.");
+      await rename(temporary, filename);
+      await syncDirectory(path.dirname(filename));
+    } finally {
+      await rm(temporary, { force: true });
+    }
+    return true;
+  }
 
   private async safePath(key: string, create = false) {
     const parts = key.split("/");

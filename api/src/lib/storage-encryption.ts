@@ -1,8 +1,10 @@
-import { createCipheriv, createDecipheriv, hkdfSync, randomBytes } from "node:crypto";
+import { createCipheriv, createDecipheriv, hkdfSync, randomBytes, createHash } from "node:crypto";
 import { env } from "../config/env.js";
 import { StorageError } from "./storage-types.js";
 
 const magic = Buffer.from("SIMAUDSIG1");
+export const isEncryptedSignature = (bytes: Buffer) =>
+  bytes.subarray(0, magic.length).equals(magic);
 const logicalKey = (key: string) => key.replace(/^trash\/\d{4}-\d{2}-\d{2}\//, "");
 const signatureKey = () =>
   hkdfSync(
@@ -23,9 +25,14 @@ export function encryptFile(key: string, bytes: Buffer) {
 }
 
 export function decryptFile(key: string, bytes: Buffer) {
-  // Existing evidence remains readable without rewriting its original bytes.
-  if (!logicalKey(key).startsWith("signatures/") || !bytes.subarray(0, magic.length).equals(magic))
-    return bytes;
+  if (!logicalKey(key).startsWith("signatures/")) return bytes;
+  if (!isEncryptedSignature(bytes)) {
+    if (env.NODE_ENV === "test" || env.SIGNATURE_BACKFILL_PENDING) return bytes;
+    throw new StorageError(
+      "conflict",
+      "Firma sin cifrado autenticado. Ejecuta el backfill de firmas antes de continuar.",
+    );
+  }
   try {
     const offset = magic.length;
     const decipher = createDecipheriv(
@@ -42,4 +49,18 @@ export function decryptFile(key: string, bytes: Buffer) {
       "La firma no supera la verificación de integridad. Revisa la clave de cifrado.",
     );
   }
+}
+
+export function legacySignatureReplacement(key: string, bytes: Buffer, expectedSha256?: string) {
+  if (!key.startsWith("signatures/"))
+    throw new StorageError("invalid", "Solo se pueden migrar firmas.");
+  const plain = isEncryptedSignature(bytes) ? decryptFile(key, bytes) : bytes;
+  const hash = (value: Buffer) => createHash("sha256").update(value).digest("hex");
+  if (expectedSha256 && hash(plain) !== expectedSha256)
+    throw new StorageError("conflict", "La firma de destino no coincide con el origen.");
+  if (isEncryptedSignature(bytes)) return null;
+  const encrypted = encryptFile(key, plain);
+  if (hash(decryptFile(key, encrypted)) !== hash(plain))
+    throw new StorageError("conflict", "No se pudo verificar la firma cifrada.");
+  return encrypted;
 }

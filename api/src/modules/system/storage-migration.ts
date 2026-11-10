@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "../../db/client.js";
-import { jobRuns, storageMigrationObjects } from "../../db/schema.js";
+import { jobRuns, storageMigrationObjects, storageMigrationFailures } from "../../db/schema.js";
 import { audit } from "../../lib/audit.js";
 import {
   createDriver,
@@ -15,7 +15,13 @@ import { withConfigurationLock, type StorageActor } from "./storage-service.js";
 
 const running = new Set<Promise<void>>();
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
-type Summary = { total: number; copied: number; verified: number; failed: number };
+type Summary = {
+  total: number;
+  copied: number;
+  verified: number;
+  failed: number;
+  failures: { key: string; reason: string }[];
+};
 
 async function saveCheckpoint(
   jobId: string,
@@ -51,6 +57,11 @@ async function copyReference(
     await target.put(reference.key, bytes, { contentType: reference.contentType });
     await onCopied(bytes.length, sha256);
   }
+  if (reference.key.startsWith("signatures/")) {
+    if (!target.encryptLegacySignature)
+      throw new StorageError("conflict", "El destino no admite verificación del cifrado.");
+    await target.encryptLegacySignature(reference.key, sha256);
+  }
   const received = await target.get(reference.key);
   if (received.length !== bytes.length || hash(received) !== sha256)
     throw new StorageError(
@@ -79,10 +90,26 @@ async function migrateReferences(runId: string, state: StorageState, summary: Su
         copied = true;
       });
       await saveCheckpoint(runId, reference.key, { ...result, copied });
+      await db
+        .delete(storageMigrationFailures)
+        .where(
+          and(
+            eq(storageMigrationFailures.jobId, runId),
+            eq(storageMigrationFailures.key, reference.key),
+          ),
+        );
       summary.verified++;
-    } catch {
-      // No paths, response bodies or provider credentials enter job logs.
+    } catch (error) {
       summary.failed++;
+      const reason = failureReason(error);
+      await db
+        .insert(storageMigrationFailures)
+        .values({ jobId: runId, key: reference.key, reason })
+        .onConflictDoUpdate({
+          target: [storageMigrationFailures.jobId, storageMigrationFailures.key],
+          set: { reason },
+        });
+      if (summary.failures.length < 20) summary.failures.push({ key: reference.key, reason });
     }
     await db
       .update(jobRuns)
@@ -131,7 +158,7 @@ async function executeMigration(
   announce: (id: string) => void,
 ) {
   let runId: string | undefined;
-  const summary: Summary = { total: 0, copied: 0, verified: 0, failed: 0 };
+  const summary: Summary = { total: 0, copied: 0, verified: 0, failed: 0, failures: [] };
   try {
     if (state.migrationJobId) {
       runId = state.migrationJobId;
@@ -160,6 +187,7 @@ async function executeMigration(
     await migrateReferences(runId, state, summary);
     await completeMigration(runId, state, actor, summary);
   } catch (error) {
+    await saveStorageState({ ...state, migrating: false, migrationJobId: runId });
     if (runId)
       await db
         .update(jobRuns)
@@ -175,6 +203,17 @@ async function executeMigration(
         .where(eq(jobRuns.id, runId));
     throw error;
   }
+}
+
+function failureReason(error: unknown) {
+  if (!(error instanceof StorageError)) return "Error al copiar o verificar el objeto.";
+  return {
+    missing: "No se encontró el objeto.",
+    denied: "Acceso denegado al objeto.",
+    unreachable: "Proveedor inaccesible.",
+    invalid: "Objeto o configuración inválidos.",
+    conflict: "Conflicto de integridad o cifrado del objeto.",
+  }[error.reason];
 }
 
 export function startStorageMigration(actor: StorageActor): Promise<{ jobId: string }> {

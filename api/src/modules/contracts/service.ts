@@ -67,7 +67,13 @@ export function permissions(contract: Contract, actor: Actor, signatories: Signa
     contract.status === "pending_approval";
   const me = signatories.find((item) => item.userId === actor.id);
   return {
-    edit: editor && editable,
+    edit:
+      editor &&
+      editable &&
+      !contract.signedPdfPath &&
+      !contract.signedPdfSha256 &&
+      !contract.systemSeal &&
+      !contract.activatedAt,
     submit: editor && editable,
     approve: reviewer,
     reject: reviewer,
@@ -81,7 +87,17 @@ export function permissions(contract: Contract, actor: Actor, signatories: Signa
       ["pending_signatures", "active", "expiring_soon"].includes(contract.status),
     archive: canManage(contract, actor),
     delete:
-      actor.role === "admin" || (actor.role === "gestor" && own && contract.status === "draft"),
+      editor &&
+      editable &&
+      !contract.everSigned &&
+      !contract.signedPdfPath &&
+      !contract.signedPdfSha256 &&
+      !contract.systemSeal &&
+      !contract.activatedAt &&
+      !contract.evidenceCount &&
+      !signatories.some(
+        (signer) => signer.status === "signed" || signer.signedAt || signer.signaturePath,
+      ),
     override: actor.role === "admin",
   };
 }

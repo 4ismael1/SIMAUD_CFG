@@ -8,7 +8,9 @@ import {
   validateKey,
   type StorageDriver,
 } from "./storage-types.js";
-import { decryptFile, encryptFile } from "./storage-encryption.js";
+import { decryptFile, encryptFile, legacySignatureReplacement } from "./storage-encryption.js";
+import { assertPublicStorageEndpoint } from "./storage-endpoint.js";
+import { isIP } from "node:net";
 import { env } from "../config/env.js";
 
 export function isStorageEndpoint(value: string) {
@@ -20,6 +22,7 @@ export function isStorageEndpoint(value: string) {
       !url.search &&
       !url.hash &&
       url.pathname === "/" &&
+      (env.NODE_ENV !== "production" || isIP(url.hostname.replace(/^\[|\]$/g, "")) === 0) &&
       (url.protocol === "https:" ||
         (env.NODE_ENV !== "production" &&
           url.protocol === "http:" &&
@@ -100,6 +103,7 @@ export class S3Storage implements StorageDriver {
     headers: Record<string, string> = {},
     bytes?: Buffer,
   ) {
+    await assertPublicStorageEndpoint(url, env.NODE_ENV === "production");
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
         const request = await this.client.sign(url, {
@@ -164,6 +168,33 @@ export class S3Storage implements StorageDriver {
 
   async get(key: string) {
     return decryptFile(key, (await this.request("GET", this.url(validateKey(key)))).bytes);
+  }
+
+  async encryptLegacySignature(key: string, expectedSha256?: string) {
+    validateKey(key);
+    const original = await this.request("GET", this.url(key));
+    const replacement = legacySignatureReplacement(key, original.bytes, expectedSha256);
+    if (!replacement) return false;
+    const etag = original.headers.get("etag");
+    if (!etag)
+      throw new StorageError(
+        "conflict",
+        "El proveedor no permite un backfill condicional seguro (falta ETag).",
+      );
+    await this.request(
+      "PUT",
+      this.url(key),
+      {
+        "if-match": etag,
+        "content-type": "application/octet-stream",
+        "x-amz-content-sha256": createHash("sha256").update(replacement).digest("hex"),
+      },
+      replacement,
+    );
+    const received = await this.request("GET", this.url(key));
+    if (!received.bytes.equals(replacement))
+      throw new StorageError("conflict", "No se pudo verificar el backfill cifrado.");
+    return true;
   }
 
   async exists(key: string) {

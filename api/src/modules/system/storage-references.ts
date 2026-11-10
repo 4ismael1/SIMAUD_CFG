@@ -16,6 +16,7 @@ export async function storageReferences(): Promise<StorageReference[]> {
       mime as "contentType", size::float8 as size, null::text as sha256 from files
     union all select 'avatars/' || avatar_path, 'application/octet-stream', null, null from users where avatar_path is not null
     union all select 'signatures/' || signature_path, 'image/png', null, null from contract_signatories where signature_path is not null
+    union all select 'signatures/' || (payload->>'signaturePath'), 'image/png', null, payload->>'signatureImageSha256' from signature_evidence
     union all select 'contracts/' || signed_pdf_path, 'application/pdf', null, signed_pdf_sha256 from contracts where signed_pdf_path is not null
   `);
   const references = new Map<string, StorageReference>();

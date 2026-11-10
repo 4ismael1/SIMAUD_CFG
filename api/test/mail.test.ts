@@ -131,6 +131,8 @@ it.each(mailTemplates)(
   },
 );
 const environment = {
+  SIGNING_KEY_PATH: "/run/secrets/signing-key.pem",
+  SIGNING_CERT_PATH: "/run/secrets/signing-cert.pem",
   DATABASE_URL: "postgresql://test:example@localhost/dev",
   MAIL_PAYLOAD_KEY: "ab".repeat(32),
   SETTINGS_ENCRYPTION_KEY: "cd".repeat(32),

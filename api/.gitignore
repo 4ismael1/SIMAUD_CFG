@@ -5,6 +5,7 @@ dist
 !.env.example
 coverage
 storage
+signing-secrets/
 
 .npm-cache/
 .npm-logs/

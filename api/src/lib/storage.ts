@@ -4,6 +4,7 @@ import { pool } from "../db/client.js";
 import { createDriver, readStorageState, sameStorageLocation } from "./storage-config.js";
 import { DiskStorage, storageDirectory } from "./storage-disk.js";
 import { storageBusy, validateKey, type StorageDriver } from "./storage-types.js";
+import { ApiError } from "./errors.js";
 export { storageDirectory };
 export type { StorageDriver } from "./storage-types.js";
 const mutationDriver = new AsyncLocalStorage<StorageDriver>();
@@ -13,11 +14,19 @@ export async function withStorageLock<T>(operation: () => Promise<T>) {
   const client = await pool.connect();
   try {
     // backup.sh holds the same session lock throughout pg_dump and tar.
-    await client.query("select pg_advisory_lock(10409)");
+    await client.query("set lock_timeout = '5s'");
+    try {
+      await client.query("select pg_advisory_lock(10409)");
+    } catch (error) {
+      if ((error as { code?: string }).code === "55P03")
+        throw new ApiError(503, "RATE_LIMITED", "Almacenamiento ocupado, inténtalo de nuevo");
+      throw error;
+    }
     return await operation();
   } finally {
     try {
       await client.query("select pg_advisory_unlock(10409)");
+      await client.query("reset lock_timeout");
     } finally {
       client.release();
     }

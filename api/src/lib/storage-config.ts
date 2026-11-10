@@ -7,6 +7,7 @@ import { env } from "../config/env.js";
 import { DiskStorage } from "./storage-disk.js";
 import { S3Storage, isStorageEndpoint } from "./storage-s3.js";
 import { StorageError, validateKey } from "./storage-types.js";
+import { assertPublicStorageEndpoint } from "./storage-endpoint.js";
 
 const endpoint = z
   .url()
@@ -127,6 +128,18 @@ export async function resolveConfig(input: StorageInput): Promise<StorageConfig>
   if (input.driver === "disk") return input;
   const state = await readStorageState();
   const previous = state.pending?.driver === "s3" ? state.pending : state.active;
+  if (
+    !input.secretAccessKey &&
+    (previous.driver !== "s3" ||
+      input.endpoint !== previous.endpoint ||
+      input.bucket !== previous.bucket ||
+      input.accessKeyId !== previous.accessKeyId)
+  )
+    throw new StorageError(
+      "invalid",
+      "Introduce la clave secreta al cambiar endpoint, bucket o identificador de acceso.",
+    );
+  await assertPublicStorageEndpoint(new URL(input.endpoint), env.NODE_ENV === "production");
   const secret =
     input.secretAccessKey ?? (previous.driver === "s3" ? previous.secretAccessKey : undefined);
   if (!secret) throw new StorageError("invalid", "Introduce la clave secreta del proveedor.");

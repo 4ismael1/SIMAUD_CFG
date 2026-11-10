@@ -1,6 +1,9 @@
 import { historicalDefinitions, lockVariableCatalog } from "./variable-history.js";
 import { validateInstitutionLogo } from "../../lib/storage-image-validation.js";
 import { applyContractAction } from "./actions.js";
+import { adminContractRoutes } from "./admin-routes.js";
+import { canReassign } from "./admin-actions.js";
+import { statusList } from "../reports/overview-schema.js";
 import { activateRenewalParent } from "../renewals/routes.js";
 import { removeFinalPdf } from "./pdf.js";
 import { withStorageMutation } from "../../lib/storage.js";
@@ -29,7 +32,6 @@ import {
   contractFields,
   pageInput,
   actionInput,
-  text,
 } from "./schemas.js";
 import { transition } from "./state-machine.js";
 import * as contractService from "./service.js";
@@ -56,16 +58,21 @@ export async function contractRoutes(app: FastifyInstance) {
           ...item,
           signatureFileId: signatureFiles.find((f) => f.path === item.signaturePath)?.id ?? null,
         })),
-        can: contractService.permissions(contract, req.user, allSignatories),
+        can: {
+          ...contractService.permissions(contract, req.user, allSignatories),
+          reassign: canReassign(contract, req.user),
+        },
       };
     });
   }
   const listSchema = pageInput.extend({
-    status: z.enum(contractStatus.enumValues).optional(),
+    status: statusList.optional(),
     q: z.string().optional(),
     templateId: uuid.optional(),
     createdBy: uuid.optional(),
     expiresBefore: z.iso.date().optional(),
+    createdFrom: z.iso.date().optional(),
+    createdTo: z.iso.date().optional(),
     archived: z.enum(["true", "false"]).default("false"),
     sort: z
       .enum([
@@ -84,15 +91,28 @@ export async function contractRoutes(app: FastifyInstance) {
   });
   app.get("/contracts", staff, async (req) => {
     const query = parse(listSchema, req.query);
+    if (query.createdFrom && query.createdTo && query.createdFrom > query.createdTo)
+      throw contractService.invalid("Rango de fechas inválido.");
+    const search = query.q ? "%" + query.q.replace(/[\\%_]/g, "\\$&") + "%" : undefined;
     const where = and(
       req.user.role === "gestor" ? eq(contracts.createdBy, req.user.id) : undefined,
-      query.status ? eq(contracts.status, query.status) : undefined,
+      query.status ? inArray(contracts.status, query.status) : undefined,
       query.templateId ? eq(contracts.templateId, query.templateId) : undefined,
       query.createdBy ? eq(contracts.createdBy, query.createdBy) : undefined,
       eq(contracts.archived, query.archived === "true"),
       query.expiresBefore ? sql`${contracts.endDate}<${query.expiresBefore}` : undefined,
-      query.q
-        ? sql`(${contracts.title} ilike ${"%" + query.q + "%"} OR ${contracts.code} ilike ${"%" + query.q + "%"})`
+      query.createdFrom
+        ? sql`${contracts.createdAt} >= ${query.createdFrom}::date::timestamp at time zone 'America/Santo_Domingo'`
+        : undefined,
+      query.createdTo
+        ? sql`${contracts.createdAt} < (${query.createdTo}::date + 1)::timestamp at time zone 'America/Santo_Domingo'`
+        : undefined,
+      search
+        ? sql`(${contracts.title} ilike ${search} OR ${contracts.code} ilike ${search}
+          OR ${contracts.clientName} ilike ${search}
+          OR exists (select 1 from users manager where manager.id = ${contracts.createdBy} and manager.name ilike ${search})
+          OR exists (select 1 from contract_signatories signer where signer.contract_id = ${contracts.id}
+            and (signer.name ilike ${search} or signer.cedula ilike ${search})))`
         : undefined,
     );
     const column = {
@@ -326,13 +346,15 @@ export async function contractRoutes(app: FastifyInstance) {
       await db.transaction(async (tx) => {
         const contract = await contractService.getContract(tx, id, true);
         const allSignatories = await contractService.getSignatories(tx, id);
+        if (!(
+          req.user.role === "admin" ||
+          (req.user.role === "gestor" && contract.createdBy === req.user.id)
+        ))
+          throw contractService.notFound();
         if (!contractService.permissions(contract, req.user, allSignatories).delete)
-          throw contractService.forbidden();
-        if (
-          req.user.role === "admin" &&
-          parse(z.object({ confirm: text }).strict(), req.body ?? {}).confirm !== contract.code
-        )
-          throw contractService.invalid("Confirma con el código del contrato.");
+          throw contractService.conflict(
+            "Un contrato firmado o en proceso no se puede eliminar: cancélalo o archívalo.",
+          );
         paths = (
           await tx
             .select({ path: files.path })
@@ -458,5 +480,6 @@ export async function contractRoutes(app: FastifyInstance) {
       }),
     );
   });
+  await adminContractRoutes(app, detail);
   await signatureRoutes(app);
 }

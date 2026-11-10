@@ -1,6 +1,9 @@
 import { sanitizePng } from "../../lib/storage-png.js";
 import { storage } from "../../lib/storage.js";
-import { createHash } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
+import { pdfAttestation, maskCedula, formatSigningDate } from "./pdf-attestation.js";
+import { documentHash } from "../../lib/crypto/canonical.js";
+import { sealPdf } from "../../lib/crypto/system-signing.js";
 import type { FastifyInstance } from "fastify";
 import type { Content } from "pdfmake/interfaces.js";
 import { eq } from "drizzle-orm";
@@ -67,51 +70,12 @@ export async function contractPdf(
     }
     block.push(
       { text: signer.name, bold: true },
-      { text: signer.role + " | Cédula: " + (signer.cedula ?? "Sin registrar") },
-      { text: signer.signedAt?.toISOString() ?? "Pendiente", fontSize: 9 },
+      { text: signer.role + " | Cédula: " + maskCedula(signer.cedula) },
+      { text: formatSigningDate(signer.signedAt), fontSize: 9 },
     );
     content.push({ stack: block, unbreakable: true, margin: [0, 0, 0, 16] });
   }
-  content.push(
-    {
-      text: "Constancia de firma",
-      pageBreak: "before",
-      fontSize: 18,
-      bold: true,
-      margin: [0, 0, 0, 16],
-    },
-    { text: contract.code + " | Versión " + contract.currentVersion },
-    { text: "SHA-256 del contenido firmado (UTF-8):", margin: [0, 12, 0, 4] },
-    {
-      text: contentHash(contract.generatedContent ?? contract.content),
-      fontSize: 8,
-      margin: [0, 0, 0, 16],
-    },
-  );
-  for (const signer of signatories)
-    content.push({
-      stack: [
-        { text: signer.name + " (" + signer.role + ")", bold: true },
-        { text: "Fecha y hora: " + (signer.signedAt?.toISOString() ?? "Pendiente") },
-        { text: "IP: " + (signer.ip ?? "Sin registrar") },
-        { text: "User agent: " + (signer.userAgent ?? "Sin registrar") },
-        { text: "Visualización: " + (signer.viewedAt?.toISOString() ?? "Sin registrar") },
-        {
-          text:
-            "Declaración aceptada: " +
-            (signer.acceptedDeclarationAt?.toISOString() ?? "Sin registrar"),
-        },
-        {
-          text:
-            "Versión: " +
-            contract.currentVersion +
-            " | SHA-256: " +
-            contentHash(contract.generatedContent ?? contract.content),
-          fontSize: 8,
-        },
-      ],
-      margin: [0, 0, 0, 18],
-    });
+  content.push(...(await pdfAttestation(tx, contract, signatories)));
   return makePdf(content, contract.code);
 }
 
@@ -120,15 +84,50 @@ export async function saveFinalPdf(
   contract: service.Contract,
   onWritten?: () => void,
 ) {
-  const bytes = await contractPdf(tx, contract);
+  const current = await service.getContract(tx, contract.id, true);
+  if (current.signedPdfPath) {
+    if (
+      current.signedPdfPath !== finalPdfName(current) ||
+      current.systemSeal?.payload.documentSha256 !==
+        documentHash(current.generatedContent ?? current.content)
+    )
+      throw service.conflict("El PDF final es inmutable y no corresponde a esta versión.");
+    const bytes = await storage.get("contracts/" + current.signedPdfPath);
+    if (contentHashBuffer(bytes) !== current.signedPdfSha256)
+      throw service.conflict("El PDF final no supera la verificación de integridad.");
+    return;
+  }
+  const code = randomBytes(10).toString("hex").toUpperCase();
+  const verificationCode = "SIM-" + code.match(/.{4}/g)!.join("-");
+  const activatedAt = new Date();
+  const documentSha256 = documentHash(contract.generatedContent ?? contract.content);
+  const bytes = await contractPdf(tx, { ...current, verificationCode, activatedAt });
   const name = finalPdfName(contract);
   await storage.put("contracts/" + name, bytes, { contentType: "application/pdf" });
   onWritten?.();
   await tx
     .update(contracts)
-    .set({ signedPdfPath: name, signedPdfSha256: createHash("sha256").update(bytes).digest("hex") })
+    .set({
+      signedPdfPath: name,
+      signedPdfSha256: contentHashBuffer(bytes),
+      verificationCode,
+      activatedAt,
+      documentSha256,
+      systemSeal: sealPdf({
+        format: "simaud-detached-v1",
+        contractId: contract.id,
+        contractVersion: contract.currentVersion,
+        verificationCode,
+        activatedAt: activatedAt.toISOString(),
+        documentSha256,
+        finalPdfSha256: contentHashBuffer(bytes),
+        evidenceHead: current.evidenceHead,
+        auditHead: current.auditHead,
+      }),
+    })
     .where(eq(contracts.id, contract.id));
 }
+const contentHashBuffer = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 
 export async function pdfRoutes(app: FastifyInstance) {
   app.get("/contracts/:id/pdf", { preHandler: authenticate }, async (req, reply) => {
@@ -140,7 +139,7 @@ export async function pdfRoutes(app: FastifyInstance) {
     if (final !== undefined && final !== "true" && final !== "false")
       throw service.invalid("final inválido.");
     let bytes: Buffer;
-    if (final === "true") {
+    if (final === "true" || contract.signedPdfPath) {
       if (!contract.signedPdfPath || contract.signedPdfPath !== finalPdfName(contract))
         throw service.notFound();
       try {

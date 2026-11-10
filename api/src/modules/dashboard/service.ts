@@ -15,6 +15,17 @@ import {
 } from "./supervisor-queries.js";
 import { getGestorKpis, getGestorLanes, getGestorRecent } from "./gestor-queries.js";
 import { getUserDashboard } from "./user-queries.js";
+import {
+  adminTotals,
+  topManagers,
+  usersByRole,
+  recentContractActivity,
+  supervisorCatalog,
+  templatesByCategory,
+  gestorMonthly,
+  gestorStatuses,
+  gestorExpirations,
+} from "./rich-queries.js";
 
 export async function adminDashboard(actor: Actor, months: number) {
   const attention = await getAdminAttention();
@@ -34,6 +45,10 @@ export async function adminDashboard(actor: Actor, months: number) {
   const statuses = await getAdminStatuses();
   const upcomingExpirations = await getAdminUpcomingExpirations();
   return {
+    totals: await adminTotals(),
+    topManagers: await topManagers(),
+    usersByRole: await usersByRole(),
+    recentActivity: await recentContractActivity(),
     attention,
     kpis,
     monthly,
@@ -47,7 +62,15 @@ export async function supervisorDashboard(actor: Actor) {
   const kpis = await getSupervisorKpis(actor);
   const templateUsage = await getSupervisorTemplateUsage();
   const myRecentDecisions = await getSupervisorMyRecentDecisions(actor);
-  return { kpis, queue: await approvalQueue(actor), templateUsage, myRecentDecisions };
+  return {
+    kpis,
+    queue: await approvalQueue(actor),
+    templateUsage,
+    myRecentDecisions,
+    catalog: await supervisorCatalog(),
+    templatesByCategory: await templatesByCategory(),
+    recentActivity: await recentContractActivity(),
+  };
 }
 
 export async function gestorDashboard(actor: Actor) {
@@ -55,7 +78,14 @@ export async function gestorDashboard(actor: Actor) {
   const kpis = await getGestorKpis(scope);
   const lanes = await getGestorLanes(scope);
   const recent = await getGestorRecent(scope);
-  return { kpis, lanes, recent };
+  return {
+    kpis,
+    lanes,
+    recent,
+    monthly: await gestorMonthly(scope),
+    byStatus: await gestorStatuses(scope),
+    upcomingExpirations: await gestorExpirations(scope),
+  };
 }
 
 export async function userDashboard(actor: Actor) {

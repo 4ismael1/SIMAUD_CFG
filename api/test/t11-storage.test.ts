@@ -112,7 +112,10 @@ beforeEach(async () => {
     const bytes = objects.get(key);
     return new Response(request.method === "HEAD" ? null : bytes ? new Uint8Array(bytes) : null, {
       status: bytes ? 200 : 404,
-      headers: writeIds.has(key) ? { "x-amz-meta-simaud-write-id": writeIds.get(key)! } : {},
+      headers: {
+        etag: '"test-etag"',
+        ...(writeIds.has(key) ? { "x-amz-meta-simaud-write-id": writeIds.get(key)! } : {}),
+      },
     });
   });
   vi.stubGlobal("fetch", fetchMock);
@@ -335,10 +338,12 @@ it("migra referencias históricas, verifica SHA/tamaño y reanuda sin borrar ori
   await waitStorageMigrations();
   expect((await db.select().from(jobRuns).where(eq(jobRuns.id, jobId)))[0]).toMatchObject({
     ok: false,
-    summary: { failed: 1, verified: 0 },
+    summary: { failed: 1, verified: 0, failures: [{ key, reason: "Proveedor inaccesible." }] },
   });
+  expect((await readStorageState()).migrating).toBe(false);
+  expect((await readStorageState()).pending?.driver).toBe("s3");
   expect(await storage.get(key)).toEqual(bytes);
-  await expect(withStorageMutation(async () => undefined)).rejects.toThrow("migración");
+  await expect(withStorageMutation(async () => undefined)).resolves.toBeUndefined();
   fail = () => 0;
   objects.set("/private/tenant/" + key, Buffer.from("corrupt destination"));
   await startStorageMigration({ userId: actor.id });
@@ -387,6 +392,7 @@ it("migra PDF y firmas sin filas files y rechaza tamaño o SHA de origen incorre
   });
   await disk.put("contracts/" + pdfName, pdf, { contentType: "application/pdf" });
   await disk.put("signatures/" + signatureName, signature, { contentType: "image/png" });
+  objects.set("/private/tenant/signatures/" + signatureName, signature);
   const [contract] = await db
     .insert(contracts)
     .values({
@@ -435,12 +441,18 @@ it("migra PDF y firmas sin filas files y rechaza tamaño o SHA de origen incorre
       name: "storage-migrate",
       lastRun: expect.objectContaining({
         ok: true,
-        summary: { total: 3, copied: 3, verified: 3, failed: 0 },
+        summary: { total: 3, copied: 2, verified: 3, failed: 0, failures: [] },
       }),
     }),
   );
   expect(await storage.get("contracts/" + pdfName)).toEqual(pdf);
   expect(await storage.get("signatures/" + signatureName)).toEqual(signature);
+  expect(
+    objects
+      .get("/private/tenant/signatures/" + signatureName)!
+      .subarray(0, 10)
+      .toString(),
+  ).toBe("SIMAUDSIG1");
   await updateStorage({ driver: "disk" }, { userId: admin.id });
   await startStorageMigration({ userId: admin.id });
   await waitStorageMigrations();
