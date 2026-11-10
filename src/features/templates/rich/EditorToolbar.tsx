@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 import { useEditorState, type Editor } from "@tiptap/react";
 import {
+  FileCog,
+  Signature,
   AlignCenter,
   AlignJustify,
   AlignLeft,
@@ -27,50 +29,15 @@ import {
 } from "lucide-react";
 import { Menu, cn, type MenuItem } from "../../../ui";
 
-type BlockStyle = "paragraph" | "h1" | "h2" | "h3";
-
-/** Two centred signature columns with a line, role and name; replaces aligning with spaces. */
-function signatureCell(role: string) {
-  const centred = { textAlign: "center" };
-  return {
-    type: "tableCell",
-    content: [
-      { type: "paragraph", attrs: centred },
-      {
-        type: "paragraph",
-        attrs: centred,
-        content: [{ type: "text", text: "__________________" }],
-      },
-      {
-        type: "paragraph",
-        attrs: centred,
-        content: [{ type: "text", text: role, marks: [{ type: "bold" }] }],
-      },
-      {
-        type: "paragraph",
-        attrs: centred,
-        content: [{ type: "text", text: "Nombre" }],
-      },
-    ],
-  };
-}
-
-const SIGNATURE_BLOCK = {
-  type: "table",
-  attrs: { borderless: true },
-  content: [
-    {
-      type: "tableRow",
-      content: [signatureCell("EL CLIENTE"), signatureCell("EL CONTRATISTA")],
-    },
-  ],
-};
+type BlockStyle = "paragraph" | "h1" | "h2" | "h3" | "clause" | "clause-decimal";
 
 const BLOCK_STYLES: { value: BlockStyle; label: string }[] = [
   { value: "paragraph", label: "Texto normal" },
   { value: "h1", label: "Título 1" },
   { value: "h2", label: "Título 2" },
   { value: "h3", label: "Título 3" },
+  { value: "clause", label: "Cláusula (PRIMERA.)" },
+  { value: "clause-decimal", label: "Cláusula (1.)" },
 ];
 
 interface ToolButtonProps {
@@ -122,6 +89,8 @@ function Divider() {
 interface EditorToolbarProps {
   editor: Editor;
   fullscreen: boolean;
+  /** Opens the page set-up (paper, margins, font, header and footer). */
+  onOpenPageSetup: () => void;
   onToggleFullscreen: () => void;
   onInsertVariable: () => void;
 }
@@ -129,13 +98,18 @@ interface EditorToolbarProps {
 export function EditorToolbar({
   editor,
   fullscreen,
+  onOpenPageSetup,
   onToggleFullscreen,
   onInsertVariable,
 }: EditorToolbarProps) {
   const state = useEditorState({
     editor,
     selector: ({ editor: current }) => ({
-      block: (current.isActive("heading", { level: 1 })
+      block: (current.isActive("heading", { level: 2, numbered: "ordinal" })
+        ? "clause"
+        : current.isActive("heading", { level: 2, numbered: "decimal" })
+          ? "clause-decimal"
+          : current.isActive("heading", { level: 1 })
         ? "h1"
         : current.isActive("heading", { level: 2 })
           ? "h2"
@@ -180,11 +154,17 @@ export function EditorToolbar({
   };
 
   function setBlockStyle(style: BlockStyle) {
-    if (style === "paragraph") chain().setParagraph().run();
-    else
-      chain()
-        .setHeading({ level: Number(style.slice(1)) as 1 | 2 | 3 })
-        .run();
+    if (style === "paragraph") {
+      chain().setParagraph().run();
+      return;
+    }
+    // Clauses are level-2 headings numbered automatically (CSS counters), so they renumber themselves.
+    const numbered = style === "clause" ? "ordinal" : style === "clause-decimal" ? "decimal" : null;
+    const level = numbered ? 2 : (Number(style.slice(1)) as 1 | 2 | 3);
+    chain()
+      .setHeading({ level })
+      .updateAttributes("heading", { numbered })
+      .run();
   }
 
   const tableItems: MenuItem[] = state.inTable
@@ -248,10 +228,6 @@ export function EditorToolbar({
         },
       ]
     : [
-        {
-          label: "Bloque de firmas (2 columnas)",
-          onSelect: later(() => chain().insertContent(SIGNATURE_BLOCK).run()),
-        },
         {
           label: "Columnas sin bordes (2)",
           onSelect: later(() =>
@@ -436,6 +412,16 @@ export function EditorToolbar({
           </button>
         )}
       />
+      <button
+        type="button"
+        onMouseDown={(event) => event.preventDefault()}
+        onClick={() => chain().insertSignatures().run()}
+        title="Insertar bloque de firmas (cada casilla es un firmante)"
+        className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md px-2 text-[13px] text-slate-600 hover:bg-slate-100 hover:text-slate-900 [&_svg]:size-4"
+      >
+        <Signature />
+        <span className="hidden md:inline">Firmas</span>
+      </button>
       <ToolButton
         label="Línea separadora"
         icon={<Minus />}
@@ -463,6 +449,16 @@ export function EditorToolbar({
         Insertar dato
       </button>
       <span className="ml-auto" />
+      <button
+        type="button"
+        onMouseDown={(event) => event.preventDefault()}
+        onClick={onOpenPageSetup}
+        title="Papel, márgenes, fuente, encabezado y pie"
+        className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md px-2 text-[13px] text-slate-600 hover:bg-slate-100 hover:text-slate-900 [&_svg]:size-4"
+      >
+        <FileCog />
+        Página
+      </button>
       {fullscreen ? (
         <button
           type="button"

@@ -6,7 +6,7 @@ import {
 } from "@tanstack/react-query";
 import { apiFetch } from "../client";
 import { keys } from "../keys";
-import type { DocumentContent } from "../../rich-doc/types";
+import type { ContentFormat, DocumentContent } from "../../rich-doc/types";
 import type {
   Template,
   TemplateDetail,
@@ -100,4 +100,26 @@ export function useRichDocsSupported(): boolean | undefined {
   const templates = useTemplates();
   if (!templates.data) return undefined;
   return templates.data.some((template) => "contentFormat" in template);
+}
+
+export interface TemplateCapabilities {
+  formats: ContentFormat[];
+}
+
+/**
+ * Best format the API can store: `rich-v2` (task T15, announced by /templates/capabilities),
+ * `rich-v1` (T13: templates carry `contentFormat`) or `plain`. Undefined while loading.
+ */
+export function useBestContentFormat(): ContentFormat | undefined {
+  const capabilities = useQuery({
+    queryKey: ["templates", "capabilities"],
+    queryFn: ({ signal }) => apiFetch<TemplateCapabilities>("/templates/capabilities", { signal }),
+    retry: false,
+    staleTime: 5 * 60_000,
+  });
+  const richV1 = useRichDocsSupported();
+  if (capabilities.data?.formats.includes("rich-v2")) return "rich-v2";
+  if (capabilities.isPending) return undefined;
+  if (richV1 === undefined) return undefined;
+  return richV1 ? "rich-v1" : "plain";
 }

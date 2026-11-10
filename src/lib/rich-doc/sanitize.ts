@@ -1,4 +1,10 @@
+import { DEFAULT_PAGE, FONT_SIZES, LINE_HEIGHTS, compactPage } from "./page";
 import type {
+  BandSlot,
+  DocAttrs,
+  PageBand,
+  PageSettings,
+  SignatureSlotNode,
   BlockNode,
   BulletListNode,
   OrderedListNode,
@@ -176,11 +182,19 @@ function block(node: Loose): BlockNode[] {
           ? node.attrs.level
           : 2;
       const align = alignOf(node);
+      const numbered =
+        node.attrs?.numbered === "ordinal" || node.attrs?.numbered === "decimal"
+          ? node.attrs.numbered
+          : undefined;
       return [
         withContent(
           {
             type: "heading" as const,
-            attrs: { level, ...(align ? { textAlign: align } : {}) },
+            attrs: {
+              level,
+              ...(align ? { textAlign: align } : {}),
+              ...(numbered ? { numbered } : {}),
+            },
           },
           inline(children(node)),
         ),
@@ -212,10 +226,19 @@ function block(node: Loose): BlockNode[] {
           : [],
       ) as Exclude<
         BlockNode,
-        { type: "blockquote" | "horizontalRule" | "pageBreak" | "table" }
+        {
+          type:
+            | "blockquote"
+            | "horizontalRule"
+            | "pageBreak"
+            | "table"
+            | "signatures";
+        }
       >[];
       return content.length > 0 ? [{ type: "blockquote", content }] : [];
     }
+    case "signatures":
+      return signatures(node);
     case "horizontalRule":
       return [{ type: "horizontalRule" }];
     case "pageBreak":
@@ -249,11 +272,130 @@ function block(node: Loose): BlockNode[] {
   }
 }
 
+/**
+ * Signature boxes. The editor keeps them as one atom with `attrs.slots`; the stored format has one
+ * `signatureSlot` child per box. Both shapes are accepted here and the stored one is produced.
+ */
+function signatures(node: Loose): BlockNode[] {
+  const rawSlots = Array.isArray(node.attrs?.slots)
+    ? (node.attrs.slots as Record<string, unknown>[])
+    : children(node)
+        .filter((child) => child.type === "signatureSlot")
+        .map((child) => child.attrs ?? {});
+  const slots: SignatureSlotNode[] = rawSlots.slice(0, 12).map((slot) => ({
+    type: "signatureSlot",
+    attrs: {
+      label: typeof slot.label === "string" ? slot.label.slice(0, 60) : "",
+      ...(slot.showName === false ? { showName: false } : {}),
+      ...(slot.showId === false ? { showId: false } : {}),
+    },
+  }));
+  if (slots.length === 0) return [];
+  const columns =
+    node.attrs?.columns === 1 || node.attrs?.columns === 3
+      ? node.attrs.columns
+      : undefined;
+  return [
+    {
+      type: "signatures",
+      ...(columns ? { attrs: { columns } } : {}),
+      content: slots,
+    },
+  ];
+}
+
+function bandSlot(value: unknown): BandSlot | undefined {
+  if (typeof value !== "object" || value === null) return undefined;
+  const slot = value as Record<string, unknown>;
+  const between = (n: unknown, min: number, max: number) =>
+    typeof n === "number" && n >= min && n <= max ? n : undefined;
+  if (
+    slot.kind === "text" &&
+    typeof slot.text === "string" &&
+    slot.text.trim()
+  ) {
+    const size = between(slot.size, 7, 14);
+    return {
+      kind: "text",
+      text: slot.text.slice(0, 120),
+      ...(size ? { size } : {}),
+    };
+  }
+  if (slot.kind === "logo") {
+    const height = between(slot.height, 8, 40);
+    return { kind: "logo", ...(height ? { height } : {}) };
+  }
+  if (slot.kind === "pageNumber")
+    return {
+      kind: "pageNumber",
+      ...(slot.format === "page" ? { format: "page" as const } : {}),
+    };
+  return undefined;
+}
+
+function band(value: unknown): PageBand | undefined {
+  if (typeof value !== "object" || value === null) return undefined;
+  const raw = value as Record<string, unknown>;
+  const out: PageBand = {};
+  for (const position of ["left", "center", "right"] as const) {
+    const slot = bandSlot(raw[position]);
+    if (slot) out[position] = slot;
+  }
+  if (!out.left && !out.center && !out.right) return undefined;
+  if (raw.skipFirstPage === true) out.skipFirstPage = true;
+  return out;
+}
+
+function pageSettings(value: unknown): PageSettings | undefined {
+  if (typeof value !== "object" || value === null) return undefined;
+  const raw = value as Record<string, unknown>;
+  const margins = (raw.margins ?? {}) as Record<string, unknown>;
+  const margin = (n: unknown, fallback: number) =>
+    typeof n === "number" && Number.isInteger(n) && n >= 10 && n <= 50
+      ? n
+      : fallback;
+  const d = DEFAULT_PAGE.margins;
+  return compactPage({
+    size: raw.size === "legal" || raw.size === "a4" ? raw.size : "letter",
+    margins: {
+      top: margin(margins.top, d.top),
+      right: margin(margins.right, d.right),
+      bottom: margin(margins.bottom, d.bottom),
+      left: margin(margins.left, d.left),
+    },
+    font: raw.font === "sans" ? "sans" : "serif",
+    fontSize: (FONT_SIZES as readonly number[]).includes(raw.fontSize as number)
+      ? (raw.fontSize as number)
+      : DEFAULT_PAGE.fontSize,
+    lineHeight: (LINE_HEIGHTS as readonly number[]).includes(
+      raw.lineHeight as number,
+    )
+      ? (raw.lineHeight as number)
+      : DEFAULT_PAGE.lineHeight,
+  });
+}
+
+function docAttrs(value: unknown): DocAttrs | undefined {
+  if (typeof value !== "object" || value === null) return undefined;
+  const raw = value as Record<string, unknown>;
+  const page = pageSettings(raw.page);
+  const header = band(raw.header);
+  const footer = band(raw.footer);
+  const out: DocAttrs = {
+    ...(page ? { page } : {}),
+    ...(header ? { header } : {}),
+    ...(footer ? { footer } : {}),
+  };
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
 export function sanitizeRichDoc(json: unknown): RichDoc {
   const root = (json ?? {}) as Loose;
+  const attrs = docAttrs(root.attrs);
   const content = children(root).flatMap(block);
   return {
     type: "doc",
+    ...(attrs ? { attrs } : {}),
     content: content.length > 0 ? content : [{ type: "paragraph" }],
   };
 }

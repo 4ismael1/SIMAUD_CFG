@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { cn } from '../../../ui';
 import { RichDocumentBody } from '../../../lib/rich-doc/RichDocumentBody';
+import { Sheet } from '../../../lib/rich-doc/Sheet';
 import { isRichDoc, type DocumentContent } from '../../../lib/rich-doc/types';
 
 /**
@@ -46,6 +47,24 @@ export function DocumentView({ content, variableLabels, heading, subheading, chi
             .filter(Boolean),
     [content],
   );
+
+  // Formatted documents are drawn on their real sheet (paper, margins, font, header and footer).
+  if (isRichDoc(content)) {
+    return (
+      <article className={cn('min-w-0 rounded-[4px] bg-slate-100 px-2 py-5 sm:px-5 sm:py-6', className)}>
+        <Sheet attrs={content.attrs}>
+          {(heading || subheading) && (
+            <header className="mb-5 text-center font-sans">
+              {heading && <h2 className="font-serif text-base font-bold tracking-[0.08em] uppercase">{heading}</h2>}
+              {subheading && <p className="mt-1 font-mono text-xs text-slate-400">{subheading}</p>}
+            </header>
+          )}
+          <RichDocumentBody doc={content} variableLabels={variableLabels} />
+          {children}
+        </Sheet>
+      </article>
+    );
+  }
 
   return (
     <article

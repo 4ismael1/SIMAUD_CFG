@@ -19,7 +19,7 @@ import {
 } from "../../ui";
 import {
   useCreateTemplate,
-  useRichDocsSupported,
+  useBestContentFormat,
   useTemplate,
   useTemplates,
   useUpdateTemplate,
@@ -35,6 +35,7 @@ import {
   plainToRichDoc,
   richDocText,
   richDocToPlain,
+  richDocToV1,
   richDocVariables,
 } from "../../lib/rich-doc/convert";
 import { isRichDoc, type RichDoc } from "../../lib/rich-doc/types";
@@ -73,7 +74,10 @@ interface Draft {
 /** Templates saved before the formatted editor are plain text: open them converted, nothing is lost. */
 function initialDocument(template: TemplateDetail | undefined): RichDoc {
   if (!template) return plainToRichDoc("");
-  if (template.contentFormat === "rich-v1" && isRichDoc(template.content))
+  if (
+    (template.contentFormat === "rich-v1" || template.contentFormat === "rich-v2") &&
+    isRichDoc(template.content)
+  )
     return template.content;
   return plainToRichDoc(
     typeof template.content === "string" ? template.content : "",
@@ -86,7 +90,7 @@ function Editor({ template }: { template?: TemplateDetail }) {
   const { runAction, running } = useAction();
   const variables = useVariables();
   const templates = useTemplates();
-  const richSupported = useRichDocsSupported();
+  const bestFormat = useBestContentFormat();
   const create = useCreateTemplate();
   const update = useUpdateTemplate(template?.id ?? "");
 
@@ -155,9 +159,12 @@ function Editor({ template }: { template?: TemplateDetail }) {
       title: draft.title.trim(),
       category: draft.category.trim() || "General",
       description: draft.description.trim() || null,
-      ...(richSupported
-        ? { contentFormat: "rich-v1" as const, content: draft.content }
-        : { content: richDocToPlain(draft.content) }),
+      // Save in the richest format the API stores; older APIs get a faithful downgrade, nothing is lost silently.
+      ...(bestFormat === "rich-v2"
+        ? { contentFormat: "rich-v2" as const, content: draft.content }
+        : bestFormat === "rich-v1"
+          ? { contentFormat: "rich-v1" as const, content: richDocToV1(draft.content) }
+          : { content: richDocToPlain(richDocToV1(draft.content)) }),
     };
     const result = await runAction({
       run: () =>
@@ -197,10 +204,17 @@ function Editor({ template }: { template?: TemplateDetail }) {
           cambian: conservan su propia versión.
         </Alert>
       ) : null}
-      {richSupported === false && (
+      {bestFormat === "plain" && (
         <Alert tone="warning" title="El servidor todavía guarda solo texto">
           Se conservan los párrafos, la negrita y los datos; títulos, cursiva,
-          listas, tablas y alineación se guardarán cuando se actualice la API.
+          listas, tablas, firmas y la configuración de página se guardarán
+          cuando se actualice la API.
+        </Alert>
+      )}
+      {bestFormat === "rich-v1" && (
+        <Alert tone="info" title="Configuración de página pendiente en el servidor">
+          El formato, las tablas y las firmas se guardan. El papel, los márgenes,
+          el encabezado y el pie se aplicarán cuando se actualice la API.
         </Alert>
       )}
 

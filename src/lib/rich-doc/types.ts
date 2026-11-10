@@ -4,7 +4,7 @@
  * viewer only understand the nodes and marks listed here.
  */
 
-export type ContentFormat = "plain" | "rich-v1";
+export type ContentFormat = "plain" | "rich-v1" | "rich-v2";
 
 export type TextAlign = "left" | "center" | "right" | "justify";
 
@@ -47,7 +47,12 @@ export interface ParagraphNode {
 
 export interface HeadingNode {
   type: "heading";
-  attrs: { level: 1 | 2 | 3; textAlign?: TextAlign | null };
+  attrs: {
+    level: 1 | 2 | 3;
+    textAlign?: TextAlign | null;
+    /** rich-v2: automatic clause number ("PRIMERA." or "1."), counted per level. */
+    numbered?: HeadingNumbering | null;
+  };
   content?: InlineNode[];
 }
 
@@ -102,7 +107,23 @@ export interface TableNode {
   content: TableRowNode[];
 }
 
+export type HeadingNumbering = "ordinal" | "decimal";
+
+/** rich-v2: one signature box; box n belongs to the signer with signing order n. */
+export interface SignatureSlotNode {
+  type: "signatureSlot";
+  attrs: { label: string; showName?: boolean | null; showId?: boolean | null };
+}
+
+/** rich-v2: signature boxes placed in the document; never split across pages. */
+export interface SignaturesNode {
+  type: "signatures";
+  attrs?: { columns?: 1 | 2 | 3 | null };
+  content: SignatureSlotNode[];
+}
+
 export type BlockNode =
+  | SignaturesNode
   | ParagraphNode
   | HeadingNode
   | BulletListNode
@@ -112,8 +133,47 @@ export type BlockNode =
   | PageBreakNode
   | TableNode;
 
+export type PaperSize = "letter" | "legal" | "a4";
+export type DocumentFont = "serif" | "sans";
+
+export interface PageMargins {
+  top: number;
+  right: number;
+  bottom: number;
+  left: number;
+}
+
+/** rich-v2 page set-up (docs/RICH_DOC_FORMAT_V2.md). Missing fields take the defaults below. */
+export interface PageSettings {
+  size?: PaperSize;
+  margins?: PageMargins;
+  font?: DocumentFont;
+  fontSize?: number;
+  lineHeight?: number;
+}
+
+export type BandSlot =
+  | { kind: "text"; text: string; size?: number }
+  | { kind: "logo"; height?: number }
+  | { kind: "pageNumber"; format?: "page" | "pageOfTotal" };
+
+/** Header or footer: up to three positions. */
+export interface PageBand {
+  left?: BandSlot;
+  center?: BandSlot;
+  right?: BandSlot;
+  skipFirstPage?: boolean;
+}
+
+export interface DocAttrs {
+  page?: PageSettings;
+  header?: PageBand;
+  footer?: PageBand;
+}
+
 export interface RichDoc {
   type: "doc";
+  attrs?: DocAttrs;
   content: BlockNode[];
 }
 

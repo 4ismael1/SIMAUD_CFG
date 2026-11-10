@@ -1,5 +1,8 @@
 import { Node, mergeAttributes, type Extensions } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
+import Document from "@tiptap/extension-document";
+import Heading from "@tiptap/extension-heading";
+import { SignaturesNode } from "./SignaturesNode";
 import TextAlign from "@tiptap/extension-text-align";
 import {
   Table,
@@ -197,6 +200,35 @@ const ContractTable = Table.extend({
   },
 }).configure({ resizable: false });
 
+/** The document carries the page set-up, header and footer (rich-v2), edited from «Página». */
+const PagedDocument = Document.extend({
+  addAttributes() {
+    return {
+      page: { default: null },
+      header: { default: null },
+      footer: { default: null },
+    };
+  },
+});
+
+/**
+ * Headings with optional automatic numbering («PRIMERA.», «1.»). The number is drawn by CSS counters
+ * (see .rich-content in index.css), so moving or deleting a clause renumbers everything at once.
+ */
+const NumberedHeading = Heading.extend({
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      numbered: {
+        default: null,
+        parseHTML: (element) => element.getAttribute("data-numbered"),
+        renderHTML: (attributes) =>
+          attributes.numbered ? { "data-numbered": attributes.numbered } : {},
+      },
+    };
+  },
+});
+
 export const MAX_DOCUMENT_CHARACTERS = 200_000;
 
 /** Only what docs/RICH_DOC_FORMAT.md allows: no code, links or images. */
@@ -208,8 +240,12 @@ export function editorExtensions(
       code: false,
       codeBlock: false,
       link: false,
-      heading: { levels: [1, 2, 3] },
+      document: false,
+      heading: false,
     }),
+    PagedDocument,
+    NumberedHeading.configure({ levels: [1, 2, 3] }),
+    SignaturesNode,
     TextAlign.configure({
       types: ["heading", "paragraph"],
       alignments: ["left", "center", "right", "justify"],

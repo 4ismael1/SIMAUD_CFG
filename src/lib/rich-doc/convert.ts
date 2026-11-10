@@ -157,3 +157,79 @@ export function richDocText(doc: RichDoc): string {
   visit(doc);
   return parts.join("").trim();
 }
+
+/**
+ * Stored document → the JSON the editor loads. Only the signature block differs: stored with one
+ * `signatureSlot` child per box, edited as a single atom with `attrs.slots` (see SignaturesNode).
+ */
+export function toEditorJson(doc: RichDoc): Record<string, unknown> {
+  const convert = (node: unknown): unknown => {
+    if (typeof node !== "object" || node === null) return node;
+    const value = node as { type?: string; attrs?: Record<string, unknown>; content?: unknown[] };
+    if (value.type === "signatures") {
+      const slots = (value.content ?? []).map((slot) => (slot as { attrs?: Record<string, unknown> }).attrs ?? { label: "" });
+      return { type: "signatures", attrs: { columns: value.attrs?.columns ?? 2, slots } };
+    }
+    return value.content ? { ...value, content: value.content.map(convert) } : value;
+  };
+  return convert(doc) as Record<string, unknown>;
+}
+
+const ORDINALS_ES = [
+  "PRIMERA", "SEGUNDA", "TERCERA", "CUARTA", "QUINTA", "SEXTA", "SÉPTIMA", "OCTAVA", "NOVENA", "DÉCIMA",
+  "UNDÉCIMA", "DUODÉCIMA", "DECIMOTERCERA", "DECIMOCUARTA", "DECIMOQUINTA", "DECIMOSEXTA", "DECIMOSÉPTIMA",
+  "DECIMOCTAVA", "DECIMONOVENA", "VIGÉSIMA",
+];
+
+/** "PRIMERA." / "1." — the same numbers the CSS counters draw (decimal past VIGÉSIMA here). */
+export function clauseNumber(index: number, style: "ordinal" | "decimal"): string {
+  return style === "ordinal" && index <= ORDINALS_ES.length ? `${ORDINALS_ES[index - 1]}.` : `${index}.`;
+}
+
+/**
+ * rich-v2 → rich-v1, for APIs that do not store v2 yet: page set-up is dropped, numbered clauses get
+ * their number as text, and signature blocks become borderless tables with lines and labels.
+ */
+export function richDocToV1(doc: RichDoc): RichDoc {
+  const counters = { 1: 0, 2: 0, 3: 0 } as Record<1 | 2 | 3, number>;
+  let signer = 0;
+  const centred = { textAlign: "center" as const };
+
+  const convert = (block: BlockNode): BlockNode => {
+    if (block.type === "heading" && block.attrs.numbered) {
+      const level = block.attrs.level;
+      counters[level] += 1;
+      const prefix: InlineNode = { type: "text", text: `${clauseNumber(counters[level], block.attrs.numbered)} ` };
+      const attrs = { ...block.attrs };
+      delete attrs.numbered;
+      return { ...block, attrs, content: [prefix, ...(block.content ?? [])] };
+    }
+    if (block.type === "signatures") {
+      const columns = block.attrs?.columns ?? 2;
+      const cells = block.content.map((slot) => {
+        signer += 1;
+        const lines: BlockNode[] = [
+          { type: "paragraph", attrs: centred },
+          { type: "paragraph", attrs: centred, content: [{ type: "text", text: "______________________" }] },
+        ];
+        if (slot.attrs.showName !== false) lines.push({ type: "paragraph", attrs: centred, content: [{ type: "text", text: `[Firmante ${signer}]` }] });
+        if (slot.attrs.label) lines.push({ type: "paragraph", attrs: centred, content: [{ type: "text", text: slot.attrs.label, marks: [{ type: "bold" }] }] });
+        return { type: "tableCell" as const, content: lines as never };
+      });
+      const rows = [];
+      for (let i = 0; i < cells.length; i += columns) {
+        const row = cells.slice(i, i + columns);
+        // Tables need full rows: pad the last one with empty boxes.
+        while (row.length < columns) row.push({ type: "tableCell" as const, content: [{ type: "paragraph" }] as never });
+        rows.push({ type: "tableRow" as const, content: row });
+      }
+      return { type: "table", attrs: { borderless: true }, content: rows };
+    }
+    if ("content" in block && Array.isArray(block.content) && block.type === "blockquote") {
+      return { ...block, content: block.content.map(convert) as never };
+    }
+    return block;
+  };
+
+  return { type: "doc", content: doc.content.map(convert) };
+}

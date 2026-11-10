@@ -130,6 +130,14 @@
  * - .reveal / .reveal-stagger: same, but wait until useScrollReveal marks them .is-visible.
  * Set --stagger-step / --stagger-delay on the container to tune timing.
  */
+/* Spanish ordinal clause numbers for numbered headings (PRIMERA. … QUINCUAGÉSIMA.); decimal beyond. */
+@counter-style clause-ordinal-es {
+  system: fixed;
+  symbols: "PRIMERA." "SEGUNDA." "TERCERA." "CUARTA." "QUINTA." "SEXTA." "SÉPTIMA." "OCTAVA." "NOVENA." "DÉCIMA." "UNDÉCIMA." "DUODÉCIMA." "DECIMOTERCERA." "DECIMOCUARTA." "DECIMOQUINTA." "DECIMOSEXTA." "DECIMOSÉPTIMA." "DECIMOCTAVA." "DECIMONOVENA." "VIGÉSIMA." "VIGÉSIMA PRIMERA." "VIGÉSIMA SEGUNDA." "VIGÉSIMA TERCERA." "VIGÉSIMA CUARTA." "VIGÉSIMA QUINTA." "VIGÉSIMA SEXTA." "VIGÉSIMA SÉPTIMA." "VIGÉSIMA OCTAVA." "VIGÉSIMA NOVENA." "TRIGÉSIMA." "TRIGÉSIMA PRIMERA." "TRIGÉSIMA SEGUNDA." "TRIGÉSIMA TERCERA." "TRIGÉSIMA CUARTA." "TRIGÉSIMA QUINTA." "TRIGÉSIMA SEXTA." "TRIGÉSIMA SÉPTIMA." "TRIGÉSIMA OCTAVA." "TRIGÉSIMA NOVENA." "CUADRAGÉSIMA." "CUADRAGÉSIMA PRIMERA." "CUADRAGÉSIMA SEGUNDA." "CUADRAGÉSIMA TERCERA." "CUADRAGÉSIMA CUARTA." "CUADRAGÉSIMA QUINTA." "CUADRAGÉSIMA SEXTA." "CUADRAGÉSIMA SÉPTIMA." "CUADRAGÉSIMA OCTAVA." "CUADRAGÉSIMA NOVENA." "QUINCUAGÉSIMA.";
+  fallback: decimal;
+  suffix: "";
+}
+
 @layer components {
   /* Rich text editor (TipTap). Looks like the final document so what you see is what gets signed. */
   /* Shared by the editor (.ProseMirror) and every read-only view (RichDocumentBody): one source of truth. */
@@ -138,6 +146,74 @@
   }
   .rich-content.ProseMirror {
     @apply min-h-[420px];
+  }
+
+  /* Page set-up (rich-v2): a sheet sets these variables (lib/rich-doc/page.ts → sheetStyle). */
+  .sheet .rich-content {
+    font-family: var(--sheet-font, var(--font-serif));
+    font-size: var(--sheet-font-size, 15px);
+    line-height: var(--sheet-line-height, 1.8);
+  }
+
+  /* Automatic clause numbers: counted per heading level, so moving a clause renumbers the rest. */
+  .rich-content {
+    counter-reset: clause-1 clause-2 clause-3;
+  }
+  .rich-content h1[data-numbered] {
+    counter-increment: clause-1;
+  }
+  .rich-content h2[data-numbered] {
+    counter-increment: clause-2;
+  }
+  .rich-content h3[data-numbered] {
+    counter-increment: clause-3;
+  }
+  .rich-content h1[data-numbered='ordinal']::before {
+    content: counter(clause-1, clause-ordinal-es) ' ';
+  }
+  .rich-content h2[data-numbered='ordinal']::before {
+    content: counter(clause-2, clause-ordinal-es) ' ';
+  }
+  .rich-content h3[data-numbered='ordinal']::before {
+    content: counter(clause-3, clause-ordinal-es) ' ';
+  }
+  .rich-content h1[data-numbered='decimal']::before {
+    content: counter(clause-1) '. ';
+  }
+  .rich-content h2[data-numbered='decimal']::before {
+    content: counter(clause-2) '. ';
+  }
+  .rich-content h3[data-numbered='decimal']::before {
+    content: counter(clause-3) '. ';
+  }
+
+  /* Signature boxes (rich-v2): same look in the editor, previews and the contract page. */
+  .rich-content .signatures-block {
+    @apply my-6 break-inside-avoid;
+  }
+  .rich-content .sig-grid {
+    @apply grid gap-x-8 gap-y-6;
+  }
+  .rich-content .sig-slot {
+    @apply flex min-w-0 flex-col items-center text-center;
+  }
+  .rich-content .sig-space {
+    @apply h-14 w-full;
+  }
+  .rich-content .sig-line {
+    @apply w-4/5 border-t border-slate-700;
+  }
+  .rich-content .sig-meta {
+    @apply mt-1.5 flex w-full flex-col items-center gap-0.5 text-[0.9em] leading-snug;
+  }
+  .rich-content .sig-placeholder {
+    @apply text-slate-500;
+  }
+  .rich-content .sig-label {
+    @apply font-bold tracking-wide text-slate-900;
+  }
+  .rich-content .sig-label-input {
+    @apply w-4/5 rounded border border-dashed border-slate-300 bg-transparent px-1 text-center font-bold tracking-wide text-slate-900 outline-none placeholder:font-normal placeholder:tracking-normal placeholder:text-slate-400 focus:border-vino-500;
   }
   .rich-content > * + * {
     @apply mt-3;

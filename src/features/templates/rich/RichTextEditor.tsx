@@ -11,7 +11,11 @@ import { cn } from "../../../ui";
 import type { Variable } from "../../../lib/api/catalog-types";
 import { normalizeText } from "../catalog-filters";
 import { sanitizeRichDoc } from "../../../lib/rich-doc/sanitize";
-import type { RichDoc } from "../../../lib/rich-doc/types";
+import { toEditorJson } from "../../../lib/rich-doc/convert";
+import type { DocAttrs, RichDoc } from "../../../lib/rich-doc/types";
+import { compactPage, isBandEmpty, resolvePage } from "../../../lib/rich-doc/page";
+import { Sheet } from "../../../lib/rich-doc/Sheet";
+import { PageSetupDialog } from "./PageSetupDialog";
 import { EditorToolbar } from "./EditorToolbar";
 import {
   MAX_DOCUMENT_CHARACTERS,
@@ -61,6 +65,7 @@ export function RichTextEditor({
 }: RichTextEditorProps) {
   const [fullscreen, setFullscreen] = useState(false);
   const [suggest, setSuggest] = useState<SuggestState | null>(null);
+  const [pageSetupOpen, setPageSetupOpen] = useState(false);
   const labels = useMemo(
     () => new Map(variables.map((variable) => [variable.name, variable.label])),
     [variables],
@@ -90,10 +95,10 @@ export function RichTextEditor({
 
   const editor = useEditor({
     extensions: editorExtensions((name) => labelStore.get(name)),
-    content: initialValue,
+    content: toEditorJson(initialValue),
     editorProps: {
       attributes: {
-        class: "rich-content px-5 py-8 sm:px-12 sm:py-10",
+        class: "rich-content",
         role: "textbox",
         "aria-multiline": "true",
         "aria-label": label,
@@ -109,6 +114,20 @@ export function RichTextEditor({
     onSelectionUpdate: ({ editor: current }) => detectSuggestion(current),
     onBlur: () => window.setTimeout(() => setSuggest(null), 150),
   });
+
+  // Page set-up lives in the document's own attributes, so undo/redo covers it too.
+  const docAttrs = useEditorState({
+    editor,
+    selector: ({ editor: current }) => {
+      const attrs = current?.state.doc.attrs ?? {};
+      return {
+        page: attrs.page ?? undefined,
+        header: attrs.header ?? undefined,
+        footer: attrs.footer ?? undefined,
+      } as DocAttrs;
+    },
+    equalityFn: (a, b) => JSON.stringify(a) === JSON.stringify(b),
+  }) ?? {};
 
   // Chips render their label when created; redraw them once the variable catalogue arrives or changes.
   const labelsKey = useMemo(
@@ -255,6 +274,21 @@ export function RichTextEditor({
     return false;
   }
 
+  function applyDocAttrs(value: DocAttrs) {
+    if (!editor) return;
+    const page = compactPage(resolvePage(value.page));
+    editor
+      .chain()
+      .focus()
+      .command(({ tr }) => {
+        tr.setDocAttribute("page", page ?? null);
+        tr.setDocAttribute("header", isBandEmpty(value.header) ? null : value.header);
+        tr.setDocAttribute("footer", isBandEmpty(value.footer) ? null : value.footer);
+        return true;
+      })
+      .run();
+  }
+
   if (!editor) return null;
 
   const body = (
@@ -277,24 +311,28 @@ export function RichTextEditor({
           fullscreen={fullscreen}
           onToggleFullscreen={() => setFullscreen((value) => !value)}
           onInsertVariable={openVariableList}
+          onOpenPageSetup={() => setPageSetupOpen(true)}
         />
       </div>
+      {/* The «desk»: grey background with the sheet of paper on it, like a word processor. */}
       <div
         className={cn(
-          fullscreen
-            ? "min-h-0 flex-1 overflow-y-auto px-3 py-6 sm:px-6"
-            : "rounded-b-lg bg-paper",
+          "bg-slate-100 px-2 py-6 sm:px-6 sm:py-8",
+          fullscreen ? "min-h-0 flex-1 overflow-y-auto" : "",
         )}
       >
-        <div
-          className={cn(
-            fullscreen &&
-              "mx-auto max-w-[850px] rounded-[4px] border border-slate-200 bg-paper shadow-doc",
-          )}
-        >
+        <Sheet attrs={docAttrs} showPageBreaks>
           <EditorContent editor={editor} />
-        </div>
+        </Sheet>
       </div>
+      {pageSetupOpen && (
+        <PageSetupDialog
+          open
+          value={docAttrs}
+          onClose={() => setPageSetupOpen(false)}
+          onApply={applyDocAttrs}
+        />
+      )}
       <EditorFooter editor={editor} fullscreen={fullscreen} />
       {suggest &&
         options.length > 0 &&

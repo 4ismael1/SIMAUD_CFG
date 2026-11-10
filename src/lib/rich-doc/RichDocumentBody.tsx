@@ -1,5 +1,6 @@
 import type { CSSProperties, ReactNode } from "react";
 import type {
+  SignaturesNode,
   BlockNode,
   InlineNode,
   ListItemNode,
@@ -52,6 +53,8 @@ function applyMarks(
 }
 
 interface RenderOptions {
+  /** First box number of each signature block (box n = signer with signing order n). */
+  signatureStart?: ReadonlyMap<SignaturesNode, number>;
   /** Labels for variables still unresolved (template preview, drafts). */
   variableLabels?: ReadonlyMap<string, string>;
 }
@@ -170,7 +173,10 @@ function Block({
       const Tag =
         block.attrs.level === 1 ? "h1" : block.attrs.level === 2 ? "h2" : "h3";
       return (
-        <Tag style={alignStyle(block.attrs.textAlign)}>
+        <Tag
+          style={alignStyle(block.attrs.textAlign)}
+          data-numbered={block.attrs.numbered ?? undefined}
+        >
           <Inline nodes={block.content} options={options} />
         </Tag>
       );
@@ -201,6 +207,8 @@ function Block({
       );
     case "table":
       return <Table table={block} options={options} />;
+    case "signatures":
+      return <Signatures block={block} options={options} />;
     default:
       return null;
   }
@@ -222,13 +230,62 @@ function Blocks({
   );
 }
 
+/** Signature boxes; box n shows the signer with signing order n (placeholders until there are signers). */
+function Signatures({
+  block,
+  options,
+}: {
+  block: SignaturesNode;
+  options: RenderOptions;
+}) {
+  const columns = block.attrs?.columns ?? 2;
+  return (
+    <div data-signatures="" className="signatures-block">
+      <div
+        className="sig-grid"
+        style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
+      >
+        {block.content.map((slot, index) => {
+          const number = (options.signatureStart?.get(block) ?? 1) + index;
+          return (
+            <div key={index} className="sig-slot">
+              <div className="sig-space" />
+              <div className="sig-line" />
+              <div className="sig-meta">
+                {slot.attrs.showName !== false && (
+                  <span className="sig-placeholder">[Firmante {number}]</span>
+                )}
+                {slot.attrs.showId !== false && (
+                  <span className="sig-placeholder">C.I. [cédula]</span>
+                )}
+                {slot.attrs.label && (
+                  <strong className="sig-label">{slot.attrs.label}</strong>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export function RichDocumentBody({
   doc,
   variableLabels,
-}: { doc: RichDoc } & RenderOptions) {
+}: { doc: RichDoc } & Pick<RenderOptions, "variableLabels">) {
+  // Boxes are numbered across the whole document, in reading order.
+  const signatureStart = new Map<SignaturesNode, number>();
+  let next = 1;
+  for (const block of doc.content) {
+    if (block.type !== "signatures") continue;
+    signatureStart.set(block, next);
+    next += block.content.length;
+  }
+  const options: RenderOptions = { variableLabels, signatureStart };
   return (
     <div className="rich-content">
-      <Blocks blocks={doc.content} options={{ variableLabels }} />
+      <Blocks blocks={doc.content} options={options} />
     </div>
   );
 }
