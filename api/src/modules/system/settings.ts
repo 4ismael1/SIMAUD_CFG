@@ -2,6 +2,7 @@ import { z } from "zod";
 import { db, type Transaction } from "../../db/client.js";
 import { settings } from "../../db/schema.js";
 import { env } from "../../config/env.js";
+
 export const settingsSchema = z
   .object({
     expiryWarningDays: z.number().int().min(1).max(365),
@@ -26,6 +27,7 @@ export const settingsSchema = z
   })
   .strict();
 export type Settings = z.infer<typeof settingsSchema>;
+
 export async function getSettings(connection: Transaction | typeof db = db): Promise<Settings> {
   const defaults: Settings = {
     expiryWarningDays: env.EXPIRY_WARNING_DAYS,
@@ -37,4 +39,15 @@ export async function getSettings(connection: Transaction | typeof db = db): Pro
     ...defaults,
     ...Object.fromEntries(rows.map((row) => [row.key, row.value])),
   });
+}
+
+export async function updateSettings(patch: Partial<Settings>) {
+  await db.transaction(async (tx) => {
+    for (const [key, value] of Object.entries(patch))
+      await tx
+        .insert(settings)
+        .values({ key, value })
+        .onConflictDoUpdate({ target: settings.key, set: { value } });
+  });
+  return getSettings();
 }

@@ -1,4 +1,5 @@
 import { EventEmitter } from "node:events";
+
 export type UserEvent = { type: "notification" | "unread-count" | "role-changed"; data: unknown };
 export interface EventBus {
   publish(userId: string, event: UserEvent): void;
@@ -21,11 +22,13 @@ class MemoryEventBus implements EventBus {
 }
 export const eventBus: EventBus = new MemoryEventBus();
 const pending = new WeakMap<object, (() => void | Promise<void>)[]>();
+
 export function afterCommit(transaction: object, effect: () => void | Promise<void>) {
   const effects = pending.get(transaction) ?? [];
   effects.push(effect);
   pending.set(transaction, effects);
 }
+
 export async function committed(transaction: object) {
   const effects = pending.get(transaction) ?? [];
   pending.delete(transaction);

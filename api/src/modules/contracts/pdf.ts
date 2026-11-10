@@ -11,16 +11,22 @@ import { makePdf, paragraphs, decodeRenderedText } from "../../lib/pdf.js";
 import { getSettings } from "../system/settings.js";
 import { parse, uuid } from "./schemas.js";
 import * as service from "./service.js";
+
 const directory = path.resolve("storage/contracts");
 export const contentHash = (text: string) =>
   createHash("sha256").update(text, "utf8").digest("hex");
+
 export function finalPdfName(contract: service.Contract) {
   return contract.id + "-v" + contract.currentVersion + ".pdf";
 }
+
 export async function removeFinalPdf(name: string) {
   if (!/^[0-9a-f-]{36}-v\d+\.pdf$/.test(name)) return;
-  await unlink(path.join(directory, name)).catch(() => {});
+  await unlink(path.join(directory, name)).catch(() => {
+    // Cleanup must not mask the original transaction error if the file cannot be removed.
+  });
 }
+
 export async function contractPdf(
   tx: Transaction | typeof db,
   contract: service.Contract,
@@ -103,6 +109,7 @@ export async function contractPdf(
     });
   return makePdf(content, contract.code);
 }
+
 export async function saveFinalPdf(tx: Transaction, contract: service.Contract) {
   const bytes = await contractPdf(tx, contract);
   const name = finalPdfName(contract);
@@ -113,6 +120,7 @@ export async function saveFinalPdf(tx: Transaction, contract: service.Contract) 
     .set({ signedPdfPath: name, signedPdfSha256: createHash("sha256").update(bytes).digest("hex") })
     .where(eq(contracts.id, contract.id));
 }
+
 export async function pdfRoutes(app: FastifyInstance) {
   app.get("/contracts/:id/pdf", { preHandler: authenticate }, async (req, reply) => {
     const id = parse(uuid, (req.params as { id: string }).id);

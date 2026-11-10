@@ -2,6 +2,7 @@ import pdfmake from "pdfmake";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Content, TDocumentDefinitions } from "pdfmake/interfaces.js";
+
 const fontsDirectory = fileURLToPath(new URL("../../assets/fonts/", import.meta.url));
 pdfmake.addFonts({
   Roboto: {
@@ -15,6 +16,7 @@ pdfmake.setUrlAccessPolicy(() => false);
 pdfmake.setLocalAccessPolicy((file) =>
   path.resolve(file).startsWith(path.resolve(fontsDirectory) + path.sep),
 );
+
 export async function makePdf(
   content: Content[],
   title: string,
@@ -37,6 +39,7 @@ export async function makePdf(
     })
     .getBuffer();
 }
+
 export function paragraphs(text: string): Content[] {
   return text.split(/\r?\n/).map((line) => ({
     text: line.split(/(\*\*[^*]+\*\*)/).map((part) => ({
@@ -46,6 +49,7 @@ export function paragraphs(text: string): Content[] {
     margin: [0, 0, 0, 8],
   }));
 }
+
 export function decodeRenderedText(text: string) {
   return text.replace(
     /&(?:amp|lt|gt|quot|#39);/g,
