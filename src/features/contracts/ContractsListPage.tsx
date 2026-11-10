@@ -13,7 +13,7 @@ import {
   Pagination,
   SearchInput,
   Tabs,
-  useToast,
+  useAction,
 } from '../../ui';
 import { useContractCounts, useContracts } from '../../lib/api/hooks/contracts';
 import { useAuth } from '../../lib/auth';
@@ -55,7 +55,7 @@ function useDebouncedValue<T>(value: T, delay: number): T {
 export function ContractsListPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const toast = useToast();
+  const { runAction } = useAction();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const tabParam = searchParams.get('estado');
@@ -98,11 +98,12 @@ export function ContractsListPage() {
   }));
 
   async function downloadPdf(contract: Contract) {
-    try {
-      await downloadFromApi(`/contracts/${contract.id}/pdf`, `${contract.code}.pdf`);
-    } catch (error) {
-      toast.error(errorMessage(error, 'No se pudo descargar el PDF.'));
-    }
+    await runAction({
+      run: () => downloadFromApi(`/contracts/${contract.id}/pdf`, `${contract.code}.pdf`),
+      pending: `Preparando el PDF de ${contract.code}…`,
+      success: 'PDF descargado.',
+      error: 'No se pudo descargar el PDF.',
+    });
   }
 
   const allColumns: Column<Contract>[] = [

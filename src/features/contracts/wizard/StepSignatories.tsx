@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState, type PointerEvent } from 'react';
 import { ArrowDown, ArrowUp, ArrowRight, Copy, GripVertical, Plus, Trash2, UserCheck, Users } from 'lucide-react';
-import { Alert, Badge, Button, Field, IconButton, Input, Segmented, Select, cn } from '../../../ui';
+import { Alert, Badge, Button, Field, IconButton, Input, Segmented, Select, cn, useToast } from '../../../ui';
 import { useUserLookup } from '../../../lib/api/hooks/users';
 import type { SignatoryRole } from '../../../lib/api/core-types';
 import { formatCedula, validateCedula } from '../../../lib/validation';
@@ -34,6 +34,10 @@ export function StepSignatories({ draft, errors, onChange }: StepSignatoriesProp
   const { signatories, signingMode } = draft;
   const atLimit = signatories.length >= MAX_SIGNATORIES;
   const listRef = useRef<HTMLOListElement>(null);
+  const toast = useToast();
+  // Undo runs later, against whatever the list looks like by then.
+  const latestSignatories = useRef(signatories);
+  latestSignatories.current = signatories;
   const [draggingKey, setDraggingKey] = useState<string | null>(null);
 
   /** Pointer-based drag (mouse, touch and pen): the card under the pointer swaps places live. */
@@ -82,7 +86,23 @@ export function StepSignatories({ draft, errors, onChange }: StepSignatoriesProp
   }
 
   function remove(key: string) {
+    const index = signatories.findIndex((item) => item.key === key);
+    const removed = signatories[index];
     onChange({ signatories: signatories.filter((item) => item.key !== key) });
+    if (!removed) return;
+
+    const hasData = [removed.name, removed.email, removed.cedula, removed.phone].some((field) => field.trim() !== '');
+    if (!hasData) return;
+    toast.info(`Quitaste a ${removed.name.trim() || `el firmante ${index + 1}`}.`, {
+      action: {
+        label: 'Deshacer',
+        onClick: () => {
+          const next = [...latestSignatories.current];
+          next.splice(Math.min(index, next.length), 0, removed);
+          onChange({ signatories: next });
+        },
+      },
+    });
   }
 
   function move(index: number, delta: -1 | 1) {

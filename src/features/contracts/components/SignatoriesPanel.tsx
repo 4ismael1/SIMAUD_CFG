@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Bell, Check, X } from 'lucide-react';
-import { Avatar, Button, Card, CardHeader, useToast } from '../../../ui';
+import { Avatar, Button, Card, CardHeader, useAction } from '../../../ui';
 import { useRemindSignatory } from '../../../lib/api/hooks/contracts';
 import { downloadSignature } from '../../../lib/api/hooks/signatures';
 import type { ContractDetail, Signatory, SignatoryRole } from '../../../lib/api/types';
 import { formatDateTime } from '../../../lib/format';
-import { errorMessage } from '../../../lib/errors';
 
 export const SIGNATORY_ROLE_LABELS: Record<SignatoryRole, string> = {
   client: 'Cliente',
@@ -19,18 +18,21 @@ export function currentSignatory(signatories: Signatory[]): Signatory | undefine
 }
 
 export function SignatoriesPanel({ contract, canRemind }: { contract: ContractDetail; canRemind: boolean }) {
-  const toast = useToast();
+  const { runAction } = useAction();
   const remind = useRemindSignatory(contract.id);
   const ordered = [...contract.signatories].sort((a, b) => a.signingOrder - b.signingOrder);
   const turn = contract.status === 'pending_signatures' ? currentSignatory(ordered) : undefined;
 
   async function handleRemind(signatory: Signatory) {
-    try {
-      await remind.mutateAsync({ signatoryId: signatory.id });
-      toast.success(`Recordatorio enviado a ${signatory.name}.`);
-    } catch (error) {
-      toast.error(errorMessage(error));
-    }
+    await runAction({
+      confirm: {
+        title: `¿Enviar un recordatorio a ${signatory.name}?`,
+        description: `Recibirá un correo en ${signatory.email} recordándole que tiene un contrato por firmar.`,
+        confirmLabel: 'Enviar recordatorio',
+      },
+      run: () => remind.mutateAsync({ signatoryId: signatory.id }),
+      success: `Recordatorio enviado a ${signatory.name}.`,
+    });
   }
 
   return (

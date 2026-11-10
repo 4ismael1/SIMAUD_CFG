@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Check, CircleCheck, Download, Maximize2, PenLine, ShieldCheck, Type, Undo2, Upload, X } from 'lucide-react';
-import { Alert, Button, ButtonLink, Checkbox, EmptyState, Logo, Segmented, Skeleton, useToast } from '../../ui';
+import { Alert, Button, ButtonLink, Checkbox, EmptyState, Logo, Segmented, Skeleton, useAction, useToast } from '../../ui';
 import { useContract } from '../../lib/api/hooks/contracts';
 import { useSignContract } from '../../lib/api/hooks/signatures';
 import { useAuth } from '../../lib/auth';
@@ -24,6 +24,7 @@ export function SignContractPage() {
   const { id = '' } = useParams();
   const navigate = useNavigate();
   const toast = useToast();
+  const { runAction } = useAction();
   const { user } = useAuth();
   const contract = useContract(id);
   const sign = useSignContract(id);
@@ -216,7 +217,12 @@ export function SignContractPage() {
                 onRememberChange={setRememberTyped}
                 usingSaved={usingSavedStyle}
                 onForgetSaved={() => {
-                  deleteStyle.mutate();
+                  const previous = savedStyle.data;
+                  void runAction({
+                    run: () => deleteStyle.mutateAsync(),
+                    success: 'Olvidamos tu firma guardada.',
+                    undo: previous ? { run: () => saveStyle.mutateAsync(previous), success: 'Firma guardada de nuevo.' } : undefined,
+                  });
                   setTyped({ text: mySignatory.name, styleId: DEFAULT_SIGNATURE_STYLE.id });
                 }}
               />
@@ -268,14 +274,15 @@ export function SignContractPage() {
 }
 
 function SignedScreen({ code, contractId, title }: { code: string; contractId: string; title: string }) {
-  const toast = useToast();
+  const { runAction } = useAction();
 
   async function download() {
-    try {
-      await downloadFromApi(`/contracts/${contractId}/pdf`, `${code}.pdf`);
-    } catch (error) {
-      toast.error(errorMessage(error, 'No se pudo descargar el PDF.'));
-    }
+    await runAction({
+      run: () => downloadFromApi(`/contracts/${contractId}/pdf`, `${code}.pdf`),
+      pending: 'Preparando el PDF…',
+      success: 'PDF descargado.',
+      error: 'No se pudo descargar el PDF.',
+    });
   }
 
   return (

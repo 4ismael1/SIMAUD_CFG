@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bell, BellOff } from 'lucide-react';
-import { EmptyState, IconButton, Skeleton, cn } from '../../ui';
+import { EmptyState, IconButton, Skeleton, cn, useAction } from '../../ui';
 import {
   useNotifications,
   useReadAllNotifications,
@@ -62,6 +62,7 @@ function NotificationPanel({ onClose }: { onClose: () => void }) {
   const notifications = useNotifications({ pageSize: PANEL_SIZE });
   const markRead = useReadNotification();
   const markAllRead = useReadAllNotifications();
+  const { runAction } = useAction();
   const items = notifications.data?.data;
   const hasUnread = items?.some((item) => !item.readAt) ?? false;
 
@@ -83,7 +84,13 @@ function NotificationPanel({ onClose }: { onClose: () => void }) {
       <div className="flex items-center justify-between gap-2 border-b border-slate-200 px-4 py-3">
         <h2 className="font-semibold">Notificaciones</h2>
         {hasUnread && (
-          <button type="button" className="text-[13px] font-medium text-vino-600 hover:text-vino-700" onClick={() => markAllRead.mutate(undefined)}>
+          <button type="button" className="text-[13px] font-medium text-vino-600 hover:text-vino-700" onClick={() =>
+              void runAction({
+                run: () => markAllRead.mutateAsync(undefined),
+                success: 'Todas las notificaciones quedaron como leídas.',
+              })
+            }
+          >
             Marcar todas como leídas
           </button>
         )}

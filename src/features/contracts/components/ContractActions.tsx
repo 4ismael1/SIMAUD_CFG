@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Archive, ArchiveRestore, Ban, Download, Ellipsis, PenLine, Pencil, RotateCcw, Send, ShieldAlert, Trash2 } from 'lucide-react';
-import { Button, ButtonLink, ConfirmDialog, IconButton, Menu, useToast, type MenuItem } from '../../../ui';
+import { Button, ButtonLink, ConfirmDialog, IconButton, Menu, useAction, useToast, type MenuItem } from '../../../ui';
 import {
   useArchiveContract,
   useCancelContract,
@@ -22,6 +22,7 @@ type OpenDialog = 'submit' | 'cancel' | 'delete' | 'override' | null;
 export function ContractActions({ contract }: { contract: ContractDetail }) {
   const navigate = useNavigate();
   const toast = useToast();
+  const { runAction } = useAction();
   const [dialog, setDialog] = useState<OpenDialog>(null);
   const { can } = contract;
 
@@ -44,23 +45,53 @@ export function ContractActions({ contract }: { contract: ContractDetail }) {
   }
 
   async function downloadPdf() {
-    try {
-      await downloadFromApi(`/contracts/${contract.id}/pdf`, `${contract.code}.pdf`, { final: contract.status === 'active' || undefined });
-    } catch (error) {
-      toast.error(errorMessage(error, 'No se pudo descargar el PDF.'));
+    await runAction({
+      run: () => downloadFromApi(`/contracts/${contract.id}/pdf`, `${contract.code}.pdf`, { final: contract.status === 'active' || undefined }),
+      pending: 'Preparando el PDF…',
+      success: 'PDF descargado.',
+      error: 'No se pudo descargar el PDF.',
+    });
+  }
+
+  function toggleArchive() {
+    if (contract.archived) {
+      void runAction({
+        run: () => unarchive.mutateAsync(),
+        success: 'Contrato desarchivado.',
+        undo: { run: () => archive.mutateAsync(), success: 'Contrato archivado de nuevo.' },
+      });
+      return;
     }
+    void runAction({
+      run: () => archive.mutateAsync(),
+      success: 'Contrato archivado.',
+      undo: { run: () => unarchive.mutateAsync(), success: 'Contrato desarchivado.' },
+    });
   }
 
   const secondary: MenuItem[] = [];
   if (can.archive) {
     secondary.push(
       contract.archived
-        ? { label: 'Desarchivar', icon: <ArchiveRestore />, onSelect: () => void run(() => unarchive.mutateAsync(), 'Contrato desarchivado.') }
-        : { label: 'Archivar', icon: <Archive />, onSelect: () => void run(() => archive.mutateAsync(), 'Contrato archivado.') },
+        ? { label: 'Desarchivar', icon: <ArchiveRestore />, onSelect: toggleArchive }
+        : { label: 'Archivar', icon: <Archive />, onSelect: toggleArchive },
     );
   }
   if (can.override && contract.status === 'cancelled') {
-    secondary.push({ label: 'Reactivar contrato', icon: <RotateCcw />, onSelect: () => void run(() => uncancel.mutateAsync(), 'Contrato reactivado.') });
+    secondary.push({
+      label: 'Reactivar contrato',
+      icon: <RotateCcw />,
+      onSelect: () =>
+        void runAction({
+          confirm: {
+            title: '¿Reactivar este contrato?',
+            description: 'Volverá al estado que tenía antes de cancelarse y quedará registrado en el historial.',
+            confirmLabel: 'Reactivar',
+          },
+          run: () => uncancel.mutateAsync(),
+          success: 'Contrato reactivado.',
+        }),
+    });
   }
   if (can.override) {
     secondary.push({ label: 'Forzar estado…', icon: <ShieldAlert />, onSelect: () => setDialog('override'), separatorBefore: true });

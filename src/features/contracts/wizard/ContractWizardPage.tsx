@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useBlocker, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, Check, Save, Send } from 'lucide-react';
-import { Alert, Button, ButtonLink, EmptyState, PageHeader, Skeleton, cn, useToast } from '../../../ui';
+import { Alert, Button, ButtonLink, EmptyState, PageHeader, Skeleton, cn, useConfirm, useToast } from '../../../ui';
 import { apiFetch } from '../../../lib/api/client';
 import { useContract, useCreateContract, useUpdateContract } from '../../../lib/api/hooks/contracts';
 import { useTemplate } from '../../../lib/api/hooks/templates';
@@ -65,6 +65,28 @@ function Wizard({ contractId, initial }: WizardProps) {
   const [stepIndex, setStepIndex] = useState(isEdit ? 1 : 0);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [submitting, setSubmitting] = useState<'draft' | 'submit' | null>(null);
+  const confirm = useConfirm();
+  const [initialSnapshot] = useState(() => JSON.stringify(initial ?? null));
+  // Only edits of an existing contract can be lost: new drafts are autosaved for this tab.
+  const hasUnsavedEdits = isEdit && submitting === null && JSON.stringify(draft) !== initialSnapshot;
+  const blocker = useBlocker(hasUnsavedEdits);
+
+  useEffect(() => {
+    if (blocker.state !== 'blocked') return;
+    void confirm({
+      title: '¿Salir sin guardar los cambios?',
+      description: 'Los cambios que hiciste en este contrato se perderán.',
+      confirmLabel: 'Salir sin guardar',
+      tone: 'primary',
+    }).then((answer) => (answer ? blocker.proceed() : blocker.reset()));
+  }, [blocker, confirm]);
+
+  useEffect(() => {
+    if (!hasUnsavedEdits) return;
+    const warn = (event: BeforeUnloadEvent) => event.preventDefault();
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [hasUnsavedEdits]);
 
   const template = useTemplate(draft.templateId);
   const variables = useMemo(() => template.data?.resolvedVariables ?? [], [template.data]);

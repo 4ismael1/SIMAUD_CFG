@@ -21,6 +21,16 @@ Obligatorias para todo el código del proyecto (API y web). Claude rechaza en re
 - Sin duplicación: si algo aparece dos veces, se extrae.
 - Sin código muerto, sin `console.log` olvidados, sin TODO sin dueño.
 
+## Interfaz: acciones y avisos (obligatorio en todo el front)
+- **Ningún botón termina en silencio.** Toda acción que cambia datos, envía algo o descarga un archivo usa `useAction()` (`src/ui/useAction.ts`): muestra un aviso de éxito o de error, siempre.
+- **Confirmar antes de lo destructivo o difícil de revertir** (eliminar, cancelar, rechazar, revocar, reactivar, enviar correos): opción `confirm` de `useAction` o `useConfirm()`. Tono `danger` para lo irreversible; `confirmationText` (escribir el código) para borrados importantes; `reasonLabel` cuando la API exige motivo.
+- **Lo reversible no se confirma: se ofrece «Deshacer»** (opción `undo`): archivar, quitar un firmante de la lista, olvidar una preferencia…
+- **Acciones lentas** (exportar, generar PDF, enviar): opción `pending` → aviso «en curso» que se transforma en el resultado.
+- Formularios con cambios sin guardar: confirmar al salir (`useBlocker`) y `beforeunload`.
+- Mensajes en español, en pasado y concretos: «Contrato archivado.», «Recordatorio enviado a Ana Pérez.». Errores: el mensaje de la API (`errorMessage`).
+- Clases: siempre `cn()` (resuelve conflictos de Tailwind con `tailwind-merge`; la última clase gana).
+- Animación: `motion` vía `m.*` (nunca `motion.*`, `LazyMotion` es estricto). Transiciones cortas (150–400 ms), muelles sin rebote o con rebote ≤ 0.12; nada decorativo en bucle salvo indicadores de estado. Se respeta «reducir movimiento» (`MotionConfig`).
+
 ## Tests
 - Cada regla de negocio o de permisos tiene su test. Los tests describen el comportamiento en su nombre (`"un gestor no ve contratos ajenos"`).
 - Tests deterministas: nada de esperas por tiempo; fechas inyectadas.
