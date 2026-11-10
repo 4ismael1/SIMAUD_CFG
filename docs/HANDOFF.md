@@ -14,6 +14,12 @@ Lee también **`docs/PRINCIPIOS.md`** (obligatorio) y **`docs/CODE_STANDARDS.md`
 
 ### Codex: estado
 - Hecho y commiteado: T01–T09b, **T09c** (tests antiguos adaptados) y **T11** (almacenamiento disco/S3; migración `0009`; `SETTINGS_ENCRYPTION_KEY` ya generada en `api/.env`). Comprobado: typecheck, format:check, audit (0) y 437 tests en verde.
+- **AL RETOMAR EN OTRA SESIÓN/CUENTA (estado al 10 nov 2026, 00:21):** T10 y T12a seguían ejecutándose y **no había informes** (`docs/tasks/T10-*.REPORT.md`, `T12a-*.REPORT.md`). Los procesos de Codex, el túnel SSH y la API pertenecen a la sesión anterior y pueden haber muerto al cerrarla. Pasos:
+  1. `git status --short` y `ls docs/tasks/*.REPORT.md`. Hay ~55 archivos sin commitear, todos de Codex (`api/`, `deploy/signing.compose.yml`, `deploy/.env.prod.example`, `docs/DEPLOY.md`). **No descartarlos.**
+  2. Si existe el informe de una tarea → revisar el diff, correr las comprobaciones de `api/` (Git Bash) y commitear.
+  3. Si NO existe el informe y no hay un `codex.exe` vivo (`tasklist | grep -i codex`) → relanzar esa tarea con el mismo comando, añadiendo al prompt: «Ya hay trabajo parcial tuyo sin commitear en el árbol; revísalo con git status/diff, complétalo sin rehacerlo y termina con el informe». T10 usa `simaud_test`; T12a usa `simaud_test2`.
+  4. Reabrir el túnel SSH (puerto 55432; comando en la sección del VPS, más abajo) y arrancar la API desde `SIMAUD_RUN/api` con `MAIL_DRIVER=log npx tsx src/server.ts` si no responden.
+  5. Los logs antiguos de Codex estaban en el scratch de la sesión anterior (`codex-T10.log`, `codex-T12a.log`); pueden haberse borrado, no son necesarios.
 - **EN CURSO al escribir esto** (revisar `docs/tasks/*.REPORT.md`, `git status` y los logs del scratch):
   - **T10 firma certificada** (`docs/tasks/T10-firma-certificada.md` **con ADENDA al final, que manda**; BD `simaud_test`): migración `0010_t10_certified_signatures`, `api/src/lib/crypto/`, `modules/contracts/{evidence,pdf-attestation,signature-style}.ts`, `modules/verify/`.
   - **T12a API de admin y reportes** (`docs/tasks/T12a-admin-reportes-api.md`; BD `simaud_test2`): `POST /contracts/:id/reassign`, `POST /contracts/bulk`, `GET /reports/overview`, `GET /reports/filters`, `GET /reports/overview/export`, campos nuevos (aditivos) en el dashboard de admin. Archivos: `modules/contracts/admin-{actions,routes}.ts`, `modules/reports/overview*.ts`, `modules/dashboard/rich-queries.ts`.
