@@ -14,6 +14,8 @@ import { SignaturePad, type SignaturePadHandle } from './SignaturePad';
 import { SignatureFullscreen } from './SignatureFullscreen';
 import { SignaturePreviewDialog } from './SignaturePreviewDialog';
 import { signatureSlotFor } from './signature-slot';
+import { AUTO_PLACEMENT, signatureBoxAspect } from './signature-placement';
+import type { SignaturePlacement } from '../../lib/api/types';
 import { TypedSignature, type TypedSignatureValue } from './TypedSignature';
 import { DEFAULT_SIGNATURE_STYLE, renderTypedSignature, styleById } from './signature-styles';
 import { useDeleteSignatureStyle, useSaveSignatureStyle, useSignatureStyle } from '../../lib/api/hooks/signature-style';
@@ -50,6 +52,7 @@ export function SignContractPage() {
   const [done, setDone] = useState(false);
   /** The exact image that will be sent, shown in its box before confirming. */
   const [review, setReview] = useState<{ blob: Blob; url: string } | null>(null);
+  const [placement, setPlacement] = useState<SignaturePlacement>(AUTO_PLACEMENT);
 
   const handlePadChange = useCallback((hasInk: boolean) => setHasDrawing(hasInk), []);
 
@@ -135,6 +138,7 @@ export function SignContractPage() {
     else if (mode === 'draw') signature = captured?.blob ?? (await padRef.current?.toBlob());
     else signature = uploaded?.blob;
     if (!signature) return;
+    setPlacement(AUTO_PLACEMENT);
     setReview({ blob: signature, url: URL.createObjectURL(signature) });
   }
 
@@ -148,6 +152,7 @@ export function SignContractPage() {
         viewedAt,
         method: mode === 'type' ? 'typed' : mode === 'draw' ? 'drawn' : 'uploaded',
         fontId: mode === 'type' ? styleById(typedValue.styleId).id : undefined,
+        placement,
       });
       // Only typed signatures are remembered; a failure here must not undo a valid signature.
       if (mode === 'type' && rememberTyped && !usingSavedStyle) {
@@ -290,6 +295,9 @@ export function SignContractPage() {
             name={mySignatory.name}
             cedula={mySignatory.cedula}
             slot={signatureSlotFor(data.generatedContent, mySignatory.signingOrder)}
+            boxAspect={signatureBoxAspect(data.generatedContent, data.signatureSlot)}
+            placement={placement}
+            onPlacementChange={setPlacement}
             signing={sign.isPending}
             onChange={() => setReview(null)}
             onConfirm={() => void handleSign()}

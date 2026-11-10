@@ -30,6 +30,7 @@ export function useSignContract(id: string) {
       formData.set("viewedAt", input.viewedAt);
       formData.set("method", input.method);
       if (input.method === "typed" && input.fontId) formData.set("fontId", input.fontId);
+      if (input.placement) formData.set("placement", JSON.stringify(input.placement));
       return apiFetch<MessageResponse>("/contracts/" + id + "/sign", {
         method: "POST",
         formData,

@@ -25,6 +25,8 @@ export interface Signatory extends Omit<SignatoryInput, "phone" | "cedula"> {
   status: SignatoryStatus;
   signaturePath: string | null;
   signatureFileId: string | null;
+  /** T18: null = automatic fit (centred, full size). */
+  placement?: SignaturePlacement | null;
   signedAt: string | null;
   viewedAt: string | null;
   acceptedDeclarationAt: string | null;
@@ -93,10 +95,29 @@ export type ContractPermissions = Record<
 > & {
   /** Admin only; arrived with T12a, so an older API omits it. */
   reassign?: boolean;
+  /** T18: the actor already signed and may still move/resize or redo their signature (before activation). */
+  adjustSignature?: boolean;
 };
+/** T18: where a signature sits in its box — centre relative to the box (0–1) and size (0.5–1 of the largest fit). */
+export interface SignaturePlacement {
+  x: number;
+  y: number;
+  scale: number;
+}
+/** T18: the actor's signature area in the PDF, as fractions of the whole page (origin top left). */
+export interface SignatureSlotGeometry {
+  page: number;
+  slotIndex: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
 export interface ContractDetail extends Contract {
   signatories: Signatory[];
   can: ContractPermissions;
+  /** T18: only the actor's own box; null when the actor is not a signatory or on older APIs. */
+  signatureSlot?: SignatureSlotGeometry | null;
 }
 export interface ContractQuery extends ListQuery {
   status?: ContractStatus;
@@ -197,4 +218,6 @@ export interface SignatureInput {
   /** How the signature was made (T10 evidence); fontId only for typed signatures. */
   method: "typed" | "drawn" | "uploaded";
   fontId?: string;
+  /** T18: omitted = automatic fit. */
+  placement?: SignaturePlacement;
 }
