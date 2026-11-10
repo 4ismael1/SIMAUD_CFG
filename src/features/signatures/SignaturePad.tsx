@@ -1,5 +1,6 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState, type PointerEvent } from 'react';
 import { cn } from '../../ui';
+import { STROKE_COLOR, exportStrokes, type InkBounds, type Point } from './signature-export';
 
 export interface SignaturePadHandle {
   clear: () => void;
@@ -18,26 +19,9 @@ interface SignaturePadProps {
   hint?: string;
 }
 
-interface Point {
-  x: number;
-  y: number;
-}
-
-interface InkBounds {
-  minX: number;
-  minY: number;
-  maxX: number;
-  maxY: number;
-}
-
-const STROKE_COLOR = '#0f172a';
 const STROKE_WIDTH = { normal: 2.4, large: 3.2 };
 /** Ignore accidental taps: a signature needs at least this many points. */
 const MIN_POINTS = 12;
-/** Margin kept around the strokes when exporting, in CSS pixels. */
-const EXPORT_MARGIN = 12;
-/** Exported images are scaled down to fit this box (the API rejects oversized signatures). */
-const EXPORT_MAX = { width: 1600, height: 700 };
 
 /**
  * Canvas signature pad using pointer events (mouse, touch and pen), sharp on high-DPI screens.
@@ -53,6 +37,8 @@ export const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(fu
   const previousMidpoint = useRef<Point | null>(null);
   const pointCount = useRef(0);
   const bounds = useRef<InkBounds | null>(null);
+  /** Every stroke as the list of points sampled, kept to redraw the signature at export. */
+  const strokes = useRef<Point[][]>([]);
   const [hasInk, setHasInk] = useState(false);
   const strokeWidth = STROKE_WIDTH[size];
 
@@ -61,6 +47,7 @@ export const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(fu
   const resetInk = useCallback(() => {
     pointCount.current = 0;
     bounds.current = null;
+    strokes.current = [];
     setHasInk(false);
     onChange(false);
   }, [onChange]);
@@ -107,7 +94,7 @@ export const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(fu
   useImperativeHandle(ref, () => ({
     clear,
     isEmpty: () => !hasInk,
-    toBlob: () => exportCropped(canvasRef.current, bounds.current, strokeWidth),
+    toBlob: () => exportStrokes(strokes.current, bounds.current),
   }));
 
   function pointFrom(event: PointerEvent<HTMLCanvasElement>): Point {
@@ -143,6 +130,7 @@ export const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(fu
     drawing.current = true;
     previousPoint.current = point;
     previousMidpoint.current = point;
+    strokes.current.push([point]);
 
     // A dot, so a tap still leaves a visible mark (i, accents).
     const context = getContext();
@@ -171,6 +159,7 @@ export const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(fu
       context.stroke();
       previousPoint.current = point;
       previousMidpoint.current = midpoint;
+      strokes.current.at(-1)?.push(point);
       registerPoint(point);
     }
   }
@@ -203,29 +192,3 @@ export const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(fu
     </div>
   );
 });
-
-/** Copies only the inked area (in device pixels) to a new canvas and encodes it as PNG. */
-function exportCropped(canvas: HTMLCanvasElement | null, ink: InkBounds | null, strokeWidth: number): Promise<Blob | null> {
-  if (!canvas || !ink) return Promise.resolve(null);
-
-  const ratio = canvas.width / canvas.getBoundingClientRect().width || 1;
-  const margin = EXPORT_MARGIN + strokeWidth;
-  const left = Math.max(0, Math.floor((ink.minX - margin) * ratio));
-  const top = Math.max(0, Math.floor((ink.minY - margin) * ratio));
-  const right = Math.min(canvas.width, Math.ceil((ink.maxX + margin) * ratio));
-  const bottom = Math.min(canvas.height, Math.ceil((ink.maxY + margin) * ratio));
-  const width = right - left;
-  const height = bottom - top;
-  if (width <= 0 || height <= 0) return Promise.resolve(null);
-
-  const scale = Math.min(1, EXPORT_MAX.width / width, EXPORT_MAX.height / height);
-  const output = document.createElement('canvas');
-  output.width = Math.round(width * scale);
-  output.height = Math.round(height * scale);
-  const context = output.getContext('2d');
-  if (context) {
-    context.imageSmoothingQuality = 'high';
-    context.drawImage(canvas, left, top, width, height, 0, 0, output.width, output.height);
-  }
-  return new Promise((resolve) => output.toBlob((blob) => resolve(blob), 'image/png'));
-}

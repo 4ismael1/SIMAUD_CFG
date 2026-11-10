@@ -12,6 +12,8 @@ import { DocumentView } from '../contracts/components/DocumentView';
 import { SIGNATORY_ROLE_LABELS } from '../contracts/components/SignatoriesPanel';
 import { SignaturePad, type SignaturePadHandle } from './SignaturePad';
 import { SignatureFullscreen } from './SignatureFullscreen';
+import { SignaturePreviewDialog } from './SignaturePreviewDialog';
+import { signatureSlotFor } from './signature-slot';
 import { TypedSignature, type TypedSignatureValue } from './TypedSignature';
 import { DEFAULT_SIGNATURE_STYLE, renderTypedSignature, styleById } from './signature-styles';
 import { useDeleteSignatureStyle, useSaveSignatureStyle, useSignatureStyle } from '../../lib/api/hooks/signature-style';
@@ -46,6 +48,8 @@ export function SignContractPage() {
   const [fullscreenOpen, setFullscreenOpen] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+  /** The exact image that will be sent, shown in its box before confirming. */
+  const [review, setReview] = useState<{ blob: Blob; url: string } | null>(null);
 
   const handlePadChange = useCallback((hasInk: boolean) => setHasDrawing(hasInk), []);
 
@@ -66,6 +70,10 @@ export function SignContractPage() {
   useEffect(() => () => {
     if (captured) URL.revokeObjectURL(captured.url);
   }, [captured]);
+
+  useEffect(() => () => {
+    if (review) URL.revokeObjectURL(review.url);
+  }, [review]);
 
   if (contract.isPending) return <Skeleton className="m-6 h-[70dvh] animate-fade-in rounded-xl" />;
   if (contract.isError) {
@@ -121,11 +129,17 @@ export function SignContractPage() {
     mode === 'type' ? typedValue.text.trim().length > 0 : mode === 'draw' ? Boolean(captured) || hasDrawing : Boolean(uploaded);
   const canSubmit = readToEnd && accepted && hasSignature && !sign.isPending;
 
-  async function handleSign() {
+  async function handleReview() {
     let signature: Blob | null | undefined;
     if (mode === 'type') signature = await renderTypedSignature(typedValue.text, styleById(typedValue.styleId));
     else if (mode === 'draw') signature = captured?.blob ?? (await padRef.current?.toBlob());
     else signature = uploaded?.blob;
+    if (!signature) return;
+    setReview({ blob: signature, url: URL.createObjectURL(signature) });
+  }
+
+  async function handleSign() {
+    const signature = review?.blob;
     if (!signature) return;
     try {
       await sign.mutateAsync({
@@ -139,6 +153,7 @@ export function SignContractPage() {
       if (mode === 'type' && rememberTyped && !usingSavedStyle) {
         saveStyle.mutate({ text: typedValue.text.trim(), fontId: typedValue.styleId });
       }
+      setReview(null);
       setDone(true);
     } catch (error) {
       toast.error(errorMessage(error, 'No se pudo registrar la firma.'));
@@ -266,9 +281,19 @@ export function SignContractPage() {
             />
           </div>
           {!readToEnd && <Alert tone="info">Lee el documento hasta el final para habilitar la firma.</Alert>}
-          <Button variant="primary" size="lg" block icon={<PenLine />} loading={sign.isPending} disabled={!canSubmit} onClick={() => void handleSign()}>
-            Firmar contrato
+          <Button variant="primary" size="lg" block icon={<PenLine />} disabled={!canSubmit} onClick={() => void handleReview()}>
+            Revisar y firmar
           </Button>
+          <SignaturePreviewDialog
+            open={review !== null}
+            imageUrl={review?.url ?? null}
+            name={mySignatory.name}
+            cedula={mySignatory.cedula}
+            slot={signatureSlotFor(data.generatedContent, mySignatory.signingOrder)}
+            signing={sign.isPending}
+            onChange={() => setReview(null)}
+            onConfirm={() => void handleSign()}
+          />
           <p className="flex items-start gap-1.5 text-xs text-slate-500">
             <ShieldCheck className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
             Se registrarán la fecha, la hora, tu IP y tu dispositivo junto con la versión exacta del documento.
