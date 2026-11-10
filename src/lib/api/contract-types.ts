@@ -194,4 +194,7 @@ export interface SignatureInput {
   signature: Blob;
   acceptedDeclaration: true;
   viewedAt: string;
+  /** How the signature was made (T10 evidence); fontId only for typed signatures. */
+  method: "typed" | "drawn" | "uploaded";
+  fontId?: string;
 }

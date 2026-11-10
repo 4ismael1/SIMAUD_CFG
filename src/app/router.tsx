@@ -45,6 +45,8 @@ const app = {
 
 export const router = createBrowserRouter([
   { path: '/', lazy: page(() => import('../features/landing/LandingPage'), (m) => m.LandingPage), errorElement: <RouteError /> },
+  // Public: anyone can check a signed contract (the QR on the certificate opens /verificar/<code>).
+  { path: '/verificar/:code?', lazy: page(() => import('../features/verify/VerifyPage'), (m) => m.VerifyPage), errorElement: <RouteError /> },
   {
     path: '/auth',
     errorElement: <RouteError />,

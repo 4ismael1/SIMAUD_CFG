@@ -128,7 +128,13 @@ export function SignContractPage() {
     else signature = uploaded?.blob;
     if (!signature) return;
     try {
-      await sign.mutateAsync({ signature, acceptedDeclaration: true, viewedAt });
+      await sign.mutateAsync({
+        signature,
+        acceptedDeclaration: true,
+        viewedAt,
+        method: mode === 'type' ? 'typed' : mode === 'draw' ? 'drawn' : 'uploaded',
+        fontId: mode === 'type' ? styleById(typedValue.styleId).id : undefined,
+      });
       // Only typed signatures are remembered; a failure here must not undo a valid signature.
       if (mode === 'type' && rememberTyped && !usingSavedStyle) {
         saveStyle.mutate({ text: typedValue.text.trim(), fontId: typedValue.styleId });

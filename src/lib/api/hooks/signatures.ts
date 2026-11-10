@@ -28,6 +28,8 @@ export function useSignContract(id: string) {
       formData.set("signature", input.signature, "firma.png");
       formData.set("acceptedDeclaration", String(input.acceptedDeclaration));
       formData.set("viewedAt", input.viewedAt);
+      formData.set("method", input.method);
+      if (input.method === "typed" && input.fontId) formData.set("fontId", input.fontId);
       return apiFetch<MessageResponse>("/contracts/" + id + "/sign", {
         method: "POST",
         formData,
