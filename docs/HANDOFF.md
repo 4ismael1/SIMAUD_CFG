@@ -7,7 +7,7 @@ Rama `feat/backend-propio-y-nueva-ui`. Commits de esta sesión: `aaba3ad` (fix /
 `dcdc549`/`a5f4fce`/`9d79f28` (docs: plan premium, rich-v2, T14), **`4036335` editor premium fase 1**.
 
 ### ⚡⚡⚡ ESTADO 10 nov ~15:00 — LEER ESTO PRIMERO (cambio de cuenta)
-**Sin commitear en `api/`: trabajo de Codex T15 + T16 (NO descartar).** T15 terminó su código e informe
+**Sin commitear en `api/`: trabajo de Codex T15 + T16 (NO descartar).** **T16 además modificó archivos del front** (`src/features/reports/*`, `src/features/dashboard/AdminDashboardExtras.tsx`, `src/ui/bar-charts.tsx`, `src/lib/format.ts` + test: importes exactos como string, H11) y `docs/PRINCIPIOS.md` (regla de autoaprobación): revisar ese diff antes de commitear (front = Claude). T15 terminó su código e informe
 (`docs/tasks/T15-plantillas-premium-pdf.REPORT.md`, ya en disco sin commitear). T16 estaba pasando su suite completa
 (60 casos OK, 0 fallos a las 14:53) sobre el árbol con T15+T16; su informe saldrá en `docs/tasks/T16-correcciones-auditoria.REPORT.md`.
 Al retomar:
