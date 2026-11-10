@@ -191,7 +191,10 @@ export function validateSignatoriesStep(draft: WizardDraft, variables: Variable[
       seenEmails.set(email.value, index);
     }
 
-    if (signatory.cedula.trim()) {
+    // The cédula is the signer's legal identity: always required on a contract.
+    if (!signatory.cedula.trim()) {
+      errors[`${prefix}cedula`] = 'La cédula es obligatoria.';
+    } else {
       const cedula = validateCedula(signatory.cedula);
       if (!cedula.ok) {
         errors[`${prefix}cedula`] = cedula.message;

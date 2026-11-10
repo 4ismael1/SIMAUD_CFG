@@ -306,7 +306,7 @@ function SignatoryCard({
       </div>
 
       <div className="grid gap-x-4 gap-y-3 p-4 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,1.2fr)_minmax(0,0.9fr)]">
-        <Field label="Cédula" optional error={errors[`${prefix}cedula`]}>
+        <Field label="Cédula" error={errors[`${prefix}cedula`]}>
           <Input
             inputMode="numeric"
             className="font-mono"
