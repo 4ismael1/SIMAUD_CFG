@@ -1,9 +1,12 @@
 import { useState, type FormEvent } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, KeyRound, Mail, TriangleAlert } from 'lucide-react';
+import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
+import { ArrowLeft, KeyRound, Mail, ShieldCheck, TriangleAlert } from 'lucide-react';
 import { Alert, Button, ButtonLink, Field, Input } from '../../ui';
 import { useForgotPassword, useResetPassword } from '../../lib/api/hooks/auth';
 import { errorMessage } from '../../lib/errors';
+import { apiFetch } from '../../lib/api/client';
+import { useAuth } from '../../lib/auth';
+import { homePathFor } from '../../app/navigation';
 import { AuthCardLayout } from './AuthLayout';
 import { PasswordInput, PasswordStrength, isStrongEnough } from './PasswordInput';
 import { useCooldown } from './useCooldown';
@@ -145,6 +148,86 @@ export function ResetPasswordPage() {
         <Button type="submit" variant="primary" size="lg" block loading={reset.isPending} disabled={!canSubmit}>
           Guardar contraseña
         </Button>
+      </form>
+    </AuthCardLayout>
+  );
+}
+
+/**
+ * /auth/cambiar-clave — accounts created with a temporary password (the first administrator)
+ * must replace it before the API allows anything else.
+ */
+export function ForcePasswordChangePage() {
+  const navigate = useNavigate();
+  const { status, user, logout, completePasswordChange } = useAuth();
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmation, setConfirmation] = useState('');
+  const [submitted, setSubmitted] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<unknown>(null);
+
+  if (status === 'loading') return null;
+  if (status === 'anonymous' || !user) return <Navigate to="/auth/login" replace />;
+  if (!user.mustChangePassword) return <Navigate to={homePathFor(user.role)} replace />;
+
+  const mismatch = confirmation.length > 0 && confirmation !== password;
+  const reused = password.length > 0 && password === currentPassword;
+  const canSubmit = currentPassword.length > 0 && isStrongEnough(password) && password === confirmation && !reused;
+
+  async function handleSubmit(event: FormEvent) {
+    event.preventDefault();
+    setSubmitted(true);
+    if (!canSubmit || !user) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await apiFetch('/me/password', { method: 'PATCH', body: { currentPassword, newPassword: password } });
+      completePasswordChange();
+      navigate(homePathFor(user.role), { replace: true });
+    } catch (changeError) {
+      setError(changeError);
+      setSaving(false);
+    }
+  }
+
+  async function handleLogout() {
+    await logout();
+    navigate('/auth/login', { replace: true });
+  }
+
+  return (
+    <AuthCardLayout>
+      <form className="flex flex-col gap-5" onSubmit={handleSubmit} noValidate>
+        <IconBadge>
+          <ShieldCheck aria-hidden="true" />
+        </IconBadge>
+        <div className="flex flex-col gap-1.5">
+          <h1 className="text-2xl font-semibold">Cambia tu contraseña temporal</h1>
+          <p className="text-slate-500">
+            Hola, {user.name.split(' ')[0]}. Por seguridad, elige una contraseña propia antes de entrar. Solo tú la conocerás.
+          </p>
+        </div>
+        {error !== null && <Alert tone="danger">{errorMessage(error)}</Alert>}
+        <Field label="Contraseña temporal" error={submitted && !currentPassword ? 'Escribe la contraseña que te dieron.' : null}>
+          <PasswordInput autoComplete="current-password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} autoFocus />
+        </Field>
+        <Field
+          label="Contraseña nueva"
+          error={reused ? 'Debe ser distinta de la temporal.' : submitted && !isStrongEnough(password) ? 'La contraseña no cumple los requisitos.' : null}
+        >
+          <PasswordInput autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} />
+        </Field>
+        {password && <PasswordStrength password={password} />}
+        <Field label="Confirmar contraseña" error={mismatch ? 'Las contraseñas no coinciden.' : null}>
+          <PasswordInput autoComplete="new-password" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} />
+        </Field>
+        <Button type="submit" variant="primary" size="lg" block loading={saving} disabled={!canSubmit}>
+          Guardar y entrar
+        </Button>
+        <button type="button" onClick={() => void handleLogout()} className="text-sm font-medium text-slate-500 hover:text-slate-900">
+          Cerrar sesión
+        </button>
       </form>
     </AuthCardLayout>
   );

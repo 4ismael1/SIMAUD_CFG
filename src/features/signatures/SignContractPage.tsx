@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Check, CircleCheck, Download, PenLine, ShieldCheck, Undo2, Upload, X } from 'lucide-react';
+import { Check, CircleCheck, Download, Maximize2, PenLine, ShieldCheck, Undo2, Upload, X } from 'lucide-react';
 import { Alert, Button, ButtonLink, Checkbox, EmptyState, Logo, Segmented, Skeleton, useToast } from '../../ui';
 import { useContract } from '../../lib/api/hooks/contracts';
 import { useSignContract } from '../../lib/api/hooks/signatures';
@@ -11,6 +11,7 @@ import { formatDate } from '../../lib/format';
 import { DocumentView } from '../contracts/components/DocumentView';
 import { SIGNATORY_ROLE_LABELS } from '../contracts/components/SignatoriesPanel';
 import { SignaturePad, type SignaturePadHandle } from './SignaturePad';
+import { SignatureFullscreen } from './SignatureFullscreen';
 
 const MAX_UPLOAD_BYTES = 500 * 1024;
 
@@ -31,6 +32,9 @@ export function SignContractPage() {
   const [mode, setMode] = useState<Mode>('draw');
   const [hasDrawing, setHasDrawing] = useState(false);
   const [uploaded, setUploaded] = useState<{ blob: Blob; url: string } | null>(null);
+  /** Signature drawn in the full-screen pad; replaces the inline pad until discarded. */
+  const [captured, setCaptured] = useState<{ blob: Blob; url: string } | null>(null);
+  const [fullscreenOpen, setFullscreenOpen] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
 
@@ -49,6 +53,10 @@ export function SignContractPage() {
   useEffect(() => () => {
     if (uploaded) URL.revokeObjectURL(uploaded.url);
   }, [uploaded]);
+
+  useEffect(() => () => {
+    if (captured) URL.revokeObjectURL(captured.url);
+  }, [captured]);
 
   if (contract.isPending) return <Skeleton className="m-6 h-[70dvh] rounded-xl" />;
   if (contract.isError) {
@@ -87,11 +95,17 @@ export function SignContractPage() {
     setUploaded({ blob: file, url: URL.createObjectURL(file) });
   }
 
-  const hasSignature = mode === 'draw' ? hasDrawing : Boolean(uploaded);
+  function handleFullscreenAccept(blob: Blob) {
+    setCaptured({ blob, url: URL.createObjectURL(blob) });
+    setFullscreenOpen(false);
+  }
+
+  const hasSignature = mode === 'draw' ? Boolean(captured) || hasDrawing : Boolean(uploaded);
   const canSubmit = readToEnd && accepted && hasSignature && !sign.isPending;
 
   async function handleSign() {
-    const signature = mode === 'draw' ? await padRef.current?.toBlob() : uploaded?.blob;
+    const drawn = captured?.blob ?? (await padRef.current?.toBlob());
+    const signature = mode === 'draw' ? drawn : uploaded?.blob;
     if (!signature) return;
     try {
       await sign.mutateAsync({ signature, acceptedDeclaration: true, viewedAt });
@@ -152,13 +166,41 @@ export function SignContractPage() {
                   { value: 'upload', label: <><Upload aria-hidden="true" />Subir imagen</> },
                 ]}
               />
-              {mode === 'draw' && hasDrawing && (
-                <Button size="sm" variant="ghost" icon={<Undo2 />} onClick={() => padRef.current?.clear()}>Borrar</Button>
+              {mode === 'draw' && (
+                <div className="flex items-center gap-1">
+                  {(hasDrawing || captured) && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      icon={<Undo2 />}
+                      onClick={() => (captured ? setCaptured(null) : padRef.current?.clear())}
+                    >
+                      Borrar
+                    </Button>
+                  )}
+                  <Button size="sm" icon={<Maximize2 />} onClick={() => setFullscreenOpen(true)}>
+                    Ampliar
+                  </Button>
+                </div>
               )}
             </div>
-            {mode === 'draw' ? (
+            {mode === 'draw' && captured && (
+              <div className="flex h-48 flex-col items-center justify-center gap-2 rounded-xl border-[1.5px] border-slate-200 bg-white sm:h-52">
+                <img src={captured.url} alt={`Firma de ${mySignatory.name}`} className="max-h-32 max-w-[85%] object-contain" />
+                <button type="button" onClick={() => setFullscreenOpen(true)} className="text-xs font-medium text-vino-600 hover:text-vino-700">
+                  Volver a firmar
+                </button>
+              </div>
+            )}
+            {mode === 'draw' && !captured && (
               <SignaturePad ref={padRef} onChange={handlePadChange} label={`Área de firma de ${mySignatory.name}`} />
-            ) : (
+            )}
+            {mode === 'draw' && !captured && (
+              <p className="text-xs text-slate-500">
+                ¿Poco espacio? Pulsa <b className="font-medium text-slate-700">Ampliar</b> para firmar a pantalla completa.
+              </p>
+            )}
+            {mode === 'upload' && (
               <div className="flex flex-col gap-2">
                 <label className="flex h-48 cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-[1.5px] border-dashed border-slate-300 bg-white text-sm text-slate-500 hover:bg-slate-50">
                   {uploaded ? <img src={uploaded.url} alt="Vista previa de la firma" className="max-h-36 max-w-[90%] object-contain" /> : <><Upload className="size-6" aria-hidden="true" />Elegir imagen PNG (máx. 500 KB)</>}
@@ -167,6 +209,12 @@ export function SignContractPage() {
                 {uploadError && <p className="text-xs text-red-600" role="alert">{uploadError}</p>}
               </div>
             )}
+            <SignatureFullscreen
+              open={fullscreenOpen}
+              signerName={mySignatory.name}
+              onClose={() => setFullscreenOpen(false)}
+              onAccept={handleFullscreenAccept}
+            />
           </div>
           {!readToEnd && <Alert tone="info">Lee el documento hasta el final para habilitar la firma.</Alert>}
           <Button variant="primary" size="lg" block icon={<PenLine />} loading={sign.isPending} disabled={!canSubmit} onClick={() => void handleSign()}>

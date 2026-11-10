@@ -50,6 +50,8 @@ export interface User {
   lastLoginAt: string | null;
   createdAt: string;
   updatedAt: string;
+  /** True for accounts created with a temporary password (first admin); every other action is blocked until changed. */
+  mustChangePassword?: boolean;
 }
 export interface ProfileInput {
   name: string;

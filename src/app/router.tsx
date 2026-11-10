@@ -12,9 +12,11 @@ const VerifyEmailPage = lazy(() => import('../features/auth/EmailPages').then((m
 const ConfirmEmailPage = lazy(() => import('../features/auth/EmailPages').then((m) => ({ default: m.ConfirmEmailPage })));
 const ForgotPasswordPage = lazy(() => import('../features/auth/PasswordPages').then((m) => ({ default: m.ForgotPasswordPage })));
 const ResetPasswordPage = lazy(() => import('../features/auth/PasswordPages').then((m) => ({ default: m.ResetPasswordPage })));
+const ForcePasswordChangePage = lazy(() => import('../features/auth/PasswordPages').then((m) => ({ default: m.ForcePasswordChangePage })));
 const DashboardPage = lazy(() => import('../features/dashboard/DashboardPage').then((m) => ({ default: m.DashboardPage })));
 const ContractsListPage = lazy(() => import('../features/contracts/ContractsListPage').then((m) => ({ default: m.ContractsListPage })));
 const SignContractPage = lazy(() => import('../features/signatures/SignContractPage').then((m) => ({ default: m.SignContractPage })));
+const ContractWizardPage = lazy(() => import('../features/contracts/wizard/ContractWizardPage').then((m) => ({ default: m.ContractWizardPage })));
 const ContractDetailPage = lazy(() => import('../features/contracts/ContractDetailPage').then((m) => ({ default: m.ContractDetailPage })));
 
 export const router = createBrowserRouter([
@@ -26,6 +28,7 @@ export const router = createBrowserRouter([
       // Links sent by email must keep working even when the user is signed in.
       { path: 'confirmar', element: <ConfirmEmailPage /> },
       { path: 'restablecer', element: <ResetPasswordPage /> },
+      { path: 'cambiar-clave', element: <ForcePasswordChangePage /> },
       {
         element: <PublicOnlyRoute />,
         children: [
@@ -61,7 +64,11 @@ export const router = createBrowserRouter([
           { path: 'contratos/:id', element: <ContractDetailPage /> },
           {
             element: <RoleRoute roles={['admin', 'supervisor', 'gestor']} />,
-            children: [{ path: 'contratos', element: <ContractsListPage /> }],
+            children: [
+              { path: 'contratos', element: <ContractsListPage /> },
+              { path: 'contratos/nuevo', element: <ContractWizardPage /> },
+              { path: 'contratos/:id/editar', element: <ContractWizardPage /> },
+            ],
           },
           { path: '*', element: <NotFoundPage /> },
         ],

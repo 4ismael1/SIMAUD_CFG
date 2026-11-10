@@ -1,0 +1,35 @@
+# T10 — Firma electrónica certificada, evidencia y verificación pública
+
+**Asignado a:** Codex · **Revisa:** Claude · **Depende de:** T09b terminado (toca los mismos archivos de contratos/PDF).
+Alcance: `api/src/modules/contracts/**` (firmas, PDF, auditoría), `api/src/modules/verify/**` (nuevo), `api/src/lib/crypto/**` (nuevo), `api/src/lib/pdf*`, `api/src/db/schema.ts` + migración nueva, `api/src/config/env.ts`, `api/src/app.ts` (registrar rutas), `api/src/db/` (script de certificado), `api/test/**`, `deploy/**` y `docs/DEPLOY.md` (gestión de la clave), `docs/tasks/T10*`.
+**No toques** `src/**` (el front lo hace Claude). Lee `docs/CODE_STANDARDS.md`, `docs/tasks/T07-auditoria-seguridad.REPORT.md` y los informes T09a/T09b.
+Marco legal de referencia: Ley 126-02 (RD) — firma electrónica con evidencia de identidad, integridad e intención. No afirmes en textos que es «firma digital cualificada» salvo que se use un certificado de una entidad acreditada (INDOTEL); usa «firma electrónica con sellado del sistema».
+
+## 1. Evidencia por firma (no repudio)
+En la transacción de firmar (ya existe), guardar en `contract_signatories` / tabla `signature_evidence`:
+- `documentSha256`: SHA-256 del texto canónico de la versión exacta que se leyó (define la canonicalización: UTF-8, saltos `\n`, sin espacios finales) + `contractVersion`.
+- `signatureImageSha256` de la imagen recodificada (tras T09b).
+- `signedAt` del servidor (no del cliente), IP real (TRUST_PROXY), user agent, `viewedAt`, `acceptedDeclarationAt`, texto exacto de la declaración aceptada (o su hash + versión del texto), id de sesión (`sid`), método de autenticación.
+- `evidenceHash` = SHA-256 de un JSON canónico (claves ordenadas) con todo lo anterior + `previousEvidenceHash` del firmante anterior del mismo contrato → **cadena de hashes** por contrato.
+- Si el contrato cambia de versión después de alguna firma, las firmas previas quedan ligadas a su versión (ya es la regla; añade test).
+
+## 2. Auditoría a prueba de manipulación
+`contract_audit_logs` gana `entryHash` y `previousHash` (cadena por contrato, calculada en la misma transacción con bloqueo del contrato). Función `verifyAuditChain(contractId)` que recalcula y detecta huecos o alteraciones. Migración que calcule la cadena para los registros existentes. Permisos: las filas siguen sin poder editarse desde la API.
+
+## 3. Sello del sistema y PDF firmado
+- **Clave de firma del sistema**: par de claves (Ed25519 o ECDSA P-256) + certificado X.509 autofirmado de la institución para staging, generado con un script `src/db/generate-signing-key.ts` (o `openssl` documentado). Rutas por env: `SIGNING_KEY_PATH`, `SIGNING_CERT_PATH` (+ passphrase opcional `SIGNING_KEY_PASSPHRASE`). Nunca en la BD ni en git; montado como secreto en Docker. Preparado para sustituirlo por un certificado de una CA acreditada sin cambiar código.
+- Al activarse el contrato (última firma) se genera el **PDF final** que incluye una **página de constancia**: datos del contrato, versión y `documentSha256`, tabla de firmantes (nombre, cédula enmascarada `***-***1234-5`, rol, fecha/hora con zona America/Santo_Domingo, IP enmascarada parcialmente, `evidenceHash` abreviado), **código de verificación** corto legible (p. ej. `SIM-7K4Q-9XW2`, aleatorio, único, guardado) y **código QR** a `APP_URL/verificar/<código>` (genera el QR sin dependencias nuevas si es posible; si hace falta una, elige una pequeña sin dependencias nativas, justifícala y avisa — Claude la instala, no tienes red).
+- **Firma PDF incrustada (PAdES-B básica)**: firma del PDF final con la clave del sistema (si `pdfkit`/`pdfmake` no lo permiten, implementa la firma detached CMS/PKCS#7 sobre el `ByteRange` o usa una librería pura JS; evalúa `@signpdf/signpdf` + `node-forge` — indica cuál y por qué; Claude la instala). Si la incrustación resulta inviable sin dependencias nativas, como mínimo: guardar `finalPdfSha256` y una firma Ed25519 detached de ese hash (`systemSignature`), verificable por la API, y documentar la limitación.
+- `finalPdfSha256` guardado; el PDF final es inmutable (si se regenera por error debe dar el mismo hash o fallar).
+
+## 4. Verificación pública
+- `GET /api/v1/verify/:code` (público, con rate limit estricto por IP): devuelve solo datos mínimos: estado (válido / revocado / no encontrado), título del contrato, código, fecha de activación, número de firmantes con nombre parcialmente oculto y fecha de cada firma, `documentSha256`, `finalPdfSha256`, resultado de `verifyAuditChain` y de la cadena de evidencias. Nunca el contenido del contrato, cédulas completas, correos ni IPs.
+- `POST /api/v1/verify/file` (público, rate limit, límite de tamaño = PDF máx. 15 MB, solo `application/pdf` comprobado por magic bytes): calcula SHA-256 del PDF subido y responde si coincide con algún `finalPdfSha256` (y de qué código) y si la firma del sistema es válida. No guarda el archivo.
+- Si un contrato se cancela/anula después de activo, la verificación muestra «revocado» con fecha (sin motivo detallado).
+
+## 5. Tests
+Cadena de evidencias y de auditoría (alterar una fila → `verifyAuditChain` falla), hash del documento estable ante saltos de línea Windows, verificación por código (válido, no encontrado, revocado), por archivo (PDF original coincide; PDF con un byte cambiado no), firma del sistema válida/ inválida, rate limit, ausencia de datos sensibles en respuestas públicas, sin clave configurada → error claro al arrancar en producción.
+Verificación: `npm run format && npm run format:check && npm run typecheck && npm test && npm audit`.
+
+## Informe
+`docs/tasks/T10-firma-certificada.REPORT.md`: diseño criptográfico (qué se firma, con qué, cómo se verifica), canonicalización, dependencias propuestas, variables nuevas, cómo rotar la clave, contrato de API para la página `/verificar` del front, limitaciones legales/técnicas. No hagas git commit. No imprimas secretos.

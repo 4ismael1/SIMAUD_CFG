@@ -15,12 +15,14 @@ function FullPageSpinner() {
 
 /** Only for signed-in users; others go to the login page and come back afterwards. */
 export function ProtectedRoute() {
-  const { status } = useAuth();
+  const { status, user } = useAuth();
   const location = useLocation();
   if (status === 'loading') return <FullPageSpinner />;
   if (status === 'anonymous') {
     return <Navigate to="/auth/login" replace state={{ from: location.pathname + location.search }} />;
   }
+  // The API rejects everything until a temporary password is replaced, so send the user straight there.
+  if (user?.mustChangePassword) return <Navigate to="/auth/cambiar-clave" replace />;
   return <Outlet />;
 }
 
@@ -28,7 +30,9 @@ export function ProtectedRoute() {
 export function PublicOnlyRoute() {
   const { status, user } = useAuth();
   if (status === 'loading') return <FullPageSpinner />;
-  if (status === 'authenticated' && user) return <Navigate to={homePathFor(user.role)} replace />;
+  if (status === 'authenticated' && user) {
+    return <Navigate to={user.mustChangePassword ? '/auth/cambiar-clave' : homePathFor(user.role)} replace />;
+  }
   return <Outlet />;
 }
 

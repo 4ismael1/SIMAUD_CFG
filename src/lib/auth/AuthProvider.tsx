@@ -23,6 +23,8 @@ export interface AuthContextValue extends AuthState {
   logout: () => Promise<void>;
   register: (input: RegisterInput) => Promise<RegisterResponse>;
   hasRole: (...roles: Role[]) => boolean;
+  /** Clears the temporary-password flag after a successful PATCH /me/password. */
+  completePasswordChange: () => void;
 }
 const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -41,6 +43,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(null);
     }
   }, [setUser]);
+  const completePasswordChange = useCallback(() => {
+    if (user) setUser({ ...user, mustChangePassword: false });
+  }, [user, setUser]);
   const value = useMemo<AuthContextValue>(
     () => ({
       status,
@@ -49,8 +54,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       logout,
       register: registerRequest,
       hasRole: (...roles) => Boolean(user && roles.includes(user.role)),
+      completePasswordChange,
     }),
-    [status, user, login, logout],
+    [status, user, login, logout, completePasswordChange],
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

@@ -34,7 +34,8 @@ export interface ContractInput {
   templateId: string;
   title: string;
   variables: VariableValues;
-  value: number;
+  /** Decimal string (preferred, exact) or number; the API normalizes it. */
+  value: number | string;
   startDate: string;
   endDate: string;
   notes?: string | null;

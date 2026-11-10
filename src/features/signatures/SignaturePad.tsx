@@ -1,30 +1,69 @@
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState, type PointerEvent } from 'react';
+import { cn } from '../../ui';
 
 export interface SignaturePadHandle {
   clear: () => void;
   isEmpty: () => boolean;
+  /** PNG cropped to the drawn strokes (plus a small margin), or null when empty. */
   toBlob: () => Promise<Blob | null>;
 }
 
 interface SignaturePadProps {
   onChange: (hasInk: boolean) => void;
   label: string;
+  /** Classes for the outer box; controls the size (defaults to the inline height). */
+  className?: string;
+  /** Thicker stroke for the large full-screen pad. */
+  size?: 'normal' | 'large';
+  hint?: string;
+}
+
+interface Point {
+  x: number;
+  y: number;
+}
+
+interface InkBounds {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
 }
 
 const STROKE_COLOR = '#0f172a';
-const STROKE_WIDTH = 2.4;
+const STROKE_WIDTH = { normal: 2.4, large: 3.2 };
 /** Ignore accidental taps: a signature needs at least this many points. */
 const MIN_POINTS = 12;
+/** Margin kept around the strokes when exporting, in CSS pixels. */
+const EXPORT_MARGIN = 12;
+/** Exported images are scaled down to fit this box (the API rejects oversized signatures). */
+const EXPORT_MAX = { width: 1600, height: 700 };
 
-/** Canvas signature pad using pointer events (mouse, touch and pen), sharp on high-DPI screens. */
-export const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(function SignaturePad({ onChange, label }, ref) {
+/**
+ * Canvas signature pad using pointer events (mouse, touch and pen), sharp on high-DPI screens.
+ * Strokes are smoothed with quadratic curves through the midpoints of consecutive samples.
+ */
+export const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(function SignaturePad(
+  { onChange, label, className, size = 'normal', hint = 'Firma dentro del recuadro con el ratón, el lápiz o el dedo' },
+  ref,
+) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const drawing = useRef(false);
-  const lastPoint = useRef<{ x: number; y: number } | null>(null);
+  const previousPoint = useRef<Point | null>(null);
+  const previousMidpoint = useRef<Point | null>(null);
   const pointCount = useRef(0);
+  const bounds = useRef<InkBounds | null>(null);
   const [hasInk, setHasInk] = useState(false);
+  const strokeWidth = STROKE_WIDTH[size];
 
-  const context = useCallback(() => canvasRef.current?.getContext('2d') ?? null, []);
+  const getContext = useCallback(() => canvasRef.current?.getContext('2d') ?? null, []);
+
+  const resetInk = useCallback(() => {
+    pointCount.current = 0;
+    bounds.current = null;
+    setHasInk(false);
+    onChange(false);
+  }, [onChange]);
 
   const resize = useCallback(() => {
     const canvas = canvasRef.current;
@@ -33,67 +72,63 @@ export const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(fu
     const { width, height } = canvas.getBoundingClientRect();
     canvas.width = Math.round(width * ratio);
     canvas.height = Math.round(height * ratio);
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    ctx.scale(ratio, ratio);
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    ctx.strokeStyle = STROKE_COLOR;
-    ctx.lineWidth = STROKE_WIDTH;
-  }, []);
+    const context = canvas.getContext('2d');
+    if (!context) return;
+    context.scale(ratio, ratio);
+    context.lineCap = 'round';
+    context.lineJoin = 'round';
+    context.strokeStyle = STROKE_COLOR;
+    context.fillStyle = STROKE_COLOR;
+    context.lineWidth = strokeWidth;
+  }, [strokeWidth]);
 
   const clear = useCallback(() => {
     const canvas = canvasRef.current;
-    const ctx = context();
-    if (!canvas || !ctx) return;
-    ctx.save();
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.restore();
-    pointCount.current = 0;
-    setHasInk(false);
-    onChange(false);
-  }, [context, onChange]);
+    const context = getContext();
+    if (!canvas || !context) return;
+    context.save();
+    context.setTransform(1, 0, 0, 1, 0, 0);
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    context.restore();
+    resetInk();
+  }, [getContext, resetInk]);
 
   useEffect(() => {
     resize();
-    // Resizing wipes the canvas, so it also clears the signature (the user is told to sign again).
+    // Resizing wipes the canvas, so it also clears the signature (the user simply signs again).
     const observer = new ResizeObserver(() => {
       resize();
-      pointCount.current = 0;
-      setHasInk(false);
-      onChange(false);
+      resetInk();
     });
     if (canvasRef.current) observer.observe(canvasRef.current);
     return () => observer.disconnect();
-  }, [resize, onChange]);
+  }, [resize, resetInk]);
 
   useImperativeHandle(ref, () => ({
     clear,
     isEmpty: () => !hasInk,
-    toBlob: () => new Promise((resolve) => canvasRef.current?.toBlob((blob) => resolve(blob), 'image/png') ?? resolve(null)),
+    toBlob: () => exportCropped(canvasRef.current, bounds.current, strokeWidth),
   }));
 
-  function pointFrom(event: React.PointerEvent<HTMLCanvasElement>) {
+  function pointFrom(event: PointerEvent<HTMLCanvasElement>): Point {
     const rect = event.currentTarget.getBoundingClientRect();
     return { x: event.clientX - rect.left, y: event.clientY - rect.top };
   }
 
-  function handlePointerDown(event: React.PointerEvent<HTMLCanvasElement>) {
-    event.currentTarget.setPointerCapture(event.pointerId);
-    drawing.current = true;
-    lastPoint.current = pointFrom(event);
+  function extendBounds(point: Point) {
+    const current = bounds.current;
+    bounds.current = current
+      ? {
+          minX: Math.min(current.minX, point.x),
+          minY: Math.min(current.minY, point.y),
+          maxX: Math.max(current.maxX, point.x),
+          maxY: Math.max(current.maxY, point.y),
+        }
+      : { minX: point.x, minY: point.y, maxX: point.x, maxY: point.y };
   }
 
-  function handlePointerMove(event: React.PointerEvent<HTMLCanvasElement>) {
-    const ctx = context();
-    if (!drawing.current || !ctx || !lastPoint.current) return;
-    const point = pointFrom(event);
-    ctx.beginPath();
-    ctx.moveTo(lastPoint.current.x, lastPoint.current.y);
-    ctx.lineTo(point.x, point.y);
-    ctx.stroke();
-    lastPoint.current = point;
+  function registerPoint(point: Point) {
+    extendBounds(point);
     pointCount.current += 1;
     if (!hasInk && pointCount.current >= MIN_POINTS) {
       setHasInk(true);
@@ -101,30 +136,96 @@ export const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(fu
     }
   }
 
+  function handlePointerDown(event: PointerEvent<HTMLCanvasElement>) {
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    const point = pointFrom(event);
+    drawing.current = true;
+    previousPoint.current = point;
+    previousMidpoint.current = point;
+
+    // A dot, so a tap still leaves a visible mark (i, accents).
+    const context = getContext();
+    if (context) {
+      context.beginPath();
+      context.arc(point.x, point.y, strokeWidth / 2, 0, Math.PI * 2);
+      context.fill();
+    }
+    registerPoint(point);
+  }
+
+  function handlePointerMove(event: PointerEvent<HTMLCanvasElement>) {
+    const context = getContext();
+    if (!drawing.current || !context || !previousPoint.current || !previousMidpoint.current) return;
+
+    // Coalesced events give pens and fast strokes their full resolution.
+    const samples = event.nativeEvent.getCoalescedEvents?.() ?? [event.nativeEvent];
+    const rect = event.currentTarget.getBoundingClientRect();
+
+    for (const sample of samples) {
+      const point = { x: sample.clientX - rect.left, y: sample.clientY - rect.top };
+      const midpoint = { x: (previousPoint.current.x + point.x) / 2, y: (previousPoint.current.y + point.y) / 2 };
+      context.beginPath();
+      context.moveTo(previousMidpoint.current.x, previousMidpoint.current.y);
+      context.quadraticCurveTo(previousPoint.current.x, previousPoint.current.y, midpoint.x, midpoint.y);
+      context.stroke();
+      previousPoint.current = point;
+      previousMidpoint.current = midpoint;
+      registerPoint(point);
+    }
+  }
+
   function handlePointerUp() {
     drawing.current = false;
-    lastPoint.current = null;
+    previousPoint.current = null;
+    previousMidpoint.current = null;
   }
 
   return (
-    <div className="relative h-48 rounded-xl border-[1.5px] border-dashed border-slate-300 bg-white sm:h-52">
+    <div className={cn('relative h-48 rounded-xl border-[1.5px] border-dashed border-slate-300 bg-white sm:h-52', className)}>
       <canvas
         ref={canvasRef}
         role="img"
         aria-label={label}
-        className="absolute inset-0 h-full w-full cursor-crosshair touch-none rounded-xl"
+        className="absolute inset-0 h-full w-full cursor-crosshair touch-none rounded-xl select-none"
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
-        onPointerLeave={handlePointerUp}
       />
-      <span className="pointer-events-none absolute right-6 bottom-9 left-6 border-t border-slate-300" aria-hidden="true" />
+      <span className="pointer-events-none absolute right-[6%] bottom-[22%] left-[6%] border-t border-slate-300" aria-hidden="true" />
+      <span className="pointer-events-none absolute bottom-[22%] left-[6%] -translate-y-full pb-1 font-serif text-xl text-slate-300" aria-hidden="true">
+        ×
+      </span>
       {!hasInk && (
-        <span className="pointer-events-none absolute bottom-3 left-6 text-xs text-slate-400">
-          Firma dentro del recuadro con el ratón, el panel táctil o el dedo
-        </span>
+        <span className="pointer-events-none absolute right-[6%] bottom-[8%] left-[6%] text-center text-xs text-slate-400">{hint}</span>
       )}
     </div>
   );
 });
+
+/** Copies only the inked area (in device pixels) to a new canvas and encodes it as PNG. */
+function exportCropped(canvas: HTMLCanvasElement | null, ink: InkBounds | null, strokeWidth: number): Promise<Blob | null> {
+  if (!canvas || !ink) return Promise.resolve(null);
+
+  const ratio = canvas.width / canvas.getBoundingClientRect().width || 1;
+  const margin = EXPORT_MARGIN + strokeWidth;
+  const left = Math.max(0, Math.floor((ink.minX - margin) * ratio));
+  const top = Math.max(0, Math.floor((ink.minY - margin) * ratio));
+  const right = Math.min(canvas.width, Math.ceil((ink.maxX + margin) * ratio));
+  const bottom = Math.min(canvas.height, Math.ceil((ink.maxY + margin) * ratio));
+  const width = right - left;
+  const height = bottom - top;
+  if (width <= 0 || height <= 0) return Promise.resolve(null);
+
+  const scale = Math.min(1, EXPORT_MAX.width / width, EXPORT_MAX.height / height);
+  const output = document.createElement('canvas');
+  output.width = Math.round(width * scale);
+  output.height = Math.round(height * scale);
+  const context = output.getContext('2d');
+  if (context) {
+    context.imageSmoothingQuality = 'high';
+    context.drawImage(canvas, left, top, width, height, 0, 0, output.width, output.height);
+  }
+  return new Promise((resolve) => output.toBlob((blob) => resolve(blob), 'image/png'));
+}

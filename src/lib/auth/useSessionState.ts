@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { apiFetch, refreshSession } from "../api/client";
+import { ApiError, apiFetch, refreshSession } from "../api/client";
 import {
   getAccessToken,
   subscribeSession,
@@ -27,9 +27,19 @@ export function useSessionState() {
       const user = await apiFetch<User>("/me");
       if (generation.current === requestGeneration)
         setState({ status: "authenticated", user });
-    } catch {
-      if (generation.current === requestGeneration)
-        updateSession("session-expired");
+    } catch (error) {
+      if (generation.current !== requestGeneration) return;
+      // A temporary password blocks /me but the session is valid: keep it and let the guards
+      // send the user to /auth/cambiar-clave instead of logging them out.
+      if (error instanceof ApiError && error.code === "PASSWORD_CHANGE_REQUIRED") {
+        setState((current) =>
+          current.user
+            ? { status: "authenticated", user: { ...current.user, mustChangePassword: true } }
+            : current,
+        );
+        return;
+      }
+      updateSession("session-expired");
     }
   }, []);
   useRestoreSession(loadUser, setUser, generation);
