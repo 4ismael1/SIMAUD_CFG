@@ -10,11 +10,13 @@ import { errorMessage } from '../../../lib/errors';
 import { StepDetails } from './StepDetails';
 import { StepReview } from './StepReview';
 import { StepSignatories } from './StepSignatories';
+import { rolesNeeded, withNeededSignatories } from './bound-variables';
 import { StepTemplate } from './StepTemplate';
 import {
   WIZARD_STEPS,
   draftFromContract,
   emptyDraft,
+  emptySignatory,
   hasDraftContent,
   toContractInput,
   validateDetailsStep,
@@ -136,7 +138,15 @@ function Wizard({ contractId, initial }: WizardProps) {
       return;
     }
     const result = validateUpTo(index);
-    setStepIndex(result.ok ? index : result.failedAt);
+    const target = result.ok ? index : result.failedAt;
+    // Arriving at «Firmantes»: one card per person the document names (client, institution…), ready to fill.
+    if (WIZARD_STEPS[target].id === 'signatories') {
+      const roles = rolesNeeded(variables);
+      if (roles.length > 0) {
+        setDraft((current) => ({ ...current, signatories: withNeededSignatories(current.signatories, roles, (role) => emptySignatory(role, 1)) }));
+      }
+    }
+    setStepIndex(target);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 

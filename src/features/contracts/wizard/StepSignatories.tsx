@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type PointerEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
 import { ArrowDown, ArrowUp, ArrowRight, Copy, GripVertical, Plus, Trash2, UserCheck, Users } from 'lucide-react';
 import { Alert, Badge, Button, Field, IconButton, Input, Segmented, Select, cn, useToast } from '../../../ui';
 import { useUserLookup } from '../../../lib/api/hooks/users';
@@ -242,6 +242,15 @@ function SignatoryCard({
       linkedUserId: found.id,
     });
   }
+
+  // Typing the cédula of a registered person fills the card by itself when nothing was typed by hand yet;
+  // if the card already has a name or email, the «Usar sus datos» button lets the user choose.
+  const cardIsBlank = !signatory.name.trim() && !signatory.email.trim();
+  useEffect(() => {
+    if (found && !alreadyApplied && cardIsBlank) applyFound();
+    // applyFound only depends on the found person and this card.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [found?.id, alreadyApplied, cardIsBlank]);
 
   return (
     <li

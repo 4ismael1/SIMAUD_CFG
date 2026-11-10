@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { contractBoundValues, effectiveVariables, isContractBound, isPartyVariable, monthsBetween, partyValues } from './bound-variables';
+import { contractBoundValues, effectiveVariables, isContractBound, isPartyVariable, monthsBetween, partyValues, rolesNeeded, withNeededSignatories } from './bound-variables';
 import { emptyDraft, validateSignatoriesStep } from './wizard-state';
 
 const person = (role: 'client' | 'contractor' | 'witness', name: string, cedula: string) => ({ role, name, cedula, email: `${name.split(' ')[0].toLowerCase()}@x.do`, phone: '' });
@@ -53,5 +53,28 @@ describe('las personas salen de los firmantes', () => {
     expect(isPartyVariable('cliente_cedula')).toBe(true);
     expect(isPartyVariable('representante_cargo')).toBe(false); // se pide en «Datos»
     expect(isPartyVariable('forma_pago')).toBe(false);
+  });
+});
+
+describe('una tarjeta por persona del documento', () => {
+  const card = (role: 'client' | 'contractor' | 'witness', name = '') => ({ role, name, cedula: '', email: '', phone: '' });
+
+  it('con cliente y representante en la plantilla aparecen las dos tarjetas', () => {
+    const roles = rolesNeeded([{ name: 'representante_nombre' }, { name: 'cliente_nombre' }, { name: 'forma_pago' }]);
+    expect(roles).toEqual(['contractor', 'client']);
+    const cards = withNeededSignatories([card('client')], roles, (role) => card(role));
+    expect(cards.map((c) => c.role).sort()).toEqual(['client', 'contractor']);
+  });
+
+  it('reutiliza una tarjeta vacía y nunca cambia una ya rellenada', () => {
+    const roles = ['contractor', 'client'] as const;
+    const cards = withNeededSignatories([card('witness', 'Ana'), card('witness')], [...roles], (role) => card(role));
+    expect(cards[0]).toMatchObject({ role: 'witness', name: 'Ana' });
+    expect(cards.map((c) => c.role)).toEqual(['witness', 'contractor', 'client']);
+  });
+
+  it('no añade nada si ya están todos los roles', () => {
+    const start = [card('client', 'Pedro'), card('contractor', 'Rosa')];
+    expect(withNeededSignatories(start, ['client', 'contractor'], (role) => card(role))).toHaveLength(2);
   });
 });

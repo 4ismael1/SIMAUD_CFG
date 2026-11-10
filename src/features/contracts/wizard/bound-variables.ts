@@ -113,3 +113,36 @@ export function partyValues(signatories: SignatoryData[]): VariableValues {
 export function effectiveVariables(draft: ContractFields & { variables: VariableValues; signatories: SignatoryData[] }): VariableValues {
   return { ...draft.variables, ...partyValues(draft.signatories), ...contractBoundValues(draft) };
 }
+
+/** Roles the document needs a signatory for, in the order the template first mentions them. */
+export function rolesNeeded(variables: { name: string }[]): SignatoryRole[] {
+  const roles: SignatoryRole[] = [];
+  for (const variable of variables) {
+    const party = partyOf(variable.name);
+    if (party && !roles.includes(party.role)) roles.push(party.role);
+  }
+  return roles;
+}
+
+interface SignatoryCard extends SignatoryData {
+  linkedUserId?: string | null;
+}
+
+/**
+ * One card per person the document names, ready to fill: a role already present is kept, an empty card is
+ * reused for a missing role, otherwise a new card is added. Cards the user filled are never changed.
+ */
+export function withNeededSignatories<T extends SignatoryCard>(signatories: T[], roles: SignatoryRole[], create: (role: SignatoryRole) => T): T[] {
+  const next = [...signatories];
+  const isEmpty = (card: T) => !card.name.trim() && !card.cedula.trim() && !card.email.trim();
+  for (const role of roles) {
+    if (next.some((card) => card.role === role)) continue;
+    // An empty card can take this role if its own role is not needed, or is needed but repeated.
+    const reusable = (card: T) =>
+      isEmpty(card) && (!roles.includes(card.role) || next.filter((other) => other.role === card.role).length > 1);
+    const emptyIndex = next.findIndex(reusable);
+    if (emptyIndex >= 0) next[emptyIndex] = { ...next[emptyIndex], role };
+    else next.push(create(role));
+  }
+  return next;
+}
