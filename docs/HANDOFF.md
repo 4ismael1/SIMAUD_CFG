@@ -1,6 +1,56 @@
 # HANDOFF — SIMAUD: estado del trabajo y cómo continuar
 
-## ⚡ ÚLTIMA ACTUALIZACIÓN (sesión 3, 10 nov 2026) — LEER PRIMERO
+## ⚡⚡ ÚLTIMA ACTUALIZACIÓN (sesión 4, 10 nov 2026, ~02:00) — LEER PRIMERO (la sesión 3, debajo, sigue valiendo)
+Rama `feat/backend-propio-y-nueva-ui`. Commits de esta sesión: `aaba3ad` (fix /app: contador de firmas paginado),
+`11f0dd4` (borrar notificaciones), `bb231e1` (filtros Plantillas/Variables), `0cb2bd7` (preview de plantilla),
+`66dcf50`…`34d2d86` (editor TipTap con formato), `ae1cab0` (módulo Variables), **`51a3e88` T10 + T12a (Codex)**,
+`dcdc549`/`a5f4fce`/`9d79f28` (docs: plan premium, rich-v2, T14), **`4036335` editor premium fase 1**.
+
+### Codex — EN CURSO al escribir esto (3 en paralelo, lanzados ~01:10)
+| Tarea | BD de pruebas | Informe al terminar |
+|---|---|---|
+| **T13** documentos con formato `rich-v1` en API/PDF (`docs/tasks/T13-documentos-con-formato.md`; migración **0011**) | `simaud_test2` | `docs/tasks/T13-documentos-con-formato.REPORT.md` |
+| **T12b** auditoría global + gestión de acceso (migración **0012**) | **`simaud_test3`** (creada esta sesión en el VPS) | `docs/tasks/T12b-auditoria-global-usuarios.REPORT.md` |
+| **T14** auditoría de seguridad (solo lectura) | — | ✅ entregado y commiteado: 18 hallazgos (0 críticos, **3 altos**: H01 borrar contrato aprobado sin firmas, H02 autoaprobación de admin/renovaciones, H03 auditoría persistente incompleta) |
+- Logs en el scratch de la sesión 4 (`…/9fd9f427-…/scratchpad/codex-T13.log`, `codex-T12b.log`).
+- Al terminar T13 y T12b: revisar diffs (ambos tocan `schema.ts` y `_journal.json`), **correr la suite COMPLETA**
+  (la última corrida quedó contaminada por los cambios en curso y por una caída breve del túnel: 11 fallos explicables),
+  commitear, actualizar SIMAUD_RUN (migrar 0011/0012) y lanzar **T15** (`docs/tasks/T15-plantillas-premium-pdf.md`:
+  `rich-v2` en API/PDF, fuente Source Serif embebida, papel/márgenes, firmas estampadas en su casilla, `/templates/preview-pdf`,
+  `/templates/capabilities`). Después: convertir los hallazgos de T14 en tareas (decidir H02 con el dueño).
+
+### Entorno (cambios de esta sesión)
+- SIMAUD_RUN en `51a3e88`, migración 0010 aplicada a `simaud_dev`, API corriendo (`MAIL_DRIVER=log npx tsx src/server.ts`).
+- **Clave de sello de desarrollo** en `SIMAUD_RUN/api/signing-secrets/` (ignorada por git) y en el `.env` de SIMAUD_RUN:
+  `SIGNING_KEY_PATH`/`SIGNING_CERT_PATH` **con rutas Windows `C:/…`** (con `/c/…` Node no las lee y la API no arranca) y
+  `SIGNATURE_BACKFILL_PENDING=false`. `db:encrypt-signatures` ejecutado (0 firmas). El `.env` de SIMAUD_CFG NO las tiene
+  (los tests usan clave efímera).
+- El túnel 55432 tiene un bucle de reconexión (se cayó y volvió a las 01:15).
+- Codex: binario `…/Codex/bin/f71a721e0e6193a9/codex.exe` (es el único con codex.exe). Lanzar con `run_in_background`.
+
+### Editor de plantillas (decisiones del dueño, ver `docs/PLANTILLAS_PREMIUM.md`)
+- Quiere un editor «premium»: hoja real, varias páginas, firmas donde van, formato fácil. Plan por fases A–E en ese doc.
+- Decidido: papel **Carta** por defecto con opción Oficio/A4; encabezado/pie **vacíos** por defecto pero configurables
+  (logo con tamaño, texto, «Página X de Y», posición); **un único rol «firmante»**, la etiqueta (EL CLIENTE…) se escribe
+  en cada casilla; casilla n = firmante con orden de firma n.
+- Hecho (front, `4036335`): hoja real, diálogo «Página», bloque «Firmas», cláusulas numeradas (CSS counters,
+  `@counter-style clause-ordinal-es`), vista previa = misma hoja, menú Tabla con columnas sin bordes, pantalla completa
+  en `<body>` (portal), lista de datos en portal. Formato en `src/lib/rich-doc/` (tipos, `sanitize`, `convert`,
+  `page`, `Sheet`, `RichDocumentBody`). **El editor guarda en el mejor formato que acepte la API**
+  (`useBestContentFormat`: v2 si `/templates/capabilities` lo anuncia, v1 si las plantillas traen `contentFormat`, si no
+  texto) y degrada sin perder firmas (`richDocToV1`). Hoy la API guarda solo texto → no guardar plantillas con tablas.
+- Pendiente front (fase D/E): menú «/», barra flotante al seleccionar, arrastrar bloques, panel de datos mejorado,
+  visor del PDF real (pdf.js) cuando exista `/templates/preview-pdf`, biblioteca de cláusulas.
+- **Ojo**: el PDF actual usa Roboto 10 pt A4 (distinto de la pantalla); T15 lo corrige.
+
+### Otros cambios de esta sesión
+- Admin: añadido módulo **Variables** al menú (`/app/variables`). El admin ya ve todas las pantallas existentes.
+- Pregunta abierta nueva: corregir un contrato **ya firmado** — «enmienda con nueva firma» (recomendado) o
+  «corrección directa». Sin respuesta.
+- S3 cifrado en BD: sigue sin respuesta (recomendado aceptar la excepción y documentarla).
+- Recordar al dueño rotar claves de Resend, Instabox y Brevo.
+
+## ⚡ ACTUALIZACIÓN ANTERIOR (sesión 3, 10 nov 2026)
 Rama `feat/backend-propio-y-nueva-ui`. `main` intacta. Últimos commits de front: `1bf4a40`, `f214b4c`, `5f62a82`, `afbf8e8`, `e43de7f`, `0dfde5f`, `c4d4929`, `c3f6cdf` (detalle abajo); backend: `cd3cb3f` (T11 + T09c). **Sin commitear: solo el trabajo en curso de Codex en `api/` (T10 y T12a).**
 Lee también **`docs/PRINCIPIOS.md`** (obligatorio) y **`docs/CODE_STANDARDS.md`** (sección «Interfaz: acciones y avisos»).
 
