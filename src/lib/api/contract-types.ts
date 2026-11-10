@@ -141,7 +141,9 @@ export interface ContractDetail extends Contract {
   signatories: Signatory[];
   can: ContractPermissions;
   /** T18: only the actor's own box; null when the actor is not a signatory or on older APIs. */
-  signatureSlot?: SignatureSlotGeometry | null;  /** T17: whole chain, root first; one element when there are no amendments. */
+  signatureSlot?: SignatureSlotGeometry | null;  /** T20: names of signatories without a cédula; it cannot be sent to approval until completed. */
+  missingCedula?: string[];
+  /** T17: whole chain, root first; one element when there are no amendments. */
   amendmentChain?: AmendmentLink[];
   amendsContractId?: string | null;
   amendedByContractId?: string | null;

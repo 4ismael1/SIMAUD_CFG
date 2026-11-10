@@ -74,6 +74,12 @@ export function ContractDetailPage() {
 
       <AmendmentChain contract={data} />
 
+      {data.missingCedula && data.missingCedula.length > 0 && (
+        <Alert tone="warning" title="Falta la cédula de algún firmante">
+          Completa la cédula de {data.missingCedula.join(', ')} con «Editar» para poder enviarlo a aprobación.
+        </Alert>
+      )}
+
       {data.status === 'rejected' && data.rejectionReason && (
         <Alert tone="danger" title="Devuelto con observaciones">«{data.rejectionReason}»</Alert>
       )}
