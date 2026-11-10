@@ -1,6 +1,6 @@
-import { useState, type FormEvent } from 'react';
-import { Link } from 'react-router-dom';
-import { Braces, Copy, Ellipsis, FileText, Pencil, Plus, Power, Trash2 } from 'lucide-react';
+import { useMemo, useState, type FormEvent } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { Braces, Copy, Ellipsis, FileText, Pencil, Plus, Power, SearchX, Trash2, X } from 'lucide-react';
 import {
   Badge,
   Button,
@@ -28,6 +28,16 @@ import { useCreateVariable, useDeleteVariable, useUpdateVariable, useVariables }
 import type { Template, Variable, VariableInput } from '../../lib/api/catalog-types';
 import type { VariableType } from '../../lib/api/core-types';
 import { useAuth } from '../../lib/auth';
+import {
+  DEFAULT_TEMPLATE_SORT,
+  TEMPLATE_SORTS,
+  filterTemplates,
+  filterVariables,
+  isTemplateSort,
+  templateCategories,
+  type TemplateFilters,
+  type VariableFilters,
+} from './catalog-filters';
 
 type Tab = 'templates' | 'variables';
 
@@ -39,10 +49,34 @@ export const VARIABLE_TYPE_LABELS: Record<VariableType, string> = {
   select: 'Lista de opciones',
 };
 
+/** Filters live in the URL (replace, not push) so a filtered view can be shared or reloaded. */
+function useUrlParams() {
+  const [params, setParams] = useSearchParams();
+  function update(changes: Record<string, string>) {
+    setParams(
+      (current) => {
+        const next = new URLSearchParams(current);
+        for (const [key, value] of Object.entries(changes)) {
+          if (value) next.set(key, value);
+          else next.delete(key);
+        }
+        return next;
+      },
+      { replace: true },
+    );
+  }
+  return { params, update };
+}
+
+const FILTER_SELECT_CLASS = 'w-full sm:w-48';
+
 export function TemplatesPage() {
   const { hasRole } = useAuth();
   const canManage = hasRole('admin', 'supervisor');
-  const [tab, setTab] = useState<Tab>('templates');
+  const { params, update } = useUrlParams();
+  const tab: Tab = params.get('seccion') === 'variables' ? 'variables' : 'templates';
+  // Each tab has its own filters; switching tabs starts the other one clean.
+  const setTab = (value: Tab) => update({ seccion: value === 'variables' ? 'variables' : '', q: '', estado: '', categoria: '', orden: '', tipo: '', obligatoria: '' });
 
   return (
     <>
@@ -66,21 +100,62 @@ export function TemplatesPage() {
 }
 
 function TemplatesGrid({ canManage }: { canManage: boolean }) {
-  const [search, setSearch] = useState('');
-  const templates = useTemplates({ q: search || undefined });
+  const { params, update } = useUrlParams();
+  const templates = useTemplates();
+  const sortParam = params.get('orden');
+  const statusParam = params.get('estado');
+  const filters: TemplateFilters = {
+    search: params.get('q') ?? '',
+    status: canManage && (statusParam === 'active' || statusParam === 'inactive') ? statusParam : '',
+    category: params.get('categoria') ?? '',
+    sort: isTemplateSort(sortParam) ? sortParam : DEFAULT_TEMPLATE_SORT,
+  };
+  const all = useMemo(() => templates.data ?? [], [templates.data]);
+  const categories = useMemo(() => templateCategories(all), [all]);
+  const rows = useMemo(() => filterTemplates(all, filters), [all, filters.search, filters.status, filters.category, filters.sort]); // eslint-disable-line react-hooks/exhaustive-deps
+  const hasFilters = Boolean(filters.search || filters.status || filters.category) || filters.sort !== DEFAULT_TEMPLATE_SORT;
+  const clear = () => update({ q: '', estado: '', categoria: '', orden: '' });
 
   return (
     <>
-      <SearchInput value={search} onChange={setSearch} placeholder="Buscar plantilla…" />
+      <div className="flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center">
+        <SearchInput value={filters.search} onChange={(value) => update({ q: value })} placeholder="Buscar por nombre, descripción o categoría" className="w-full sm:max-w-xs sm:flex-1" />
+        {categories.length > 1 && (
+          <Select aria-label="Categoría" className={FILTER_SELECT_CLASS} value={filters.category} onChange={(event) => update({ categoria: event.target.value })}>
+            <option value="">Todas las categorías</option>
+            {categories.map((category) => <option key={category} value={category}>{category}</option>)}
+          </Select>
+        )}
+        {canManage && (
+          <Select aria-label="Estado" className={FILTER_SELECT_CLASS} value={filters.status} onChange={(event) => update({ estado: event.target.value })}>
+            <option value="">Activas e inactivas</option>
+            <option value="active">Solo activas</option>
+            <option value="inactive">Solo inactivas</option>
+          </Select>
+        )}
+        <Select aria-label="Orden" className={FILTER_SELECT_CLASS} value={filters.sort} onChange={(event) => update({ orden: event.target.value === DEFAULT_TEMPLATE_SORT ? '' : event.target.value })}>
+          {TEMPLATE_SORTS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+        </Select>
+        {hasFilters && <Button size="sm" variant="ghost" icon={<X />} onClick={clear}>Limpiar</Button>}
+      </div>
       {templates.isPending ? (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {Array.from({ length: 6 }, (_, index) => <Skeleton key={index} className="h-40 rounded-xl" />)}
         </div>
-      ) : (templates.data ?? []).length === 0 ? (
+      ) : all.length === 0 ? (
         <Card><EmptyState icon={<FileText />} title="Sin plantillas" description={canManage ? 'Crea la primera con «Nueva plantilla».' : 'Aún no hay plantillas.'} /></Card>
+      ) : rows.length === 0 ? (
+        <Card>
+          <EmptyState
+            icon={<SearchX />}
+            title="Ninguna plantilla coincide"
+            description="Prueba con otras palabras o quita algún filtro."
+            action={<Button onClick={clear}>Quitar filtros</Button>}
+          />
+        </Card>
       ) : (
         <ul className="stagger grid gap-4 [--stagger-step:40ms] sm:grid-cols-2 xl:grid-cols-3">
-          {(templates.data ?? []).map((template) => (
+          {rows.map((template) => (
             <li key={template.id}>
               <TemplateCard template={template} canManage={canManage} />
             </li>
@@ -160,6 +235,18 @@ function TemplateCard({ template, canManage }: { template: Template; canManage: 
 function VariablesTable({ canManage }: { canManage: boolean }) {
   const variables = useVariables();
   const [editing, setEditing] = useState<Variable | 'new' | null>(null);
+  const { params, update } = useUrlParams();
+  const typeParam = params.get('tipo') as VariableType | null;
+  const requiredParam = params.get('obligatoria');
+  const filters: VariableFilters = {
+    search: params.get('q') ?? '',
+    type: typeParam && typeParam in VARIABLE_TYPE_LABELS ? typeParam : '',
+    required: requiredParam === 'si' || requiredParam === 'no' ? requiredParam : '',
+  };
+  const rows = useMemo(() => filterVariables(variables.data ?? [], filters), [variables.data, filters.search, filters.type, filters.required]); // eslint-disable-line react-hooks/exhaustive-deps
+  const hasFilters = Boolean(filters.search || filters.type || filters.required);
+  const clear = () => update({ q: '', tipo: '', obligatoria: '' });
+  const total = variables.data?.length ?? 0;
 
   const columns: Column<Variable>[] = [
     { key: 'name', header: 'Nombre', cell: (variable) => <code className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs">{`{{${variable.name}}}`}</code> },
@@ -178,15 +265,34 @@ function VariablesTable({ canManage }: { canManage: boolean }) {
 
   return (
     <>
-      {canManage && <Button icon={<Plus />} className="self-start" onClick={() => setEditing('new')}>Nueva variable</Button>}
+      <div className="flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center">
+        <SearchInput value={filters.search} onChange={(value) => update({ q: value })} placeholder="Buscar por nombre o etiqueta" className="w-full sm:max-w-xs sm:flex-1" />
+        <Select aria-label="Tipo de dato" className={FILTER_SELECT_CLASS} value={filters.type} onChange={(event) => update({ tipo: event.target.value })}>
+          <option value="">Todos los tipos</option>
+          {(Object.keys(VARIABLE_TYPE_LABELS) as VariableType[]).map((type) => <option key={type} value={type}>{VARIABLE_TYPE_LABELS[type]}</option>)}
+        </Select>
+        <Select aria-label="Obligatoriedad" className={FILTER_SELECT_CLASS} value={filters.required} onChange={(event) => update({ obligatoria: event.target.value })}>
+          <option value="">Obligatorias y opcionales</option>
+          <option value="si">Solo obligatorias</option>
+          <option value="no">Solo opcionales</option>
+        </Select>
+        {hasFilters && <Button size="sm" variant="ghost" icon={<X />} onClick={clear}>Limpiar</Button>}
+        {canManage && <Button icon={<Plus />} className="sm:ml-auto" onClick={() => setEditing('new')}>Nueva variable</Button>}
+      </div>
       <Card>
         <DataTable
-          caption="Variables de plantilla"
+          caption={hasFilters ? `Variables de plantilla: ${rows.length} de ${total}` : 'Variables de plantilla'}
           columns={columns}
-          rows={variables.data}
+          rows={variables.data ? rows : undefined}
           rowKey={(variable) => variable.id}
           loading={variables.isPending}
-          empty={<EmptyState icon={<Braces />} title="Sin variables" description="Las variables son los datos que se completan en cada contrato." />}
+          empty={
+            hasFilters && total > 0 ? (
+              <EmptyState icon={<SearchX />} title="Ninguna variable coincide" description="Prueba con otras palabras o quita algún filtro." action={<Button onClick={clear}>Quitar filtros</Button>} />
+            ) : (
+              <EmptyState icon={<Braces />} title="Sin variables" description="Las variables son los datos que se completan en cada contrato." />
+            )
+          }
         />
       </Card>
       {editing && <VariableDialog variable={editing === 'new' ? null : editing} onClose={() => setEditing(null)} />}
