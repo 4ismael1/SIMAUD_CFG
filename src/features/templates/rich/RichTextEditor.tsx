@@ -13,10 +13,16 @@ import { normalizeText } from "../catalog-filters";
 import { sanitizeRichDoc } from "../../../lib/rich-doc/sanitize";
 import { toEditorJson } from "../../../lib/rich-doc/convert";
 import type { DocAttrs, RichDoc } from "../../../lib/rich-doc/types";
-import { compactPage, isBandEmpty, resolvePage } from "../../../lib/rich-doc/page";
+import {
+  compactPage,
+  isBandEmpty,
+  resolvePage,
+} from "../../../lib/rich-doc/page";
 import { Sheet } from "../../../lib/rich-doc/Sheet";
 import { PageSetupDialog } from "./PageSetupDialog";
 import { EditorToolbar } from "./EditorToolbar";
+import { SelectionToolbar } from "./SelectionToolbar";
+import { SLASH_COMMANDS, type SlashCommand } from "./slash-commands";
 import {
   MAX_DOCUMENT_CHARACTERS,
   editorExtensions,
@@ -27,6 +33,8 @@ const MAX_SUGGESTIONS = 8;
 const VARIABLE_NAME = /^[a-z][a-z0-9_]{1,49}$/;
 
 interface SuggestState {
+  /** "variable": typed «{{» (data fields); "command": typed «/» (insert a block). */
+  mode: "variable" | "command";
   query: string;
   /** Document range of the typed "{{query", replaced by the chip. */
   from: number;
@@ -41,7 +49,9 @@ interface SuggestState {
 }
 
 type SuggestOption =
-  { kind: "variable"; variable: Variable } | { kind: "create"; name: string };
+  | { kind: "variable"; variable: Variable }
+  | { kind: "create"; name: string }
+  | { kind: "command"; command: SlashCommand };
 
 interface RichTextEditorProps {
   /** Initial document; later changes of this prop are ignored (the editor owns its state). */
@@ -81,8 +91,14 @@ export function RichTextEditor({
 
   const options = useMemo(
     () =>
-      buildOptions(suggest?.query ?? "", variables, Boolean(onCreateVariable)),
-    [suggest?.query, variables, onCreateVariable],
+      suggest?.mode === "command"
+        ? buildCommandOptions(suggest.query)
+        : buildOptions(
+            suggest?.query ?? "",
+            variables,
+            Boolean(onCreateVariable),
+          ),
+    [suggest?.mode, suggest?.query, variables, onCreateVariable],
   );
   // Refs let ProseMirror's key handler (registered once) see the current popup.
   const popupRef = useRef<{
@@ -116,18 +132,19 @@ export function RichTextEditor({
   });
 
   // Page set-up lives in the document's own attributes, so undo/redo covers it too.
-  const docAttrs = useEditorState({
-    editor,
-    selector: ({ editor: current }) => {
-      const attrs = current?.state.doc.attrs ?? {};
-      return {
-        page: attrs.page ?? undefined,
-        header: attrs.header ?? undefined,
-        footer: attrs.footer ?? undefined,
-      } as DocAttrs;
-    },
-    equalityFn: (a, b) => JSON.stringify(a) === JSON.stringify(b),
-  }) ?? {};
+  const docAttrs =
+    useEditorState({
+      editor,
+      selector: ({ editor: current }) => {
+        const attrs = current?.state.doc.attrs ?? {};
+        return {
+          page: attrs.page ?? undefined,
+          header: attrs.header ?? undefined,
+          footer: attrs.footer ?? undefined,
+        } as DocAttrs;
+      },
+      equalityFn: (a, b) => JSON.stringify(a) === JSON.stringify(b),
+    }) ?? {};
 
   // Chips render their label when created; redraw them once the variable catalogue arrives or changes.
   const labelsKey = useMemo(
@@ -165,6 +182,26 @@ export function RichTextEditor({
       "￼",
     );
     const match = before.match(/\{\{\s*([a-z0-9_]*)$/i);
+    // «/» at the start of a line or after a space opens the block menu.
+    const slash = match ? null : before.match(/(^|\s)\/([\p{L} ]{0,24})$/u);
+    if (slash) {
+      const coords = current.view.coordsAtPos(selection.from);
+      const typed = slash[0].length - slash[1].length;
+      setSuggest((previous) => ({
+        mode: "command",
+        query: slash[2],
+        from: selection.from - typed,
+        to: selection.from,
+        index:
+          previous?.mode === "command" && previous.query === slash[2]
+            ? previous.index
+            : 0,
+        left: coords.left,
+        caretTop: coords.top,
+        caretBottom: coords.bottom,
+      }));
+      return;
+    }
     if (!match) {
       // A list opened from the toolbar survives until the cursor moves away.
       setSuggest((previous) =>
@@ -174,6 +211,7 @@ export function RichTextEditor({
     }
     const coords = current.view.coordsAtPos(selection.from);
     setSuggest((previous) => ({
+      mode: "variable",
       query: match[1].toLowerCase(),
       from: selection.from - match[0].length,
       to: selection.from,
@@ -194,6 +232,7 @@ export function RichTextEditor({
     const { from } = editor.state.selection;
     const coords = editor.view.coordsAtPos(from);
     setSuggest({
+      mode: "variable",
       query: "",
       from,
       to: from,
@@ -234,6 +273,16 @@ export function RichTextEditor({
   function choose(option: SuggestOption | undefined) {
     const current = popupRef.current.suggest;
     if (!editor || !option || !current) return;
+    if (option.kind === "command") {
+      editor
+        .chain()
+        .focus()
+        .deleteRange({ from: current.from, to: current.to })
+        .run();
+      setSuggest(null);
+      option.command.run(editor, { openVariableList });
+      return;
+    }
     if (option.kind === "variable") {
       editor
         .chain()
@@ -282,8 +331,14 @@ export function RichTextEditor({
       .focus()
       .command(({ tr }) => {
         tr.setDocAttribute("page", page ?? null);
-        tr.setDocAttribute("header", isBandEmpty(value.header) ? null : value.header);
-        tr.setDocAttribute("footer", isBandEmpty(value.footer) ? null : value.footer);
+        tr.setDocAttribute(
+          "header",
+          isBandEmpty(value.header) ? null : value.header,
+        );
+        tr.setDocAttribute(
+          "footer",
+          isBandEmpty(value.footer) ? null : value.footer,
+        );
         return true;
       })
       .run();
@@ -323,6 +378,7 @@ export function RichTextEditor({
       >
         <Sheet attrs={docAttrs} showPageBreaks>
           <EditorContent editor={editor} />
+          <SelectionToolbar editor={editor} />
         </Sheet>
       </div>
       {pageSetupOpen && (
@@ -354,6 +410,16 @@ export function RichTextEditor({
   // Full screen goes to <body>: an animated ancestor (page transitions) would otherwise trap `position: fixed`
   // inside the page, under the app header and sidebar.
   return fullscreen ? createPortal(body, document.body) : body;
+}
+
+function buildCommandOptions(query: string): SuggestOption[] {
+  const needle = normalizeText(query);
+  return SLASH_COMMANDS.filter(
+    (command) =>
+      !needle ||
+      normalizeText(command.label).includes(needle) ||
+      normalizeText(command.keywords).includes(needle),
+  ).map((command): SuggestOption => ({ kind: "command", command }));
 }
 
 function buildOptions(
@@ -407,7 +473,11 @@ function SuggestionList({
   return (
     <ul
       role="listbox"
-      aria-label="Datos del contrato"
+      aria-label={
+        options[0]?.kind === "command"
+          ? "Insertar bloque"
+          : "Datos del contrato"
+      }
       style={{ left, ...placement }}
       className="fixed z-[60] max-h-72 w-[min(292px,calc(100vw-16px))] animate-pop-in overflow-y-auto rounded-lg border border-slate-200 bg-white py-1 shadow-pop"
     >
@@ -416,7 +486,9 @@ function SuggestionList({
           key={
             option.kind === "variable"
               ? option.variable.id
-              : `create-${option.name}`
+              : option.kind === "command"
+                ? option.command.id
+                : `create-${option.name}`
           }
           role="option"
           aria-selected={index === activeIndex}
@@ -432,7 +504,21 @@ function SuggestionList({
               index === activeIndex ? "bg-vino-50" : "hover:bg-slate-50",
             )}
           >
-            {option.kind === "variable" ? (
+            {option.kind === "command" ? (
+              <span className="flex min-w-0 items-center gap-3">
+                <span className="grid size-8 shrink-0 place-items-center rounded-md border border-slate-200 bg-white text-slate-600 [&_svg]:size-4">
+                  <option.command.icon />
+                </span>
+                <span className="min-w-0">
+                  <span className="block truncate text-slate-900">
+                    {option.command.label}
+                  </span>
+                  <span className="block truncate text-xs text-slate-500">
+                    {option.command.hint}
+                  </span>
+                </span>
+              </span>
+            ) : option.kind === "variable" ? (
               <>
                 <span className="truncate">{option.variable.label}</span>
                 <span className="shrink-0 font-mono text-[11px] text-slate-400">
