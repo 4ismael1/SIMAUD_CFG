@@ -1,0 +1,460 @@
+import { sql } from "drizzle-orm";
+import {
+  pgTable,
+  pgEnum,
+  uuid,
+  text,
+  timestamp,
+  boolean,
+  integer,
+  numeric,
+  date,
+  jsonb,
+  bigint,
+  index,
+  uniqueIndex,
+  check,
+  type AnyPgColumn,
+} from "drizzle-orm/pg-core";
+const id = () => uuid("id").defaultRandom().primaryKey();
+const time = (name: string) => timestamp(name, { withTimezone: true });
+const timestamps = () => ({
+  createdAt: time("created_at").defaultNow().notNull(),
+  updatedAt: time("updated_at")
+    .defaultNow()
+    .notNull()
+    .$onUpdate(() => new Date()),
+});
+export const userRole = pgEnum("user_role", ["admin", "supervisor", "gestor", "user"]);
+export type Role = (typeof userRole.enumValues)[number];
+export const contractStatus = pgEnum("contract_status", [
+  "draft",
+  "pending_approval",
+  "rejected",
+  "pending_signatures",
+  "active",
+  "expiring_soon",
+  "expired",
+  "cancelled",
+  "renewed",
+]);
+export const signatoryRole = pgEnum("signatory_role", ["client", "witness", "contractor"]);
+export const signatoryStatus = pgEnum("signatory_status", ["pending", "signed", "declined"]);
+export const approvalStatus = pgEnum("approval_status", ["pending", "approved", "rejected"]);
+export const renewalStatus = pgEnum("renewal_status", [
+  "pending",
+  "approved",
+  "rejected",
+  "cancelled",
+]);
+export const priority = pgEnum("priority", ["low", "medium", "high", "urgent"]);
+export const variableType = pgEnum("variable_type", [
+  "text",
+  "date",
+  "number",
+  "select",
+  "textarea",
+]);
+export const templateStatus = pgEnum("template_status", ["active", "inactive"]);
+export const cancellationReason = pgEnum("cancellation_reason", [
+  "breach",
+  "mutual_agreement",
+  "client_request",
+  "payment_default",
+  "other",
+]);
+export const authTokenType = pgEnum("auth_token_type", ["email_confirmation", "password_reset"]);
+export const users = pgTable(
+  "users",
+  {
+    id: id(),
+    email: text("email").notNull(),
+    passwordHash: text("password_hash").notNull(),
+    name: text("name").notNull(),
+    phone: text("phone").notNull().default(""),
+    cedula: text("cedula").notNull().default(""),
+    role: userRole("role").default("user").notNull(),
+    notificationPreferences: jsonb("notification_preferences")
+      .$type<{
+        emailOnSignatureRequired: boolean;
+        emailOnApprovalResult: boolean;
+        emailOnExpiry: boolean;
+      }>()
+      .default({ emailOnSignatureRequired: true, emailOnApprovalResult: true, emailOnExpiry: true })
+      .notNull(),
+    avatarPath: text("avatar_path"),
+    pendingEmail: text("pending_email"),
+    emailConfirmedAt: time("email_confirmed_at"),
+    isActive: boolean("is_active").default(true).notNull(),
+    deletedAt: time("deleted_at"),
+    lastLoginAt: time("last_login_at"),
+    ...timestamps(),
+  },
+  (t) => [
+    uniqueIndex("users_email_unique").on(sql`lower(${t.email})`),
+    uniqueIndex("users_cedula_unique")
+      .on(t.cedula)
+      .where(sql`${t.cedula} <> ''`),
+    check("users_email_lower", sql`${t.email} = lower(trim(${t.email}))`),
+    index("users_role_idx").on(t.role),
+    index("users_created_idx").on(t.createdAt),
+  ],
+);
+const userRef = (name: string) => uuid(name).references(() => users.id, { onDelete: "set null" });
+export const refreshTokens = pgTable(
+  "refresh_tokens",
+  {
+    id: id(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    tokenHash: text("token_hash").notNull().unique(),
+    familyId: uuid("family_id").notNull(),
+    expiresAt: time("expires_at").notNull(),
+    revokedAt: time("revoked_at"),
+    replacedBy: uuid("replaced_by").references((): AnyPgColumn => refreshTokens.id, {
+      onDelete: "set null",
+    }),
+    userAgent: text("user_agent"),
+    ip: text("ip"),
+    createdAt: time("created_at").defaultNow().notNull(),
+  },
+  (t) => [index("refresh_user_idx").on(t.userId), index("refresh_family_idx").on(t.familyId)],
+);
+export const authTokens = pgTable(
+  "auth_tokens",
+  {
+    id: id(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    type: authTokenType("type").notNull(),
+    tokenHash: text("token_hash").notNull().unique(),
+    email: text("email"),
+    expiresAt: time("expires_at").notNull(),
+    usedAt: time("used_at"),
+    createdAt: time("created_at").defaultNow().notNull(),
+  },
+  (t) => [index("auth_user_type_idx").on(t.userId, t.type)],
+);
+export const templateVariables = pgTable("template_variables", {
+  id: id(),
+  name: text("name").notNull().unique(),
+  label: text("label").notNull(),
+  type: variableType("type").notNull(),
+  options: text("options").array(),
+  required: boolean("required").default(false).notNull(),
+  description: text("description"),
+  ...timestamps(),
+});
+export const contractTemplates = pgTable(
+  "contract_templates",
+  {
+    id: id(),
+    title: text("title").notNull(),
+    content: text("content").notNull(),
+    description: text("description"),
+    category: text("category").default("general").notNull(),
+    variables: text("variables")
+      .array()
+      .default(sql`'{}'::text[]`)
+      .notNull(),
+    status: templateStatus("status").default("active").notNull(),
+    createdBy: userRef("created_by"),
+    ...timestamps(),
+  },
+  (t) => [
+    index("templates_status_idx").on(t.status),
+    index("templates_creator_idx").on(t.createdBy),
+  ],
+);
+export const contracts = pgTable(
+  "contracts",
+  {
+    id: id(),
+    templateId: uuid("template_id").references(() => contractTemplates.id, {
+      onDelete: "set null",
+    }),
+    code: text("code")
+      .default(sql`next_contract_code()`)
+      .notNull()
+      .unique(),
+    signedPdfPath: text("signed_pdf_path"),
+    signedPdfSha256: text("signed_pdf_sha256"),
+    previousStatus: contractStatus("previous_status"),
+    title: text("title").notNull(),
+    content: text("content").notNull(),
+    generatedContent: text("generated_content"),
+    variablesData: jsonb("variables_data").default({}).notNull(),
+    clientName: text("client_name"),
+    clientEmail: text("client_email"),
+    clientPhone: text("client_phone"),
+    status: contractStatus("status").default("draft").notNull(),
+    archived: boolean("archived").default(false).notNull(),
+    archivedAt: time("archived_at"),
+    archivedBy: userRef("archived_by"),
+    currentVersion: integer("current_version").default(1).notNull(),
+    contractValue: numeric("contract_value", { precision: 15, scale: 2 }),
+    currency: text("currency").default("DOP").notNull(),
+    startDate: date("start_date"),
+    endDate: date("end_date"),
+    parentContractId: uuid("parent_contract_id").references((): AnyPgColumn => contracts.id, {
+      onDelete: "set null",
+    }),
+    renewalType: text("renewal_type").default("original").notNull(),
+    autoRenewal: boolean("auto_renewal").default(false).notNull(),
+    createdBy: userRef("created_by"),
+    approvedBy: userRef("approved_by"),
+    approvedAt: time("approved_at"),
+    rejectionReason: text("rejection_reason"),
+    notes: text("notes"),
+    ...timestamps(),
+  },
+  (t) => [
+    index("contracts_status_idx").on(t.status),
+    index("contracts_creator_idx").on(t.createdBy),
+    index("contracts_end_idx").on(t.endDate),
+    index("contracts_archived_idx").on(t.archived),
+    index("contracts_parent_idx").on(t.parentContractId),
+    check(
+      "contracts_dates",
+      sql`${t.endDate} IS NULL OR ${t.startDate} IS NULL OR ${t.endDate} >= ${t.startDate}`,
+    ),
+    check("contracts_version_positive", sql`${t.currentVersion} > 0`),
+    check(
+      "contracts_renewal_type",
+      sql`${t.renewalType} IN ('original','manual_renewal','auto_renewal')`,
+    ),
+  ],
+);
+const contractRef = () =>
+  uuid("contract_id")
+    .notNull()
+    .references(() => contracts.id, { onDelete: "cascade" });
+export const contractSignatories = pgTable(
+  "contract_signatories",
+  {
+    id: id(),
+    contractId: contractRef(),
+    name: text("name").notNull(),
+    email: text("email").notNull(),
+    phone: text("phone"),
+    cedula: text("cedula"),
+    userId: userRef("user_id"),
+    role: signatoryRole("role").notNull(),
+    status: signatoryStatus("status").default("pending").notNull(),
+    signingOrder: integer("signing_order").default(1).notNull(),
+    signaturePath: text("signature_path"),
+    viewedAt: time("viewed_at"),
+    acceptedDeclarationAt: time("accepted_declaration_at"),
+    lastRemindedAt: time("last_reminded_at"),
+    signedAt: time("signed_at"),
+    ip: text("ip"),
+    userAgent: text("user_agent"),
+    ...timestamps(),
+  },
+  (t) => [
+    index("signatory_contract_idx").on(t.contractId),
+    index("signatory_user_status_idx").on(t.userId, t.status),
+    check("signing_order_positive", sql`${t.signingOrder} > 0`),
+  ],
+);
+export const contractVersions = pgTable(
+  "contract_versions",
+  {
+    id: id(),
+    contractId: contractRef(),
+    versionNumber: integer("version_number").notNull(),
+    content: text("content").notNull(),
+    generatedContent: text("generated_content"),
+    variablesData: jsonb("variables_data").default({}).notNull(),
+    createdBy: userRef("created_by"),
+    createdAt: time("created_at").defaultNow().notNull(),
+    changeSummary: text("change_summary"),
+    snapshot: jsonb("snapshot").default({}).notNull(),
+  },
+  (t) => [uniqueIndex("versions_contract_number_unique").on(t.contractId, t.versionNumber)],
+);
+export const contractApprovals = pgTable(
+  "contract_approvals",
+  {
+    id: id(),
+    contractId: contractRef(),
+    versionNumber: integer("version_number").notNull(),
+    requestedBy: userRef("requested_by"),
+    requestedAt: time("requested_at").defaultNow().notNull(),
+    reviewedBy: userRef("reviewed_by"),
+    reviewedAt: time("reviewed_at"),
+    status: approvalStatus("status").default("pending").notNull(),
+    comments: text("comments"),
+    createdAt: time("created_at").defaultNow().notNull(),
+  },
+  (t) => [
+    index("approvals_contract_idx").on(t.contractId),
+    index("approvals_status_idx").on(t.status),
+    uniqueIndex("approvals_pending_unique")
+      .on(t.contractId)
+      .where(sql`${t.status} = 'pending'`),
+  ],
+);
+export const contractAuditLogs = pgTable(
+  "contract_audit_logs",
+  {
+    id: id(),
+    contractId: uuid("contract_id").references(() => contracts.id, {
+      onDelete: "set null",
+    }),
+    action: text("action").notNull(),
+    entityType: text("entity_type").notNull(),
+    entityId: uuid("entity_id"),
+    oldValues: jsonb("old_values"),
+    newValues: jsonb("new_values"),
+    userId: userRef("user_id"),
+    ip: text("ip"),
+    userAgent: text("user_agent"),
+    createdAt: time("created_at").defaultNow().notNull(),
+  },
+  (t) => [
+    index("audit_contract_created_idx").on(t.contractId, t.createdAt),
+    index("audit_entity_idx").on(t.entityType, t.entityId),
+  ],
+);
+export const contractRenewals = pgTable(
+  "contract_renewals",
+  {
+    id: id(),
+    originalContractId: uuid("original_contract_id")
+      .notNull()
+      .references(() => contracts.id, { onDelete: "cascade" }),
+    requestedBy: userRef("requested_by"),
+    requestedAt: time("requested_at").defaultNow().notNull(),
+    status: renewalStatus("status").default("pending").notNull(),
+    proposedChanges: jsonb("proposed_changes").default({}).notNull(),
+    proposedStartDate: date("proposed_start_date"),
+    proposedEndDate: date("proposed_end_date"),
+    proposedValue: numeric("proposed_value", { precision: 15, scale: 2 }),
+    gestorResponse: text("gestor_response"),
+    processedBy: userRef("processed_by"),
+    processedAt: time("processed_at"),
+    newContractId: uuid("new_contract_id").references(() => contracts.id, {
+      onDelete: "set null",
+    }),
+    escalatedAt: time("escalated_at"),
+    escalatedTo: userRef("escalated_to"),
+    escalationReason: text("escalation_reason"),
+    priority: priority("priority").default("medium").notNull(),
+    autoRenewal: boolean("auto_renewal").default(false).notNull(),
+    ...timestamps(),
+  },
+  (t) => [
+    index("renewals_requester_idx").on(t.requestedBy),
+    index("renewals_status_idx").on(t.status),
+    uniqueIndex("renewals_pending_unique")
+      .on(t.originalContractId)
+      .where(sql`${t.status} = 'pending'`),
+  ],
+);
+export const contractCancellations = pgTable(
+  "contract_cancellations",
+  {
+    id: id(),
+    contractId: contractRef(),
+    cancelledBy: userRef("cancelled_by"),
+    cancelledAt: time("cancelled_at").defaultNow().notNull(),
+    reason: cancellationReason("reason").notNull(),
+    description: text("description"),
+    approvedBy: userRef("approved_by"),
+    approvedAt: time("approved_at"),
+    status: approvalStatus("status").default("pending").notNull(),
+    createdAt: time("created_at").defaultNow().notNull(),
+  },
+  (t) => [
+    index("cancellations_contract_idx").on(t.contractId),
+    index("cancellations_status_idx").on(t.status),
+  ],
+);
+export const notifications = pgTable(
+  "notifications",
+  {
+    id: id(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    type: text("type").notNull(),
+    title: text("title").notNull(),
+    message: text("message").notNull(),
+    data: jsonb("data").default({}).notNull(),
+    expiryContractId: uuid("expiry_contract_id").references(() => contracts.id, {
+      onDelete: "cascade",
+    }),
+    expiryThreshold: integer("expiry_threshold"),
+    readAt: time("read_at"),
+    priority: priority("priority").default("medium").notNull(),
+    expiresAt: time("expires_at"),
+    actionUrl: text("action_url"),
+    actionLabel: text("action_label"),
+    createdAt: time("created_at").defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("notifications_expiry_unique").on(t.expiryContractId, t.userId, t.expiryThreshold),
+    index("notifications_user_read_idx").on(t.userId, t.readAt),
+    check(
+      "notifications_type_check",
+      sql`${t.type} IN ('contract_expiring','renewal_request','approval_needed','contract_signed','contract_cancelled','renewal_approved','renewal_rejected','approval_result','signature_required')`,
+    ),
+  ],
+);
+export const files = pgTable(
+  "files",
+  {
+    id: id(),
+    ownerId: uuid("owner_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    contractId: uuid("contract_id").references(() => contracts.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull(),
+    path: text("path").notNull().unique(),
+    mime: text("mime").notNull(),
+    size: bigint("size", { mode: "number" }).notNull(),
+    createdAt: time("created_at").defaultNow().notNull(),
+  },
+  (t) => [
+    index("files_owner_idx").on(t.ownerId),
+    check("files_kind_check", sql`${t.kind} IN ('avatar','signature','export')`),
+    check("files_size_positive", sql`${t.size} >= 0`),
+  ],
+);
+
+export const settings = pgTable("settings", {
+  key: text("key").primaryKey(),
+  value: jsonb("value").notNull(),
+});
+export const jobRuns = pgTable(
+  "job_runs",
+  {
+    id: id(),
+    name: text("name").notNull(),
+    startedAt: time("started_at").defaultNow().notNull(),
+    finishedAt: time("finished_at"),
+    ok: boolean("ok"),
+    summary: jsonb("summary"),
+    error: text("error"),
+  },
+  (table) => [index("job_runs_name_started_idx").on(table.name, table.startedAt)],
+);
+
+export const expiryDeliveries = pgTable(
+  "expiry_deliveries",
+  {
+    id: id(),
+    contractId: contractRef(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    threshold: integer("threshold").notNull(),
+    createdAt: time("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("expiry_deliveries_unique").on(table.contractId, table.userId, table.threshold),
+  ],
+);

@@ -197,7 +197,7 @@ export const ReportsCenter: React.FC = () => {
           animate={{ opacity: 1, y: 0 }}
           className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start space-x-3"
         >
-          <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+          <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
           <div>
             <h4 className="text-sm font-semibold text-red-800">Error</h4>
             <p className="text-sm text-red-700 mt-1">{error}</p>
@@ -286,7 +286,7 @@ const OverviewDashboard: React.FC<{
               className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-all duration-200"
             >
               <div className="flex items-center justify-between mb-4">
-                <div className={`p-3 rounded-lg bg-gradient-to-r ${kpi.color}`}>
+                <div className={`p-3 rounded-lg bg-linear-to-r ${kpi.color}`}>
                   <Icon className="w-6 h-6 text-white" />
                 </div>
                 <span className={`text-sm font-semibold px-2 py-1 rounded-full ${

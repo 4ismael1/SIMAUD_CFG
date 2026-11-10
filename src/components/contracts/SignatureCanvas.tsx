@@ -127,16 +127,16 @@ export const SignatureCanvas: React.FC<SignatureCanvasProps> = ({
 
   return (
     <ModalPortal>
-      <div className="fixed inset-0 z-[100] flex items-start sm:items-center justify-center overflow-y-auto bg-slate-950/55 p-3 sm:p-4 backdrop-blur-[2px]">
+      <div className="fixed inset-0 z-100 flex items-start sm:items-center justify-center overflow-y-auto bg-slate-950/55 p-3 sm:p-4 backdrop-blur-[2px]">
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[calc(100dvh-1.5rem)] mx-auto flex flex-col overflow-hidden"
       >
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 sm:p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-purple-50">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 sm:p-6 border-b border-gray-200 bg-linear-to-r from-blue-50 to-purple-50">
           <div className="flex items-center space-x-4">
-            <div className="p-3 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl">
+            <div className="p-3 bg-linear-to-r from-blue-500 to-purple-600 rounded-xl">
               <PenTool className="w-6 h-6 text-white" />
             </div>
             <div className="min-w-0 flex-1">
@@ -291,7 +291,7 @@ export const SignatureCanvas: React.FC<SignatureCanvasProps> = ({
               className={`flex items-center justify-center space-x-2 px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-bold text-white transition-all duration-200 shadow-lg text-sm sm:text-lg min-h-[44px] ${
                 (isEmpty && !uploadedSignature) || saving || loading
                   ? 'bg-gray-400 cursor-not-allowed opacity-50'
-                  : 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 transform hover:scale-105'
+                  : 'bg-linear-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 transform hover:scale-105'
               }`}
             >
               {saving || loading ? (

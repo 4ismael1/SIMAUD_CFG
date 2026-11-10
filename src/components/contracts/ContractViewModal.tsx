@@ -306,7 +306,7 @@ export const ContractViewModal: React.FC<ContractViewModalProps> = ({
 
   return (
     <ModalPortal>
-      <div className="fixed inset-0 z-[100] flex items-start sm:items-center justify-center overflow-y-auto bg-slate-950/55 p-3 sm:p-4 backdrop-blur-[2px]">
+      <div className="fixed inset-0 z-100 flex items-start sm:items-center justify-center overflow-y-auto bg-slate-950/55 p-3 sm:p-4 backdrop-blur-[2px]">
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -1099,7 +1099,7 @@ const ApprovalHistory: React.FC<{ contractId: string }> = ({ contractId }) => {
                   : 'bg-gray-50 border border-gray-200'
               }`}>
                 <div className="flex items-start space-x-2">
-                  <MessageCircle className={`w-4 h-4 mt-0.5 flex-shrink-0 ${
+                  <MessageCircle className={`w-4 h-4 mt-0.5 shrink-0 ${
                     approval.status === 'rejected' ? 'text-red-600' : 'text-gray-600'
                   }`} />
                   <div>

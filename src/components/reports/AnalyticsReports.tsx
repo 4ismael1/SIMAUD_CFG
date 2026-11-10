@@ -423,7 +423,7 @@ const AnalyticsResults: React.FC<{ data: any; filters: AnalyticsFilters }> = ({ 
 
           {/* Growth Rate */}
           {data.growth_rate !== undefined && (
-            <div className="mt-6 p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border">
+            <div className="mt-6 p-4 bg-linear-to-r from-blue-50 to-purple-50 rounded-lg border">
               <div className="flex items-center space-x-3">
                 <TrendingUp className="w-6 h-6 text-blue-600" />
                 <div>

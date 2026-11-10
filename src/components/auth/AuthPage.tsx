@@ -55,8 +55,8 @@ export const AuthPage: React.FC = () => {
   // Si hay confirmación pendiente, mostrar la pantalla de confirmación
   if (pendingEmailConfirmation || currentView === 'confirmation') {
     return (
-      <div className="auth-shell min-h-screen min-h-[100dvh] bg-gradient-to-br from-blue-50 via-white to-blue-50 flex items-center justify-center p-4">
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-600/5 via-transparent to-green-600/5" />
+      <div className="auth-shell min-h-screen min-h-dvh bg-linear-to-br from-blue-50 via-white to-blue-50 flex items-center justify-center p-4">
+        <div className="absolute inset-0 bg-linear-to-br from-blue-600/5 via-transparent to-green-600/5" />
         
         {/* Background Pattern */}
         <div className="absolute inset-0 opacity-30">
@@ -82,8 +82,8 @@ export const AuthPage: React.FC = () => {
   // Show password reset form if coming from email link
   if (currentView === 'reset') {
     return (
-      <div className="auth-shell min-h-screen min-h-[100dvh] bg-gradient-to-br from-blue-50 via-white to-blue-50 flex items-center justify-center p-4">
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-600/5 via-transparent to-green-600/5" />
+      <div className="auth-shell min-h-screen min-h-dvh bg-linear-to-br from-blue-50 via-white to-blue-50 flex items-center justify-center p-4">
+        <div className="absolute inset-0 bg-linear-to-br from-blue-600/5 via-transparent to-green-600/5" />
         
         {/* Background Pattern */}
         <div className="absolute inset-0 opacity-30">
@@ -151,8 +151,8 @@ export const AuthPage: React.FC = () => {
   }
 
   return (
-    <div className="auth-shell min-h-screen min-h-[100dvh] bg-gradient-to-br from-blue-50 via-white to-blue-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-gradient-to-br from-blue-600/5 via-transparent to-green-600/5" />
+    <div className="auth-shell min-h-screen min-h-dvh bg-linear-to-br from-blue-50 via-white to-blue-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-linear-to-br from-blue-600/5 via-transparent to-green-600/5" />
       
       {/* Background Pattern */}
       <div className="absolute inset-0 opacity-30">

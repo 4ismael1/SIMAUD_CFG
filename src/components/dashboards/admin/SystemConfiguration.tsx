@@ -120,7 +120,7 @@ export const SystemConfiguration: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
             <div className="flex items-center justify-between mb-4">
-              <div className="p-3 rounded-lg bg-gradient-to-r from-blue-500 to-blue-600">
+              <div className="p-3 rounded-lg bg-linear-to-r from-blue-500 to-blue-600">
                 <Database className="w-6 h-6 text-white" />
               </div>
             </div>
@@ -133,7 +133,7 @@ export const SystemConfiguration: React.FC = () => {
 
           <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
             <div className="flex items-center justify-between mb-4">
-              <div className="p-3 rounded-lg bg-gradient-to-r from-green-500 to-green-600">
+              <div className="p-3 rounded-lg bg-linear-to-r from-green-500 to-green-600">
                 <Activity className="w-6 h-6 text-white" />
               </div>
             </div>
@@ -146,7 +146,7 @@ export const SystemConfiguration: React.FC = () => {
 
           <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
             <div className="flex items-center justify-between mb-4">
-              <div className="p-3 rounded-lg bg-gradient-to-r from-orange-500 to-orange-600">
+              <div className="p-3 rounded-lg bg-linear-to-r from-orange-500 to-orange-600">
                 <Bell className="w-6 h-6 text-white" />
               </div>
             </div>
@@ -159,7 +159,7 @@ export const SystemConfiguration: React.FC = () => {
 
           <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
             <div className="flex items-center justify-between mb-4">
-              <div className="p-3 rounded-lg bg-gradient-to-r from-purple-500 to-purple-600">
+              <div className="p-3 rounded-lg bg-linear-to-r from-purple-500 to-purple-600">
                 <Server className="w-6 h-6 text-white" />
               </div>
             </div>
@@ -179,7 +179,7 @@ export const SystemConfiguration: React.FC = () => {
           return (
             <div key={section.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
               <div className="flex items-center space-x-3 mb-4">
-                <div className={`p-3 rounded-lg bg-gradient-to-r ${section.color}`}>
+                <div className={`p-3 rounded-lg bg-linear-to-r ${section.color}`}>
                   <Icon className="w-6 h-6 text-white" />
                 </div>
                 <div>

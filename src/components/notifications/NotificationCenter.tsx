@@ -264,7 +264,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ onNaviga
             initial={{ opacity: 0, y: 10, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.95 }}
-            className="absolute right-0 top-12 z-[60] w-[min(24rem,calc(100vw-2rem))] max-w-[calc(100vw-1rem)] overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl max-h-96"
+            className="absolute right-0 top-12 z-60 w-[min(24rem,calc(100vw-2rem))] max-w-[calc(100vw-1rem)] overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl max-h-96"
           >
             {/* Header */}
             <div className="flex items-center justify-between p-4 border-b border-gray-200">
@@ -329,7 +329,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ onNaviga
                         onClick={() => handleNotificationClick(notification)}
                       >
                         <div className="flex items-start space-x-3">
-                          <div className={`flex items-center justify-center w-8 h-8 rounded-full flex-shrink-0 ${
+                          <div className={`flex items-center justify-center w-8 h-8 rounded-full shrink-0 ${
                             getNotificationColor(notification.type, notification.priority)
                           }`}>
                             <Icon className="w-4 h-4" />
@@ -343,7 +343,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ onNaviga
                                 {notification.title}
                               </h4>
                               {isUnread && (
-                                <div className="w-2 h-2 bg-blue-600 rounded-full flex-shrink-0"></div>
+                                <div className="w-2 h-2 bg-blue-600 rounded-full shrink-0"></div>
                               )}
                             </div>
                             

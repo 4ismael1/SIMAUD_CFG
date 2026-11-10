@@ -128,7 +128,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister })
               </button>
               <button
                 onClick={onRegister}
-                className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-6 py-2 rounded-lg font-semibold hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-200"
+                className="bg-linear-to-r from-blue-500 to-purple-600 text-white px-6 py-2 rounded-lg font-semibold hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-200"
               >
                 Registrarse
               </button>
@@ -181,7 +181,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister })
                 </button>
                 <button
                   onClick={onRegister}
-                  className="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white px-6 py-2 rounded-lg font-semibold"
+                  className="w-full bg-linear-to-r from-blue-500 to-purple-600 text-white px-6 py-2 rounded-lg font-semibold"
                 >
                   Registrarse
                 </button>
@@ -192,9 +192,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister })
       </nav>
 
       {/* Hero Section */}
-      <section className="relative pt-20 pb-16 overflow-hidden min-h-screen min-h-[100dvh] flex items-center">
+      <section className="relative pt-20 pb-16 overflow-hidden min-h-screen min-h-dvh flex items-center">
         {/* Background Pattern */}
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-white to-purple-50" />
+        <div className="absolute inset-0 bg-linear-to-br from-blue-50 via-white to-purple-50" />
         <div className="absolute inset-0 opacity-30">
           <div className="absolute top-0 left-0 w-72 h-72 bg-blue-300 rounded-full mix-blend-multiply filter blur-xl animate-blob" />
           <div className="absolute top-0 right-0 w-72 h-72 bg-purple-300 rounded-full mix-blend-multiply filter blur-xl animate-blob animation-delay-2000" />
@@ -226,7 +226,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister })
               <div className="flex flex-col sm:flex-row items-center space-y-4 sm:space-y-0 sm:space-x-6 mb-8">
                 <button
                   onClick={onRegister}
-                  className="w-full sm:w-auto bg-gradient-to-r from-blue-500 to-purple-600 text-white px-8 py-4 rounded-xl font-bold text-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300"
+                  className="w-full sm:w-auto bg-linear-to-r from-blue-500 to-purple-600 text-white px-8 py-4 rounded-xl font-bold text-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300"
                 >
                   Comenzar Ahora
                   <ArrowRight className="inline-block w-5 h-5 ml-2" />
@@ -264,7 +264,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister })
               className="relative mx-auto w-full max-w-3xl xl:max-w-none"
             >
               {/* Dashboard Mockup */}
-              <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl p-6 shadow-2xl transform rotate-3 hover:rotate-0 transition-transform duration-500">
+              <div className="bg-linear-to-br from-gray-900 to-gray-800 rounded-2xl p-6 shadow-2xl transform rotate-3 hover:rotate-0 transition-transform duration-500">
                 <div className="flex items-center space-x-2 mb-4">
                   <div className="w-3 h-3 bg-red-500 rounded-full"></div>
                   <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
@@ -326,8 +326,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister })
               </div>
 
               {/* Floating Elements */}
-              <div className="absolute -top-4 -right-4 w-20 h-20 bg-gradient-to-r from-green-400 to-blue-500 rounded-full opacity-20 animate-pulse"></div>
-              <div className="absolute -bottom-4 -left-4 w-16 h-16 bg-gradient-to-r from-purple-400 to-pink-500 rounded-full opacity-20 animate-pulse animation-delay-2000"></div>
+              <div className="absolute -top-4 -right-4 w-20 h-20 bg-linear-to-r from-green-400 to-blue-500 rounded-full opacity-20 animate-pulse"></div>
+              <div className="absolute -bottom-4 -left-4 w-16 h-16 bg-linear-to-r from-purple-400 to-pink-500 rounded-full opacity-20 animate-pulse animation-delay-2000"></div>
             </motion.div>
           </div>
 
@@ -379,7 +379,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister })
                   viewport={{ once: true }}
                   className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100 hover:shadow-lg transition-all duration-300 group"
                 >
-                  <div className="flex items-center justify-center w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl mb-6 group-hover:scale-110 transition-transform duration-300">
+                  <div className="flex items-center justify-center w-16 h-16 bg-linear-to-r from-blue-500 to-purple-600 rounded-2xl mb-6 group-hover:scale-110 transition-transform duration-300">
                     <Icon className="w-8 h-8 text-white" />
                   </div>
                   <h3 className="text-xl font-bold text-gray-900 mb-4">{feature.title}</h3>
@@ -430,7 +430,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister })
               <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4">
                 <button
                   onClick={onRegister}
-                  className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-8 py-4 rounded-xl font-bold hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300"
+                  className="bg-linear-to-r from-blue-500 to-purple-600 text-white px-8 py-4 rounded-xl font-bold hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300"
                 >
                   Comenzar Ahora
                 </button>
@@ -454,7 +454,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister })
               {/* System Interface Mockup */}
               <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden">
                 {/* Header */}
-                <div className="bg-gradient-to-r from-blue-500 to-purple-600 p-4">
+                <div className="bg-linear-to-r from-blue-500 to-purple-600 p-4">
                   <div className="flex items-center space-x-3">
                     <BrandLogo
                       showText={false}
@@ -527,10 +527,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister })
               </div>
 
               {/* Floating Icons */}
-              <div className="absolute -top-6 -right-6 w-12 h-12 bg-gradient-to-r from-green-400 to-blue-500 rounded-full flex items-center justify-center shadow-lg">
+              <div className="absolute -top-6 -right-6 w-12 h-12 bg-linear-to-r from-green-400 to-blue-500 rounded-full flex items-center justify-center shadow-lg">
                 <CheckCircle className="w-6 h-6 text-white" />
               </div>
-              <div className="absolute -bottom-6 -left-6 w-12 h-12 bg-gradient-to-r from-purple-400 to-pink-500 rounded-full flex items-center justify-center shadow-lg">
+              <div className="absolute -bottom-6 -left-6 w-12 h-12 bg-linear-to-r from-purple-400 to-pink-500 rounded-full flex items-center justify-center shadow-lg">
                 <Lock className="w-6 h-6 text-white" />
               </div>
             </motion.div>
@@ -566,7 +566,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister })
               viewport={{ once: true }}
               className="text-center"
             >
-              <div className="flex items-center justify-center w-16 h-16 bg-gradient-to-r from-blue-500 to-blue-600 rounded-2xl mx-auto mb-4">
+              <div className="flex items-center justify-center w-16 h-16 bg-linear-to-r from-blue-500 to-blue-600 rounded-2xl mx-auto mb-4">
                 <FileText className="w-8 h-8 text-white" />
               </div>
               <h3 className="text-lg font-bold text-gray-900 mb-2">Creación Inteligente</h3>
@@ -582,7 +582,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister })
               viewport={{ once: true }}
               className="text-center"
             >
-              <div className="flex items-center justify-center w-16 h-16 bg-gradient-to-r from-green-500 to-green-600 rounded-2xl mx-auto mb-4">
+              <div className="flex items-center justify-center w-16 h-16 bg-linear-to-r from-green-500 to-green-600 rounded-2xl mx-auto mb-4">
                 <Users className="w-8 h-8 text-white" />
               </div>
               <h3 className="text-lg font-bold text-gray-900 mb-2">Colaboración Fluida</h3>
@@ -598,7 +598,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister })
               viewport={{ once: true }}
               className="text-center"
             >
-              <div className="flex items-center justify-center w-16 h-16 bg-gradient-to-r from-purple-500 to-purple-600 rounded-2xl mx-auto mb-4">
+              <div className="flex items-center justify-center w-16 h-16 bg-linear-to-r from-purple-500 to-purple-600 rounded-2xl mx-auto mb-4">
                 <Shield className="w-8 h-8 text-white" />
               </div>
               <h3 className="text-lg font-bold text-gray-900 mb-2">Seguridad Total</h3>
@@ -614,7 +614,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister })
               viewport={{ once: true }}
               className="text-center"
             >
-              <div className="flex items-center justify-center w-16 h-16 bg-gradient-to-r from-orange-500 to-orange-600 rounded-2xl mx-auto mb-4">
+              <div className="flex items-center justify-center w-16 h-16 bg-linear-to-r from-orange-500 to-orange-600 rounded-2xl mx-auto mb-4">
                 <BarChart3 className="w-8 h-8 text-white" />
               </div>
               <h3 className="text-lg font-bold text-gray-900 mb-2">Control Total</h3>
@@ -627,7 +627,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister })
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 bg-gradient-to-r from-blue-500 to-purple-600">
+      <section className="py-20 bg-linear-to-r from-blue-500 to-purple-600">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -726,7 +726,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister })
               <div className="space-y-4">
                 <button
                   onClick={onLogin}
-                  className="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white px-6 py-3 rounded-lg font-semibold hover:shadow-lg transition-all duration-200"
+                  className="w-full bg-linear-to-r from-blue-500 to-purple-600 text-white px-6 py-3 rounded-lg font-semibold hover:shadow-lg transition-all duration-200"
                 >
                   Iniciar Sesión
                 </button>

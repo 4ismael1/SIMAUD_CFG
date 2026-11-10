@@ -42,7 +42,7 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
       ? 'text-center'
       : 'text-left';
 
-  const imageWrapperClasses = `flex-shrink-0 flex items-center justify-center ${imageWrapperClassName}`.trim();
+  const imageWrapperClasses = `shrink-0 flex items-center justify-center ${imageWrapperClassName}`.trim();
   const trimmedTitle = title?.trim() ?? '';
   const computedAlt =
     alt ?? `Logotipo de ${BRAND_FULL_NAME}`;

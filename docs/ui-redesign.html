@@ -1,0 +1,689 @@
+<title>Rediseño SIMAUD-LEX</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&display=swap">
+<style>
+/* Layout: documento de propuesta de una columna (≈ 1080px) con maquetas de la app en marcos que hacen scroll lateral propio en móvil. */
+:root {
+  --ink: #0f1b33;          /* azul tinta: texto fuerte, sidebar, botón primario */
+  --primary: #1f3f8f;      /* acción primaria en la app */
+  --primary-soft: #e8edf8;
+  --brand: #c41e3a;        /* rojo del logotipo: solo marca, nunca para errores */
+  --bg: #f6f7fa;           /* fondo de página: gris con sesgo azul */
+  --surface: #ffffff;
+  --surface-2: #eef1f6;
+  --line: #dde2ec;
+  --fg: #1b2333;
+  --muted: #5d6779;
+  --ok: #157f4a;   --ok-soft: #e3f4ea;
+  --warn: #a35a00; --warn-soft: #fdf0dc;
+  --danger: #b42318; --danger-soft: #fce8e6;
+  --info: #1f5fbf; --info-soft: #e5eefb;
+  --violet: #5b3fb0; --violet-soft: #eee9fb;
+  --neutral-soft: #eceff4;
+  --paper: #fffdf8;
+  --shadow: 0 1px 2px rgba(15,27,51,.06), 0 4px 16px rgba(15,27,51,.06);
+  --f-ui: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --f-doc: "Source Serif 4", Georgia, "Times New Roman", serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", monospace;
+  --r: 8px;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --ink: #e6ebf5; --primary: #8fb0ff; --primary-soft: #1d2a48; --brand: #ff5c74;
+  --bg: #0d121c; --surface: #151c2a; --surface-2: #1b2435; --line: #2a3448; --fg: #e3e8f2; --muted: #9aa5ba;
+  --ok: #5fd395; --ok-soft: #12301f; --warn: #f4b35a; --warn-soft: #3a2a10; --danger: #ff8a7d; --danger-soft: #3d1a17;
+  --info: #8ab6ff; --info-soft: #172a4a; --violet: #b9a5ff; --violet-soft: #271f45; --neutral-soft: #222b3b; --paper: #1a2130;
+  --shadow: 0 1px 2px rgba(0,0,0,.4), 0 4px 16px rgba(0,0,0,.3); color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --ink: #e6ebf5; --primary: #8fb0ff; --primary-soft: #1d2a48; --brand: #ff5c74;
+  --bg: #0d121c; --surface: #151c2a; --surface-2: #1b2435; --line: #2a3448; --fg: #e3e8f2; --muted: #9aa5ba;
+  --ok: #5fd395; --ok-soft: #12301f; --warn: #f4b35a; --warn-soft: #3a2a10; --danger: #ff8a7d; --danger-soft: #3d1a17;
+  --info: #8ab6ff; --info-soft: #172a4a; --violet: #b9a5ff; --violet-soft: #271f45; --neutral-soft: #222b3b; --paper: #1a2130;
+  --shadow: 0 1px 2px rgba(0,0,0,.4), 0 4px 16px rgba(0,0,0,.3); color-scheme: dark; }
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font: 15px/1.6 var(--f-ui); }
+.wrap { max-width: 1080px; margin: 0 auto; padding-block: 40px 80px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex; flex-direction: column; gap: 56px; }
+h1, h2, h3 { font-family: var(--f-doc); color: var(--ink); text-wrap: balance; margin: 0; line-height: 1.2; }
+h1 { font-size: clamp(30px, 5vw, 44px); font-weight: 700; }
+h2 { font-size: 28px; font-weight: 600; }
+h3 { font-size: 19px; font-weight: 600; }
+p { margin: 0; }
+.lead { font-size: 17px; color: var(--muted); max-width: 68ch; }
+.eyebrow { font: 600 12px/1 var(--f-ui); letter-spacing: .08em; text-transform: uppercase; color: var(--brand); }
+section { display: flex; flex-direction: column; gap: 20px; }
+.sec-head { display: flex; flex-direction: column; gap: 8px; }
+.sec-head p { color: var(--muted); max-width: 70ch; }
+code, .mono { font-family: var(--f-mono); font-size: .88em; }
+a { color: var(--primary); }
+:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+/* Cabecera */
+.masthead { display: grid; gap: 20px; border-bottom: 1px solid var(--line); padding-bottom: 32px; }
+.mast-top { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.logo { display: flex; align-items: center; gap: 10px; font-weight: 700; letter-spacing: .02em; color: var(--ink); }
+.logo-mark { width: 30px; height: 30px; border-radius: 6px; background: var(--ink); color: var(--bg); display: grid; place-items: center; font: 700 15px var(--f-doc); }
+.logo-mark b { color: var(--brand); }
+.meta { color: var(--muted); font-size: 13px; }
+.facts { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; }
+.fact { background: var(--surface); padding: 16px 18px; display: flex; flex-direction: column; gap: 2px; }
+.fact strong { font: 600 26px/1.1 var(--f-doc); color: var(--ink); font-variant-numeric: tabular-nums; }
+.fact span { color: var(--muted); font-size: 13px; }
+@media (max-width: 720px) { .facts { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+
+/* Nav de secciones */
+.toc { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 14px; }
+.toc a { text-decoration: none; color: var(--muted); border-bottom: 1px solid transparent; }
+.toc a:hover { color: var(--ink); border-color: var(--line); }
+
+/* Principios */
+.principles { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 16px; }
+.principle { display: flex; flex-direction: column; gap: 6px; padding-top: 14px; border-top: 2px solid var(--ink); }
+.principle b { color: var(--ink); }
+.principle p { color: var(--muted); font-size: 14px; }
+
+/* Sistema visual */
+.ds { display: grid; grid-template-columns: minmax(0,1.1fr) minmax(0,1fr); gap: 20px; }
+@media (max-width: 860px) { .ds { grid-template-columns: minmax(0,1fr); } }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 20px; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.panel h3 { font-size: 16px; font-family: var(--f-ui); }
+.swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 10px; }
+.sw { display: flex; flex-direction: column; gap: 6px; font-size: 12px; }
+.sw i { display: block; height: 44px; border-radius: 6px; border: 1px solid var(--line); }
+.sw b { font-weight: 600; color: var(--fg); }
+.sw span { color: var(--muted); }
+.type-row { display: flex; flex-direction: column; gap: 2px; padding-block: 10px; border-top: 1px solid var(--line); }
+.type-row:first-of-type { border-top: 0; }
+.type-row small { color: var(--muted); font-size: 12px; }
+.badges { display: flex; flex-wrap: wrap; gap: 8px; }
+.badge { display: inline-flex; align-items: center; gap: 6px; font: 500 12px/1 var(--f-ui); padding: 5px 9px; border-radius: 999px; white-space: nowrap; }
+.badge::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.b-draft { background: var(--neutral-soft); color: var(--muted); }
+.b-pending { background: var(--warn-soft); color: var(--warn); }
+.b-rejected { background: var(--danger-soft); color: var(--danger); }
+.b-sign { background: var(--info-soft); color: var(--info); }
+.b-active { background: var(--ok-soft); color: var(--ok); }
+.b-expiring { background: var(--warn-soft); color: var(--warn); box-shadow: inset 0 0 0 1px var(--warn); }
+.b-expired { background: var(--danger-soft); color: var(--danger); box-shadow: inset 0 0 0 1px var(--danger); }
+.b-cancel { background: var(--neutral-soft); color: var(--muted); text-decoration: line-through; }
+.b-renewed { background: var(--violet-soft); color: var(--violet); }
+.flow { font-size: 13px; color: var(--muted); }
+.comp-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px,1fr)); gap: 6px 14px; font-size: 14px; margin: 0; padding: 0; list-style: none; }
+.comp-list li { display: flex; gap: 6px; }
+.comp-list li::before { content: "▪"; color: var(--brand); }
+
+/* Navegación por rol */
+.tbl-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 14px; min-width: 720px; }
+th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600; background: var(--surface-2); }
+tr:last-child td { border-bottom: 0; }
+td .y { color: var(--ok); font-weight: 600; }
+td .n { color: var(--line); }
+td .p { color: var(--warn); font-weight: 500; }
+.note { font-size: 13px; color: var(--muted); }
+
+/* Maquetas */
+.mock-cap { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.mock-cap p { color: var(--muted); font-size: 14px; max-width: 70ch; }
+.frame-scroll { overflow-x: auto; border-radius: 12px; border: 1px solid var(--line); background: var(--surface-2); padding: 14px; }
+.app { min-width: 900px; background: var(--bg); border-radius: 8px; overflow: hidden; box-shadow: var(--shadow); display: grid; grid-template-columns: 210px 1fr; font-size: 13px; border: 1px solid var(--line); }
+.side { background: var(--ink); color: #cdd6e8; display: flex; flex-direction: column; gap: 2px; padding: 14px 10px; }
+:root[data-theme="dark"] .side { color: var(--bg); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .side { color: var(--bg); } }
+.side .logo { color: var(--surface); font-size: 13px; padding: 4px 6px 14px; }
+.side .logo .logo-mark { background: var(--surface); color: var(--ink); width: 26px; height: 26px; font-size: 13px; }
+.nav-i { display: flex; align-items: center; gap: 9px; padding: 7px 10px; border-radius: 6px; opacity: .78; }
+.nav-i svg { width: 15px; height: 15px; flex: none; }
+.nav-i.on { background: rgba(255,255,255,.12); opacity: 1; font-weight: 600; }
+.nav-i .cnt { margin-left: auto; font-size: 11px; background: var(--brand); color: #fff; border-radius: 999px; padding: 1px 7px; }
+.nav-grp { font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; opacity: .5; padding: 12px 10px 4px; }
+.main { display: flex; flex-direction: column; min-width: 0; }
+.topbar { display: flex; align-items: center; gap: 12px; padding: 10px 18px; background: var(--surface); border-bottom: 1px solid var(--line); }
+.crumbs { color: var(--muted); }
+.crumbs b { color: var(--fg); font-weight: 600; }
+.search { margin-left: auto; display: flex; align-items: center; gap: 8px; border: 1px solid var(--line); border-radius: 6px; padding: 5px 10px; color: var(--muted); width: 240px; background: var(--bg); }
+.search kbd { margin-left: auto; font: 11px var(--f-mono); border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; }
+.icon-btn { width: 30px; height: 30px; border-radius: 6px; display: grid; place-items: center; color: var(--muted); position: relative; }
+.icon-btn svg { width: 16px; height: 16px; }
+.dot { position: absolute; top: 5px; right: 6px; width: 7px; height: 7px; border-radius: 50%; background: var(--brand); border: 2px solid var(--surface); }
+.avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--primary-soft); color: var(--primary); display: grid; place-items: center; font-weight: 700; font-size: 11px; }
+.content { padding: 18px; display: flex; flex-direction: column; gap: 14px; }
+.pg-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
+.pg-head h4 { margin: 0; font: 600 20px/1.2 var(--f-doc); color: var(--ink); }
+.pg-head p { color: var(--muted); font-size: 12.5px; }
+.btn { display: inline-flex; align-items: center; gap: 6px; border-radius: 6px; padding: 7px 12px; font: 600 12.5px var(--f-ui); border: 1px solid var(--line); background: var(--surface); color: var(--fg); white-space: nowrap; }
+.btn svg { width: 14px; height: 14px; }
+.btn.pri { background: var(--primary); border-color: var(--primary); color: var(--surface); }
+.btn.ok { background: var(--ok); border-color: var(--ok); color: var(--surface); }
+.btn.ghost-d { color: var(--danger); }
+.tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); }
+.tab { padding: 7px 12px; color: var(--muted); border-bottom: 2px solid transparent; margin-bottom: -1px; display: flex; gap: 6px; align-items: center; }
+.tab.on { color: var(--ink); border-color: var(--ink); font-weight: 600; }
+.tab .n { font-size: 11px; background: var(--neutral-soft); border-radius: 999px; padding: 0 6px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.filters { display: flex; gap: 8px; align-items: center; }
+.chip { border: 1px dashed var(--line); border-radius: 6px; padding: 4px 9px; color: var(--muted); font-size: 12px; }
+.mt { width: 100%; border-collapse: collapse; min-width: 0; font-size: 12.5px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.mt th { font-size: 10.5px; padding: 8px 12px; }
+.mt td { padding: 9px 12px; vertical-align: middle; }
+.mt td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.mt .t { font-weight: 600; color: var(--fg); }
+.mt .s { color: var(--muted); font-size: 11.5px; }
+.prog { display: flex; align-items: center; gap: 6px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.prog i { width: 46px; height: 5px; border-radius: 3px; background: var(--neutral-soft); position: relative; overflow: hidden; }
+.prog i::after { content: ""; position: absolute; inset: 0 auto 0 0; width: var(--w); background: var(--ok); }
+.kebab { color: var(--muted); text-align: center; }
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.stat { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; display: flex; flex-direction: column; gap: 2px; }
+.stat b { font: 600 22px/1.1 var(--f-doc); color: var(--ink); font-variant-numeric: tabular-nums; }
+.stat span { color: var(--muted); font-size: 12px; }
+.stat.alert { border-color: var(--warn); background: linear-gradient(var(--warn-soft), var(--surface)); }
+.stat.alert span { color: var(--warn); }
+
+/* Detalle */
+.detail { display: grid; grid-template-columns: minmax(0,1fr) 270px; gap: 14px; align-items: start; }
+.paper { background: var(--paper); border: 1px solid var(--line); border-radius: 4px; box-shadow: var(--shadow); padding: 34px 44px; font-family: var(--f-doc); color: var(--fg); font-size: 13.5px; line-height: 1.7; display: flex; flex-direction: column; gap: 10px; }
+.paper .ttl { text-align: center; font-weight: 700; letter-spacing: .06em; font-size: 14px; }
+.paper .var { background: var(--info-soft); color: var(--info); border-radius: 3px; padding: 0 3px; font-weight: 600; }
+.paper .sigs { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 14px; }
+.paper .sig { border-top: 1px solid var(--fg); padding-top: 4px; font-size: 12px; font-family: var(--f-ui); color: var(--muted); }
+.paper .sig .scr { font: italic 600 20px var(--f-doc); color: var(--primary); height: 30px; display: block; }
+.rail { display: flex; flex-direction: column; gap: 12px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
+.card h5 { margin: 0; font-size: 11px; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
+.steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0; }
+.steps li { display: grid; grid-template-columns: 16px 1fr; gap: 8px; position: relative; padding-bottom: 10px; font-size: 12.5px; }
+.steps li::before { content: ""; width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--line); background: var(--surface); margin-top: 4px; z-index: 1; }
+.steps li::after { content: ""; position: absolute; left: 6px; top: 14px; bottom: 0; width: 2px; background: var(--line); }
+.steps li:last-child::after { display: none; }
+.steps li.done::before { background: var(--ok); border-color: var(--ok); }
+.steps li.now::before { border-color: var(--info); box-shadow: 0 0 0 3px var(--info-soft); }
+.steps li small { display: block; color: var(--muted); font-size: 11.5px; }
+.person { display: flex; align-items: center; gap: 8px; font-size: 12.5px; }
+.person .avatar { width: 24px; height: 24px; font-size: 10px; }
+.person .st { margin-left: auto; }
+.actions { display: flex; flex-direction: column; gap: 6px; }
+.actions .btn { justify-content: center; }
+
+/* Asistente */
+.wizard { display: grid; grid-template-columns: 200px minmax(0,1fr) minmax(0,1fr); gap: 14px; align-items: start; }
+.wsteps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.wsteps li { display: flex; gap: 10px; align-items: center; padding: 8px 10px; border-radius: 6px; color: var(--muted); }
+.wsteps li i { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font: 600 11px var(--f-ui); font-style: normal; border: 1px solid var(--line); background: var(--surface); }
+.wsteps li.done i { background: var(--ok); border-color: var(--ok); color: var(--surface); }
+.wsteps li.on { background: var(--surface); color: var(--ink); font-weight: 600; box-shadow: var(--shadow); }
+.wsteps li.on i { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+.form { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.field { display: flex; flex-direction: column; gap: 4px; }
+.field label { font-size: 12px; font-weight: 600; color: var(--fg); }
+.field label em { color: var(--danger); font-style: normal; }
+.inp { border: 1px solid var(--line); border-radius: 6px; padding: 7px 10px; background: var(--bg); color: var(--fg); font-size: 12.5px; }
+.inp.err { border-color: var(--danger); }
+.hint { font-size: 11.5px; color: var(--muted); }
+.hint.err { color: var(--danger); }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.found { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 6px; background: var(--ok-soft); color: var(--ok); font-size: 12px; }
+.prev-cap { font-size: 11px; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); display: flex; justify-content: space-between; }
+.wfoot { display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--line); padding-top: 12px; color: var(--muted); font-size: 12px; }
+
+/* Móvil */
+.phones { display: flex; gap: 22px; flex-wrap: wrap; justify-content: center; }
+.phone { width: 300px; max-width: 100%; border-radius: 34px; border: 9px solid var(--ink); background: var(--bg); overflow: hidden; box-shadow: var(--shadow); display: flex; flex-direction: column; font-size: 13px; }
+.ph-bar { display: flex; align-items: center; gap: 10px; padding: 12px 14px; background: var(--surface); border-bottom: 1px solid var(--line); }
+.ph-bar b { font-size: 14px; color: var(--ink); }
+.ph-body { padding: 14px; display: flex; flex-direction: column; gap: 12px; min-height: 470px; }
+.ph-doc { background: var(--paper); border: 1px solid var(--line); border-radius: 6px; padding: 14px; font: 12px/1.6 var(--f-doc); height: 150px; overflow: hidden; position: relative; }
+.ph-doc::after { content: ""; position: absolute; inset: auto 0 0; height: 50px; background: linear-gradient(transparent, var(--paper)); }
+.pad { border: 1.5px dashed var(--line); border-radius: 8px; height: 140px; display: grid; place-items: center; color: var(--muted); background: var(--surface); position: relative; }
+.pad svg { position: absolute; inset: 20px 30px; width: calc(100% - 60px); height: calc(100% - 40px); }
+.check { display: flex; gap: 8px; font-size: 12px; align-items: flex-start; }
+.check i { width: 16px; height: 16px; border-radius: 4px; background: var(--primary); flex: none; margin-top: 2px; display: grid; place-items: center; color: var(--surface); font-size: 11px; font-style: normal; }
+.ph-cta { margin-top: auto; display: flex; flex-direction: column; gap: 8px; }
+.ph-cta .btn { justify-content: center; padding: 11px; font-size: 14px; }
+.ph-tabs { display: grid; grid-template-columns: repeat(4,1fr); border-top: 1px solid var(--line); background: var(--surface); padding: 8px 4px 10px; font-size: 10.5px; color: var(--muted); text-align: center; }
+.ph-tabs span { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.ph-tabs svg { width: 18px; height: 18px; }
+.ph-tabs .on { color: var(--primary); font-weight: 600; }
+.ph-card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 6px; }
+.ph-card .t { font-weight: 600; color: var(--fg); }
+.ph-card .s { color: var(--muted); font-size: 12px; }
+.ph-card .r { display: flex; justify-content: space-between; align-items: center; }
+.seg { display: flex; background: var(--surface-2); border-radius: 8px; padding: 3px; font-size: 12px; }
+.seg span { flex: 1; text-align: center; padding: 5px; border-radius: 6px; color: var(--muted); }
+.seg .on { background: var(--surface); color: var(--ink); font-weight: 600; box-shadow: var(--shadow); }
+
+/* Pantalla por pantalla */
+.filterbar { display: flex; flex-wrap: wrap; gap: 6px; }
+.fbtn { font: 500 13px var(--f-ui); border: 1px solid var(--line); background: var(--surface); color: var(--muted); border-radius: 999px; padding: 6px 12px; cursor: pointer; }
+.fbtn[aria-pressed="true"] { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+.area { display: flex; flex-direction: column; gap: 10px; }
+.area > h3 { display: flex; align-items: baseline; gap: 10px; }
+.area > h3 small { font: 500 13px var(--f-ui); color: var(--muted); }
+.screen { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); display: grid; grid-template-columns: 220px minmax(0,1fr) minmax(0,1fr); }
+.screen > div { padding: 14px 16px; min-width: 0; }
+.screen > div + div { border-left: 1px solid var(--line); }
+.sc-name { display: flex; flex-direction: column; gap: 6px; }
+.sc-name b { color: var(--ink); }
+.roles { display: flex; flex-wrap: wrap; gap: 4px; }
+.role { font-size: 11px; border-radius: 4px; padding: 1px 6px; background: var(--surface-2); color: var(--muted); }
+.sc-name code { color: var(--muted); font-size: 11.5px; word-break: break-all; }
+.col-h { font-size: 11px; letter-spacing: .07em; text-transform: uppercase; font-weight: 600; margin-bottom: 6px; }
+.col-h.bad { color: var(--danger); }
+.col-h.good { color: var(--ok); }
+.screen ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; font-size: 14px; }
+.screen ul li::marker { color: var(--muted); }
+.tag-bug { font: 600 10.5px var(--f-ui); color: var(--danger); background: var(--danger-soft); border-radius: 3px; padding: 0 4px; margin-right: 4px; letter-spacing: .03em; }
+@media (max-width: 860px) {
+  .screen { grid-template-columns: minmax(0,1fr); }
+  .screen > div + div { border-left: 0; border-top: 1px solid var(--line); }
+}
+
+/* Calidad y orden */
+.quality { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px,1fr)); gap: 16px; }
+.quality .panel ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; font-size: 14px; }
+.sprints { display: flex; flex-direction: column; gap: 0; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); }
+.sprint { display: grid; grid-template-columns: 54px minmax(0,1fr) auto; gap: 14px; padding: 14px 16px; border-top: 1px solid var(--line); align-items: start; }
+.sprint:first-child { border-top: 0; }
+.sprint .num { font: 700 24px/1 var(--f-doc); color: var(--brand); }
+.sprint b { color: var(--ink); }
+.sprint p { color: var(--muted); font-size: 14px; }
+.sprint .who { font-size: 12px; color: var(--muted); white-space: nowrap; }
+@media (max-width: 600px) { .sprint { grid-template-columns: 40px minmax(0,1fr); } .sprint .who { grid-column: 2; } }
+footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line); padding-top: 18px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-home" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></symbol>
+    <symbol id="i-file" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></symbol>
+    <symbol id="i-pen" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 1-15.5 6.3L3 16M3 12a9 9 0 0 1 15.5-6.3L21 8"/><path d="M21 3v5h-5M3 21v-5h5"/></symbol>
+    <symbol id="i-layers" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 9 5-9 5-9-5z"/><path d="m3 13 9 5 9-5"/></symbol>
+    <symbol id="i-users" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="4"/><path d="M2 21a7 7 0 0 1 14 0M16 3.5a4 4 0 0 1 0 9M22 21a6 6 0 0 0-4-5.6"/></symbol>
+    <symbol id="i-chart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></symbol>
+    <symbol id="i-cog" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></symbol>
+    <symbol id="i-bell" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.9 1.9 0 0 0 3.4 0"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M4 21h16"/></symbol>
+    <symbol id="i-inbox" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.5 5h13L22 12v6a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-6z"/></symbol>
+  </defs>
+</svg>
+
+<div class="wrap">
+
+<header class="masthead">
+  <div class="mast-top">
+    <div class="logo"><span class="logo-mark">S<b>.</b></span> SIMAUD-LEX · Gestión Legal Digital</div>
+    <span class="meta">Propuesta de interfaz · v1 · 9 nov 2026</span>
+  </div>
+  <span class="eyebrow">Fase de diseño</span>
+  <h1>Rediseño completo de la interfaz</h1>
+  <p class="lead">Todo lo que vamos a cambiar, pantalla por pantalla, para que la app se vea profesional, funcione en el móvil y deje de fallar. El flujo de negocio se mantiene; cambia cómo se presenta, cómo se navega y cómo se comporta cada pantalla.</p>
+  <div class="facts">
+    <div class="fact"><strong>38</strong><span>pantallas y modales revisados</span></div>
+    <div class="fact"><strong>4 → 1</strong><span>dashboards copiados que pasan a un solo shell</span></div>
+    <div class="fact"><strong>9</strong><span>estados de contrato, todos en español</span></div>
+    <div class="fact"><strong>23</strong><span>fallos visibles que se corrigen</span></div>
+  </div>
+  <nav class="toc" aria-label="Secciones">
+    <a href="#principios">Principios</a><a href="#sistema">Sistema visual</a><a href="#navegacion">Navegación por rol</a>
+    <a href="#maquetas">Maquetas</a><a href="#pantallas">Pantalla por pantalla</a><a href="#calidad">Calidad transversal</a><a href="#orden">Orden de trabajo</a>
+  </nav>
+</header>
+
+<section id="principios">
+  <div class="sec-head"><span class="eyebrow">01 · Base</span><h2>Principios del rediseño</h2></div>
+  <div class="principles">
+    <div class="principle"><b>Sobrio e institucional</b><p>Es una herramienta legal universitaria. Un azul tinta como color de trabajo y el rojo del logotipo solo como firma de marca. Nada de degradados por rol ni tarjetas de colores sueltos.</p></div>
+    <div class="principle"><b>El contrato es un documento</b><p>Los contratos se leen como papel: tipografía serif, márgenes, variables resaltadas y bloque de firmas. Lo que el firmante ve es lo que se imprimirá.</p></div>
+    <div class="principle"><b>Una app, cuatro vistas</b><p>Un solo shell, una sola navegación filtrada por rol. Lo que hoy está copiado cuatro veces se escribe una vez y se arregla una vez.</p></div>
+    <div class="principle"><b>Cada pantalla tiene URL</b><p><code>/contratos/123</code> se puede recargar, compartir y abrir con «Atrás». Hoy todo vive en estado interno y F5 te devuelve al inicio.</p></div>
+    <div class="principle"><b>Estados completos</b><p>Cada lista tiene carga, vacío, error y sin resultados. Cada acción confirma con un aviso. Nada de <code>alert()</code>, nada de pantallas en blanco.</p></div>
+    <div class="principle"><b>Móvil de verdad</b><p>El firmante casi siempre llega desde el teléfono. Firmar, revisar y aprobar deben funcionar con el pulgar a 360 px de ancho.</p></div>
+  </div>
+</section>
+
+<section id="sistema">
+  <div class="sec-head"><span class="eyebrow">02 · Tokens</span><h2>Sistema visual</h2>
+    <p>Se define una vez en <code>@theme</code> de Tailwind 4 y todos los componentes lo consumen. Incluye modo oscuro desde el primer día.</p></div>
+  <div class="ds">
+    <div class="panel">
+      <h3>Color</h3>
+      <div class="swatches">
+        <div class="sw"><i style="background:var(--ink)"></i><b>Tinta</b><span>Texto fuerte, sidebar</span></div>
+        <div class="sw"><i style="background:var(--primary)"></i><b>Primario</b><span>Botones y enlaces</span></div>
+        <div class="sw"><i style="background:var(--brand)"></i><b>Marca</b><span>Logo y contadores</span></div>
+        <div class="sw"><i style="background:var(--bg)"></i><b>Fondo</b><span>Gris con sesgo azul</span></div>
+        <div class="sw"><i style="background:var(--paper)"></i><b>Papel</b><span>Documentos</span></div>
+        <div class="sw"><i style="background:var(--danger)"></i><b>Error</b><span>Distinto del rojo de marca</span></div>
+      </div>
+      <h3>Estados del contrato <span class="note">(un solo campo, sustituye a los 3 actuales)</span></h3>
+      <div class="badges">
+        <span class="badge b-draft">Borrador</span><span class="badge b-pending">En aprobación</span><span class="badge b-rejected">Rechazado</span>
+        <span class="badge b-sign">Por firmar</span><span class="badge b-active">Vigente</span><span class="badge b-expiring">Por vencer</span>
+        <span class="badge b-expired">Vencido</span><span class="badge b-cancel">Cancelado</span><span class="badge b-renewed">Renovado</span>
+      </div>
+      <p class="flow">Borrador → En aprobación → Por firmar → Vigente → Por vencer → Vencido / Renovado. Rechazado vuelve a Borrador. Cancelado sale desde cualquier estado activo.</p>
+    </div>
+    <div class="panel">
+      <h3>Tipografía</h3>
+      <div class="type-row"><span style="font:600 26px/1.2 var(--f-doc);color:var(--ink)">Contrato de Servicios</span><small>Source Serif 4 · títulos de página y documentos</small></div>
+      <div class="type-row"><span style="font:500 15px var(--f-ui)">Enviar a aprobación · 3 firmantes pendientes</span><small>IBM Plex Sans · toda la interfaz</small></div>
+      <div class="type-row"><span style="font:400 13px var(--f-mono)">{{valor_contrato}} · 001-1234567-8 · CT-2026-0042</span><small>IBM Plex Mono · variables, cédulas y códigos</small></div>
+      <h3>Componentes base</h3>
+      <ul class="comp-list">
+        <li>Button</li><li>IconButton</li><li>Input / Textarea</li><li>Select / Combobox</li><li>DatePicker</li><li>MoneyInput (RD$)</li>
+        <li>CedulaInput</li><li>Modal</li><li>Drawer</li><li>ConfirmDialog</li><li>Toast</li><li>DropdownMenu</li>
+        <li>Tabs</li><li>DataTable</li><li>StatusBadge</li><li>StatCard</li><li>EmptyState</li><li>Skeleton</li>
+        <li>Stepper</li><li>Timeline</li><li>Avatar</li><li>DocumentView</li><li>SignaturePad</li><li>PageHeader</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section id="navegacion">
+  <div class="sec-head"><span class="eyebrow">03 · Arquitectura</span><h2>Navegación por rol</h2>
+    <p>Hoy cada rol tiene su propio dashboard con menús distintos e iconos repetidos (Settings aparece 3 veces en el admin). La propuesta es un menú único con secciones que aparecen según el rol.</p></div>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>Sección</th><th>Ruta</th><th>Admin</th><th>Supervisor</th><th>Gestor</th><th>Firmante</th><th>Qué reúne de lo actual</th></tr></thead>
+      <tbody>
+        <tr><td><b>Inicio</b></td><td><code>/inicio</code></td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td>Los 4 «Dashboard»; contenido según rol</td></tr>
+        <tr><td><b>Por firmar</b></td><td><code>/firmas</code></td><td class="p">si firma</td><td class="p">si firma</td><td class="p">si firma</td><td class="y">●</td><td>«Mis Contratos» del firmante; aparece para cualquiera que sea firmante</td></tr>
+        <tr><td><b>Contratos</b></td><td><code>/contratos</code></td><td class="y">●</td><td class="y">● (nuevo)</td><td class="y">propios</td><td class="n">—</td><td>«Contratos» + «Gestión» del admin + «Mis Contratos» del gestor</td></tr>
+        <tr><td><b>Aprobaciones</b></td><td><code>/aprobaciones</code></td><td class="y">●</td><td class="y">●</td><td class="n">—</td><td class="n">—</td><td>Cola de aprobación con contador</td></tr>
+        <tr><td><b>Renovaciones</b></td><td><code>/renovaciones</code></td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td class="n">—</td><td>Centro de renovaciones</td></tr>
+        <tr><td><b>Plantillas</b></td><td><code>/plantillas</code></td><td class="y">●</td><td class="y">●</td><td class="p">lectura</td><td class="n">—</td><td>Plantillas + Variables como pestañas</td></tr>
+        <tr><td><b>Reportes</b></td><td><code>/reportes</code></td><td class="y">●</td><td class="y">●</td><td class="y">propios</td><td class="n">—</td><td>Centro de Reportes + Analytics + Mis Métricas</td></tr>
+        <tr><td><b>Usuarios</b></td><td><code>/usuarios</code></td><td class="y">●</td><td class="n">—</td><td class="n">—</td><td class="n">—</td><td>Gestión de Usuarios</td></tr>
+        <tr><td><b>Configuración</b></td><td><code>/configuracion</code></td><td class="y">●</td><td class="n">—</td><td class="n">—</td><td class="n">—</td><td>Solo ajustes reales (los indicadores falsos se quitan)</td></tr>
+        <tr><td><b>Perfil y notificaciones</b></td><td><code>/perfil</code></td><td colspan="4">Desde el avatar y la campana, en el header (fuera del menú)</td><td>Mi Perfil, NotificationCenter</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note">«Gestión» del admin desaparece como sección: borrar definitivamente y forzar estado pasan a ser acciones de administrador dentro del detalle del contrato, con confirmación escrita y registro en auditoría.</p>
+</section>
+
+<section id="maquetas">
+  <div class="sec-head"><span class="eyebrow">04 · Dirección</span><h2>Maquetas de las pantallas clave</h2>
+    <p>Muestran la dirección visual y la estructura. Con datos de ejemplo. En el teléfono, cada marco se desliza hacia los lados.</p></div>
+
+  <div class="mock-cap"><h3>Shell + lista de contratos</h3><p>Sidebar tinta, buscador global (Ctrl K), pestañas por estado con contadores, tabla densa con progreso de firmas y menú de acciones por fila que funciona con clic y teclado.</p></div>
+  <div class="frame-scroll" role="img" aria-label="Maqueta de la lista de contratos">
+    <div class="app">
+      <aside class="side">
+        <div class="logo"><span class="logo-mark">S</span> SIMAUD-LEX</div>
+        <span class="nav-i"><svg><use href="#i-home"/></svg>Inicio</span>
+        <span class="nav-i"><svg><use href="#i-pen"/></svg>Por firmar<span class="cnt">2</span></span>
+        <span class="nav-grp">Contratos</span>
+        <span class="nav-i on"><svg><use href="#i-file"/></svg>Contratos</span>
+        <span class="nav-i"><svg><use href="#i-check"/></svg>Aprobaciones<span class="cnt">3</span></span>
+        <span class="nav-i"><svg><use href="#i-refresh"/></svg>Renovaciones</span>
+        <span class="nav-i"><svg><use href="#i-layers"/></svg>Plantillas</span>
+        <span class="nav-grp">Administración</span>
+        <span class="nav-i"><svg><use href="#i-chart"/></svg>Reportes</span>
+        <span class="nav-i"><svg><use href="#i-users"/></svg>Usuarios</span>
+        <span class="nav-i"><svg><use href="#i-cog"/></svg>Configuración</span>
+      </aside>
+      <div class="main">
+        <div class="topbar">
+          <span class="crumbs">Contratos / <b>Todos</b></span>
+          <span class="search"><svg width="14" height="14"><use href="#i-search"/></svg>Buscar contrato, cliente o cédula<kbd>Ctrl K</kbd></span>
+          <span class="icon-btn"><svg><use href="#i-bell"/></svg><span class="dot"></span></span>
+          <span class="avatar">AU</span>
+        </div>
+        <div class="content">
+          <div class="pg-head"><div><h4>Contratos</h4><p>148 contratos · RD$ 42,6 M en valor vigente</p></div>
+            <div style="display:flex;gap:8px"><span class="btn"><svg><use href="#i-download"/></svg>Exportar</span><span class="btn pri"><svg><use href="#i-plus"/></svg>Nuevo contrato</span></div></div>
+          <div class="tabs">
+            <span class="tab on">Todos <span class="n">148</span></span><span class="tab">Borradores <span class="n">12</span></span><span class="tab">En aprobación <span class="n">3</span></span>
+            <span class="tab">Por firmar <span class="n">9</span></span><span class="tab">Vigentes <span class="n">97</span></span><span class="tab">Por vencer <span class="n">6</span></span><span class="tab">Archivados</span>
+          </div>
+          <div class="filters"><span class="chip">+ Plantilla</span><span class="chip">+ Gestor</span><span class="chip">+ Fecha de vencimiento</span><span class="chip">+ Valor</span></div>
+          <table class="mt">
+            <thead><tr><th>Contrato</th><th>Cliente</th><th>Estado</th><th>Firmas</th><th>Vence</th><th style="text-align:right">Valor</th><th></th></tr></thead>
+            <tbody>
+              <tr><td><div class="t">Mantenimiento de Equipos</div><div class="s mono">CT-2025-0187 · Servicios</div></td><td>Servicios Técnicos Rivera</td><td><span class="badge b-expiring">Por vencer</span></td><td><span class="prog"><i style="--w:100%"></i>2/2</span></td><td>21 nov 2026<div class="s">en 12 días</div></td><td class="num">RD$ 125.000,00</td><td class="kebab">⋯</td></tr>
+              <tr><td><div class="t">Auditoría Financiera Q4</div><div class="s mono">CT-2026-0041 · Servicios</div></td><td>Pérez &amp; Asociados</td><td><span class="badge b-pending">En aprobación</span></td><td><span class="prog"><i style="--w:0%"></i>0/3</span></td><td>9 mar 2027</td><td class="num">RD$ 280.000,00</td><td class="kebab">⋯</td></tr>
+              <tr><td><div class="t">Suministro de Material Gastable</div><div class="s mono">CT-2026-0039 · Compras</div></td><td>Distribuidora Nacional</td><td><span class="badge b-sign">Por firmar</span></td><td><span class="prog"><i style="--w:50%"></i>1/2</span></td><td>3 nov 2027</td><td class="num">RD$ 87.500,00</td><td class="kebab">⋯</td></tr>
+              <tr><td><div class="t">Consultoría TI 2026</div><div class="s mono">CT-2026-0030 · Servicios</div></td><td>Tecnologías del Caribe SRL</td><td><span class="badge b-active">Vigente</span></td><td><span class="prog"><i style="--w:100%"></i>2/2</span></td><td>4 sep 2027</td><td class="num">RD$ 450.000,00</td><td class="kebab">⋯</td></tr>
+              <tr><td><div class="t">Licencias de Software</div><div class="s mono">CT-2026-0044 · Tecnología</div></td><td>Soft Solutions Dominicana</td><td><span class="badge b-rejected">Rechazado</span></td><td><span class="prog"><i style="--w:0%"></i>0/2</span></td><td>15 nov 2027</td><td class="num">RD$ 960.000,00</td><td class="kebab">⋯</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mock-cap"><h3>Detalle del contrato (página, no modal)</h3><p>El documento se lee como papel a la izquierda; a la derecha, el recorrido del estado, los firmantes y solo las acciones que ese rol puede hacer en ese estado. Debajo: pestañas Versiones y Actividad.</p></div>
+  <div class="frame-scroll" role="img" aria-label="Maqueta del detalle de contrato">
+    <div class="app">
+      <aside class="side">
+        <div class="logo"><span class="logo-mark">S</span> SIMAUD-LEX</div>
+        <span class="nav-i"><svg><use href="#i-home"/></svg>Inicio</span>
+        <span class="nav-i on"><svg><use href="#i-file"/></svg>Contratos</span>
+        <span class="nav-i"><svg><use href="#i-refresh"/></svg>Renovaciones</span>
+        <span class="nav-i"><svg><use href="#i-chart"/></svg>Reportes</span>
+      </aside>
+      <div class="main">
+        <div class="topbar"><span class="crumbs">Contratos / <b>Suministro de Material Gastable</b></span><span class="search"><svg width="14" height="14"><use href="#i-search"/></svg>Buscar…<kbd>Ctrl K</kbd></span><span class="avatar">MF</span></div>
+        <div class="content">
+          <div class="pg-head"><div><h4>Suministro de Material Gastable</h4><p><span class="mono">CT-2026-0039</span> · Distribuidora Nacional · versión 2 · creado por María Fernández</p></div>
+            <div style="display:flex;gap:8px;align-items:center"><span class="badge b-sign">Por firmar</span><span class="btn"><svg><use href="#i-download"/></svg>PDF</span></div></div>
+          <div class="tabs"><span class="tab on">Documento</span><span class="tab">Versiones <span class="n">2</span></span><span class="tab">Actividad <span class="n">7</span></span></div>
+          <div class="detail">
+            <div class="paper">
+              <div class="ttl">CONTRATO DE SUMINISTRO</div>
+              <p>Entre <span class="var">Distribuidora Nacional SRL</span>, en lo adelante EL PROVEEDOR, y la institución, se conviene el suministro de material gastable a partir del <span class="var">3 de noviembre de 2026</span>, por un valor total de <span class="var">RD$ 87.500,00</span>, pagadero de forma <span class="var">mensual</span>.</p>
+              <p><b>PRIMERO.</b> El objeto del presente contrato es la entrega periódica de papel, tóner y artículos de oficina según el anexo A…</p>
+              <div class="sigs"><div class="sig"><span class="scr">J. Rodríguez</span>José Rodríguez Peña · Cliente<br>Firmado 7 nov 2026, 10:42</div><div class="sig"><span class="scr"></span>Laura Santos · Testigo<br>Pendiente</div></div>
+            </div>
+            <div class="rail">
+              <div class="card"><h5>Recorrido</h5>
+                <ol class="steps"><li class="done"><span>Creado<small>2 nov · María Fernández</small></span></li><li class="done"><span>Aprobado<small>4 nov · Carlos Méndez</small></span></li><li class="now"><span>Firmas 1 de 2<small>falta Laura Santos</small></span></li><li><span>Vigente<small>hasta 3 nov 2027</small></span></li></ol></div>
+              <div class="card"><h5>Firmantes · en orden</h5>
+                <div class="person"><span class="avatar">JR</span>José Rodríguez<span class="st badge b-active">Firmó</span></div>
+                <div class="person"><span class="avatar">LS</span>Laura Santos<span class="st badge b-sign">Su turno</span></div></div>
+              <div class="card"><h5>Acciones</h5><div class="actions"><span class="btn pri">Recordar a Laura Santos</span><span class="btn">Archivar</span><span class="btn ghost-d">Cancelar contrato…</span></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mock-cap"><h3>Crear contrato: asistente en 4 pasos</h3><p>Sustituye el formulario de una sola página de 1.090 líneas. La vista previa se actualiza mientras escribes. El borrador se guarda solo y la validación aparece junto a cada campo.</p></div>
+  <div class="frame-scroll" role="img" aria-label="Maqueta del asistente de creación de contrato">
+    <div class="app" style="grid-template-columns:1fr">
+      <div class="main">
+        <div class="topbar"><span class="crumbs">Contratos / <b>Nuevo contrato</b></span><span style="margin-left:auto" class="hint">Borrador guardado hace 5 s</span><span class="btn">Salir</span></div>
+        <div class="content">
+          <div class="wizard">
+            <ol class="wsteps"><li class="done"><i>✓</i>Plantilla</li><li class="done"><i>✓</i>Datos del contrato</li><li class="on"><i>3</i>Participantes</li><li><i>4</i>Revisar y enviar</li></ol>
+            <div class="form">
+              <div class="field"><label>Cédula del participante <em>*</em></label><input class="inp mono" value="031-4567890-1" aria-label="Cédula" readonly></div>
+              <div class="found">✓ Usuario registrado: José Rodríguez Peña · usuario@simaud.do</div>
+              <div class="row2"><div class="field"><label>Rol en el contrato</label><input class="inp" value="Cliente" aria-label="Rol" readonly></div><div class="field"><label>Orden de firma</label><input class="inp" value="1" aria-label="Orden" readonly></div></div>
+              <div class="field"><label>Correo del testigo <em>*</em></label><input class="inp err" value="laura.santos@empresa" aria-label="Correo" readonly><span class="hint err">Falta el dominio completo, por ejemplo laura.santos@empresa.com</span></div>
+              <div class="wfoot"><span>2 participantes</span><span style="display:flex;gap:8px"><span class="btn">Atrás</span><span class="btn pri">Continuar</span></span></div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:8px"><div class="prev-cap"><span>Vista previa</span><span>Página 1 de 2</span></div>
+              <div class="paper" style="padding:22px 26px;font-size:12px"><div class="ttl" style="font-size:12px">CONTRATO DE SUMINISTRO</div><p>Entre <span class="var">Distribuidora Nacional SRL</span> y la institución, a partir del <span class="var">3 de noviembre de 2026</span>, por <span class="var">RD$ 87.500,00</span>…</p><div class="sigs"><div class="sig">José Rodríguez Peña<br>Cliente</div><div class="sig">Laura Santos<br>Testigo</div></div></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mock-cap"><h3>Móvil: bandeja y firma</h3><p>Navegación inferior para el firmante. Para firmar: leer el documento completo, aceptar la declaración y trazar la firma a lo ancho de la pantalla, con trazo suave en táctil.</p></div>
+  <div class="phones">
+    <div class="phone" role="img" aria-label="Maqueta móvil de la bandeja de firmas">
+      <div class="ph-bar"><span class="avatar">JR</span><b>Hola, José</b><span class="icon-btn" style="margin-left:auto"><svg><use href="#i-bell"/></svg><span class="dot"></span></span></div>
+      <div class="ph-body">
+        <div class="seg"><span class="on">Pendientes · 2</span><span>Firmados · 3</span></div>
+        <div class="ph-card"><div class="r"><span class="badge b-sign">Su turno</span><span class="s">vence 3 nov 2027</span></div><div class="t">Suministro de Material Gastable</div><div class="s">Distribuidora Nacional · RD$ 87.500,00</div><span class="btn pri" style="justify-content:center">Revisar y firmar</span></div>
+        <div class="ph-card"><div class="r"><span class="badge b-draft">Esperando a otro firmante</span></div><div class="t">Auditoría Financiera Q4</div><div class="s">Pérez &amp; Asociados · RD$ 280.000,00</div></div>
+      </div>
+      <div class="ph-tabs"><span class="on"><svg><use href="#i-inbox"/></svg>Bandeja</span><span><svg><use href="#i-file"/></svg>Firmados</span><span><svg><use href="#i-bell"/></svg>Avisos</span><span><svg><use href="#i-users"/></svg>Perfil</span></div>
+    </div>
+    <div class="phone" role="img" aria-label="Maqueta móvil del paso de firma">
+      <div class="ph-bar"><b>← Firmar contrato</b><span class="hint" style="margin-left:auto">Paso 2 de 2</span></div>
+      <div class="ph-body">
+        <div class="ph-doc"><b>CONTRATO DE SUMINISTRO</b><br>Entre Distribuidora Nacional SRL y la institución, se conviene el suministro de material gastable a partir del 3 de noviembre de 2026…</div>
+        <div class="check"><i>✓</i><span>Leí el contrato completo y acepto firmarlo electrónicamente como <b>José Rodríguez Peña</b>, cédula <span class="mono">031-4567890-1</span>.</span></div>
+        <div class="pad"><svg viewBox="0 0 200 60" fill="none" stroke="var(--primary)" stroke-width="2.4" stroke-linecap="round"><path d="M8 44c14-30 22-34 26-20s-6 26 4 18 14-30 22-26-2 26 8 22 12-18 20-16 4 14 14 10 16-14 24-12 10 8 22 2 20-12 36-8"/></svg></div>
+        <div class="ph-cta"><span class="btn ok">Firmar contrato</span><span class="btn">Borrar y repetir</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="pantallas">
+  <div class="sec-head"><span class="eyebrow">05 · Inventario</span><h2>Pantalla por pantalla</h2>
+    <p>Cada pantalla actual, qué falla hoy y qué cambia. Los fallos marcados como <span class="tag-bug">FALLO</span> se ven hoy al usar la app; los confirmé al recorrerla.</p></div>
+  <div class="filterbar" role="group" aria-label="Filtrar por rol">
+    <button class="fbtn" type="button" aria-pressed="true" data-f="all">Todas</button>
+    <button class="fbtn" type="button" aria-pressed="false" data-f="admin">Admin</button>
+    <button class="fbtn" type="button" aria-pressed="false" data-f="supervisor">Supervisor</button>
+    <button class="fbtn" type="button" aria-pressed="false" data-f="gestor">Gestor</button>
+    <button class="fbtn" type="button" aria-pressed="false" data-f="user">Firmante</button>
+  </div>
+
+  <div class="area"><h3>Acceso <small>6 pantallas · públicas</small></h3>
+    <div class="screen" data-r="admin supervisor gestor user"><div class="sc-name"><b>Landing</b><code>landing/LandingPage.tsx</code><div class="roles"><span class="role">pública</span></div></div>
+      <div><div class="col-h bad">Hoy</div><ul><li>760 líneas, rojo de marca escrito a mano mientras el resto de la app es azul.</li><li>Cifras de adorno («100 % seguro», «70 % más rápido») sin respaldo.</li><li>Maqueta del producto genérica que no muestra un contrato real.</li></ul></div>
+      <div><div class="col-h good">Propuesta</div><ul><li>Página corta e institucional: qué es, para quién, cómo funciona en 3 pasos, acceso.</li><li>Captura real del detalle de contrato en lugar de la maqueta.</li><li>Quitar cifras inventadas; usar los colores del sistema.</li></ul></div></div>
+    <div class="screen" data-r="admin supervisor gestor user"><div class="sc-name"><b>Iniciar sesión</b><code>auth/LoginForm.tsx</code></div>
+      <div><div class="col-h bad">Hoy</div><ul><li><span class="tag-bug">FALLO</span>El botón no se deshabilita mientras entra: permite doble envío.</li><li>Componente viejo <code>OldLoginForm</code> muerto en el mismo archivo.</li><li>Sin mensaje al volver del correo de confirmación (<code>?confirmed=true</code>).</li></ul></div>
+      <div><div class="col-h good">Propuesta</div><ul><li>Layout dividido: formulario a la izquierda y panel de marca a la derecha; en móvil solo el formulario.</li><li>Estado «Entrando…», errores en línea y aviso de cuenta confirmada.</li><li>Ruta <code>/acceso</code>, con «Atrás» funcionando.</li></ul></div></div>
+    <div class="screen" data-r="admin supervisor gestor user"><div class="sc-name"><b>Registro</b><code>auth/RegisterForm.tsx</code></div>
+      <div><div class="col-h bad">Hoy</div><ul><li><span class="tag-bug">FALLO</span>Si el registro falla, la pantalla se desmonta y vuelve a la landing sin mostrar el error.</li><li>La comprobación de duplicados lee valores viejos (<code>setTimeout</code>).</li><li>La cédula se escribe sin formato.</li></ul></div>
+      <div><div class="col-h good">Propuesta</div><ul><li><code>CedulaInput</code> con máscara 000-0000000-0 y validación del dígito verificador.</li><li>Disponibilidad de correo y cédula comprobada al salir del campo.</li><li>Medidor de fuerza de la contraseña y requisitos visibles.</li></ul></div></div>
+    <div class="screen" data-r="admin supervisor gestor user"><div class="sc-name"><b>Recuperar, restablecer y confirmar</b><code>ForgotPassword · ResetPassword · EmailConfirmationPending</code></div>
+      <div><div class="col-h bad">Hoy</div><ul><li>Tres pantallas con estilos distintos entre sí.</li><li>El restablecimiento depende de parámetros de Supabase (<code>force_logout</code>).</li></ul></div>
+      <div><div class="col-h good">Propuesta</div><ul><li>Rutas propias (<code>/acceso/recuperar</code>, <code>/acceso/restablecer?token=</code>, <code>/acceso/confirmar</code>) con el mismo layout del login.</li><li>Reenvío de correo con cuenta atrás de 60 s.</li></ul></div></div>
+  </div>
+
+  <div class="area"><h3>Shell y navegación <small>común a todos los roles</small></h3>
+    <div class="screen" data-r="admin supervisor gestor user"><div class="sc-name"><b>Sidebar, header y menú móvil</b><code>4 × *Dashboard.tsx · DashboardController</code></div>
+      <div><div class="col-h bad">Hoy</div><ul><li>Unas 200 líneas copiadas en cada dashboard; cada rol con su color (azul, verde, morado, naranja).</li><li>Navegación por <code>useState</code>: F5 vuelve al inicio y «Atrás» saca de la app.</li><li>El avatar nunca se muestra y el admin usa el mismo morado que el gestor.</li><li><span class="tag-bug">FALLO</span>Si llega un dato inesperado, la app entera queda en blanco: no hay Error Boundary.</li></ul></div>
+      <div><div class="col-h good">Propuesta</div><ul><li>Un <code>AppShell</code> con el menú filtrado por rol (tabla de la sección 03), grupos y contadores.</li><li>React Router con rutas reales, guard por rol y carga diferida por sección (hoy el bundle pesa 1,1 MB).</li><li>Header con migas, buscador global Ctrl K, campana y menú de avatar (Perfil, Cerrar sesión).</li><li>Error Boundary por ruta con «Reintentar».</li><li>Móvil: cajón lateral con foco atrapado; para el firmante, barra inferior.</li></ul></div></div>
+  </div>
+
+  <div class="area"><h3>Inicio <small>una pantalla, contenido según rol</small></h3>
+    <div class="screen" data-r="admin"><div class="sc-name"><b>Inicio · Admin</b><code>AdminDashboard.tsx</code><div class="roles"><span class="role">admin</span></div></div>
+      <div><div class="col-h bad">Hoy</div><ul><li>Pestañas Resumen/Gráficos con barras hechas a mano que dan <code>NaN%</code> si el total es 0.</li><li>Estados en inglés crudo («pending approval»).</li><li>El estado vacío de «Actividad reciente» nunca se muestra (<code>[].map() || …</code>).</li><li>«Top gestores» sin nombre.</li></ul></div>
+      <div><div class="col-h good">Propuesta</div><ul><li>Arriba lo que requiere acción: aprobaciones pendientes, contratos por vencer en 30 días y renovaciones urgentes.</li><li>4 indicadores con su tendencia real y gráficos de Recharts (ya instalado y sin usar).</li><li>Actividad reciente como línea de tiempo con enlaces al contrato.</li></ul></div></div>
+    <div class="screen" data-r="supervisor"><div class="sc-name"><b>Inicio · Supervisor</b><code>SupervisorDashboard.tsx</code><div class="roles"><span class="role">supervisor</span></div></div>
+      <div><div class="col-h bad">Hoy</div><ul><li><span class="tag-bug">FALLO</span>Las tarjetas no cuadran: «Contratos generados» muestra el tiempo de aprobación.</li><li>Variables listadas como <code>{{undefined}}</code>.</li><li>No tiene acceso a la lista de contratos.</li></ul></div>
+      <div><div class="col-h good">Propuesta</div><ul><li>Su trabajo es aprobar: la cola de aprobación va en el inicio, con el tiempo medio de respuesta.</li><li>Uso de plantillas y variables como tabla ordenable.</li><li>Acceso a Contratos en modo consulta.</li></ul></div></div>
+    <div class="screen" data-r="gestor"><div class="sc-name"><b>Inicio · Gestor</b><code>GestorDashboard.tsx</code><div class="roles"><span class="role">gestor</span></div></div>
+      <div><div class="col-h bad">Hoy</div><ul><li><span class="tag-bug">FALLO</span>«Ver Mis Contratos» lanza un error (<code>setCurrentView is not defined</code>) y no navega.</li><li><span class="tag-bug">FALLO</span>«Ver Reportes» no hace nada.</li><li>Banner morado con un círculo blanco vacío.</li></ul></div>
+      <div><div class="col-h good">Propuesta</div><ul><li>«Mis pendientes»: rechazados por corregir, borradores sin enviar, contratos esperando firmas.</li><li>Botón principal «Nuevo contrato»; métricas propias integradas en Reportes.</li></ul></div></div>
+    <div class="screen" data-r="user"><div class="sc-name"><b>Inicio · Firmante</b><code>UserDashboard.tsx (1.101 líneas)</code><div class="roles"><span class="role">firmante</span></div></div>
+      <div><div class="col-h bad">Hoy</div><ul><li>Banner naranja con avatar roto.</li><li><span class="tag-bug">FALLO</span>«Ver todos» no tiene acción.</li><li><span class="tag-bug">FALLO</span>En «Mis Contratos» los filtros quedan debajo de la lista.</li><li>Más de 20 <code>useState</code> en un solo componente.</li></ul></div>
+      <div><div class="col-h good">Propuesta</div><ul><li>Bandeja de dos segmentos (Pendientes / Firmados) con «Su turno» o «Esperando a otro firmante».</li><li>Una tarjeta por contrato con un solo botón: «Revisar y firmar».</li><li>Barra inferior en móvil (ver maqueta).</li></ul></div></div>
+  </div>
+
+  <div class="area"><h3>Contratos <small>el núcleo de la app</small></h3>
+    <div class="screen" data-r="admin supervisor gestor"><div class="sc-name"><b>Lista de contratos</b><code>ContractManagement · ContractManagementAdmin</code><div class="roles"><span class="role">admin</span><span class="role">supervisor</span><span class="role">gestor</span></div></div>
+      <div><div class="col-h bad">Hoy</div><ul><li>Dos pantallas casi iguales («Contratos» y «Gestión»).</li><li><span class="tag-bug">FALLO</span>El botón «Mostrar archivados» no recarga la lista.</li><li><span class="tag-bug">FALLO</span>Los filtros Vigente / Por vencer / Vencido siempre salen vacíos (comparan contra el campo equivocado).</li><li><span class="tag-bug">FALLO</span>El menú «⋯» solo aparece con hover; en móvil es invisible pero se puede pulsar «Eliminar».</li><li>Moneda en US$, fechas en formato mixto, estados en inglés.</li></ul></div>
+      <div><div class="col-h good">Propuesta</div><ul><li>Una sola lista con pestañas por estado y contadores, filtros como chips y orden por columna.</li><li>Tabla en escritorio y tarjetas en móvil, con paginación desde el servidor.</li><li>Menú de acciones accesible con clic y teclado; acciones según rol y estado.</li><li>RD$ con <code>Intl</code> es-DO y fechas «9 nov 2026».</li><li>Selección múltiple para archivar o exportar.</li></ul></div></div>
+    <div class="screen" data-r="admin gestor"><div class="sc-name"><b>Crear y editar contrato</b><code>ContractModal.tsx (1.092 líneas)</code><div class="roles"><span class="role">admin</span><span class="role">gestor</span></div></div>
+      <div><div class="col-h bad">Hoy</div><ul><li>Un modal larguísimo con todo a la vez.</li><li><span class="tag-bug">FALLO</span>Se guarda el contenido generado anterior si no pulsaste «Vista previa».</li><li><span class="tag-bug">FALLO</span>Al editar, borra y recrea los firmantes y pierde sus vínculos.</li><li>Escape no cierra el modal y no hay foco inicial.</li></ul></div>
+      <div><div class="col-h good">Propuesta</div><ul><li>Página-asistente de 4 pasos con vista previa en vivo (ver maqueta).</li><li>Campos según el tipo de variable: fecha, RD$, lista, texto largo.</li><li>Participantes buscados por cédula, con orden de firma arrastrable.</li><li>Borrador autoguardado y aviso si sales con cambios sin guardar.</li></ul></div></div>
+    <div class="screen" data-r="admin supervisor gestor user"><div class="sc-name"><b>Detalle del contrato</b><code>ContractViewModal.tsx (1.123 líneas)</code><div class="roles"><span class="role">todos</span></div></div>
+      <div><div class="col-h bad">Hoy</div><ul><li>Modal con 4 pestañas que se cortan en móvil.</li><li>Contenido como texto plano, sin formato de documento.</li><li><span class="tag-bug">FALLO</span>El botón de firma y el modal de cancelación existen en el código, pero ningún botón los abre.</li><li><span class="tag-bug">FALLO</span>El PDF falla en silencio o lo bloquea el bloqueador de ventanas.</li></ul></div>
+      <div><div class="col-h good">Propuesta</div><ul><li>Página <code>/contratos/:id</code> con el documento como papel y una barra lateral (ver maqueta).</li><li>Acciones según rol y estado: enviar, aprobar, firmar, recordar, renovar, archivar, cancelar.</li><li>PDF real como descarga.</li><li>Versiones con comparación de cambios; actividad como línea de tiempo.</li><li>Acciones de admin (forzar estado, borrar definitivamente) en una zona marcada, con confirmación escrita.</li></ul></div></div>
+    <div class="screen" data-r="admin supervisor gestor"><div class="sc-name"><b>Cancelar, archivar y forzar estado</b><code>ContractCancellationModal · ContractStatusEditor</code><div class="roles"><span class="role">admin</span><span class="role">gestor</span></div></div>
+      <div><div class="col-h bad">Hoy</div><ul><li>La cancelación no se puede abrir desde ningún botón.</li><li>El editor de estados permite combinaciones imposibles entre los 3 campos.</li><li>Borrar usa <code>confirm()</code> nativo.</li></ul></div>
+      <div><div class="col-h good">Propuesta</div><ul><li><code>ConfirmDialog</code> con motivo obligatorio y resumen de consecuencias.</li><li>Forzar estado: solo transiciones válidas de la máquina de estados.</li><li>Borrar definitivamente exige escribir el código del contrato.</li></ul></div></div>
+  </div>
+
+  <div class="area"><h3>Aprobación, firma y renovación</h3>
+    <div class="screen" data-r="admin supervisor"><div class="sc-name"><b>Cola de aprobaciones</b><code>ContractApprovalQueue.tsx</code><div class="roles"><span class="role">admin</span><span class="role">supervisor</span></div></div>
+      <div><div class="col-h bad">Hoy</div><ul><li>Tarjetas grandes con poca información; hay que abrir otro modal para leer el contrato.</li><li>Rechazar no obliga a explicar el motivo.</li></ul></div>
+      <div><div class="col-h good">Propuesta</div><ul><li>Vista dividida: lista a la izquierda y documento con diferencias respecto a la versión anterior a la derecha.</li><li>Aprobar o rechazar con comentario obligatorio al rechazar; pasa al siguiente automáticamente.</li><li>Antigüedad visible («esperando 3 días»).</li></ul></div></div>
+    <div class="screen" data-r="admin supervisor gestor user"><div class="sc-name"><b>Firma</b><code>SignatureCanvas.tsx · UserDashboard</code><div class="roles"><span class="role">firmante</span></div></div>
+      <div><div class="col-h bad">Hoy</div><ul><li>Modal con texto de depuración visible («Debug: Vacía»).</li><li>Se puede firmar sin abrir el contrato.</li><li>Sin indicador de «firmando…» y sin respetar el orden de firma.</li></ul></div>
+      <div><div class="col-h good">Propuesta</div><ul><li>Flujo de 2 pasos a pantalla completa: leer y luego firmar (ver maqueta móvil).</li><li>Declaración con nombre y cédula; pad de firma con trazo suave e intento de subir imagen.</li><li>Pantalla de éxito con descarga del PDF firmado.</li></ul></div></div>
+    <div class="screen" data-r="admin supervisor gestor"><div class="sc-name"><b>Renovaciones</b><code>RenewalCenter · RenewalRequestModal · RenewalProcessModal</code><div class="roles"><span class="role">admin</span><span class="role">supervisor</span><span class="role">gestor</span></div></div>
+      <div><div class="col-h bad">Hoy</div><ul><li>Indicadores sin número; prioridad y estado en inglés («URGENT», «PENDING»).</li><li>«Solicitado: N/A».</li><li>Elegir el contrato a renovar hace una consulta por contrato.</li></ul></div>
+      <div><div class="col-h good">Propuesta</div><ul><li>Tablero por prioridad con días hasta el vencimiento.</li><li>Solicitar desde el detalle del contrato, con fechas propuestas precargadas.</li><li>Procesar con una comparación lado a lado (actual frente a propuesto).</li></ul></div></div>
+  </div>
+
+  <div class="area"><h3>Plantillas, variables y usuarios</h3>
+    <div class="screen" data-r="admin supervisor gestor"><div class="sc-name"><b>Plantillas</b><code>TemplateManagement · TemplateModal</code><div class="roles"><span class="role">admin</span><span class="role">supervisor</span></div></div>
+      <div><div class="col-h bad">Hoy</div><ul><li>Tarjetas que cargan con opacidad baja y parecen deshabilitadas.</li><li>Editor de texto plano: hay que escribir <code>{{variable}}</code> a mano.</li></ul></div>
+      <div><div class="col-h good">Propuesta</div><ul><li>Editor a dos columnas: texto con inserción de variables (escribiendo <code>{{</code> aparece un buscador) y vista previa del documento.</li><li>Estadística de uso por plantilla; duplicar y desactivar desde el menú.</li></ul></div></div>
+    <div class="screen" data-r="admin supervisor gestor"><div class="sc-name"><b>Variables</b><code>VariableManagement · VariableModal</code><div class="roles"><span class="role">admin</span><span class="role">supervisor</span><span class="role">gestor (lectura)</span></div></div>
+      <div><div class="col-h bad">Hoy</div><ul><li>El gestor ve botones de crear y editar que luego fallan por permisos.</li><li>Tarjetas con mucho espacio vacío.</li></ul></div>
+      <div><div class="col-h good">Propuesta</div><ul><li>Pestaña dentro de Plantillas, como tabla con tipo, uso y requerido.</li><li>Vista previa del campo tal como lo verá quien cree el contrato.</li><li>No se puede borrar si está en uso; se muestra en qué plantillas.</li></ul></div></div>
+    <div class="screen" data-r="admin"><div class="sc-name"><b>Usuarios</b><code>UserManagement · UserModal</code><div class="roles"><span class="role">admin</span></div></div>
+      <div><div class="col-h bad">Hoy</div><ul><li><span class="tag-bug">FALLO</span>«Nuevo usuario» siempre da error.</li><li><span class="tag-bug">FALLO</span>Editar dice «actualizado» aunque no guarda.</li><li>Se puede borrar uno mismo; el borrado deja cuentas huérfanas.</li></ul></div>
+      <div><div class="col-h good">Propuesta</div><ul><li>Tabla con filtros por rol y estado (activo o desactivado) y última conexión.</li><li>Crear con invitación por correo.</li><li>Desactivar en lugar de borrar; no se permite quitarse el rol de admin a uno mismo.</li></ul></div></div>
+  </div>
+
+  <div class="area"><h3>Reportes, notificaciones, perfil y configuración</h3>
+    <div class="screen" data-r="admin supervisor gestor"><div class="sc-name"><b>Reportes</b><code>ReportsCenter · ContractReports · UserReports · AnalyticsReports · ExportManager</code><div class="roles"><span class="role">admin</span><span class="role">supervisor</span><span class="role">gestor</span></div></div>
+      <div><div class="col-h bad">Hoy</div><ul><li><span class="tag-bug">FALLO</span>Variaciones inventadas (+12 %, +23 %, «Eficiencia 85 %»).</li><li><span class="tag-bug">FALLO</span>La exportación rápida exporta la configuración anterior.</li><li>«Excel» descarga un CSV con extensión <code>.xls</code>; bloques «Próximamente».</li><li>Analytics y Mis Métricas duplican lo mismo en otra pantalla.</li></ul></div>
+      <div><div class="col-h good">Propuesta</div><ul><li>Una sección con filtros comunes (periodo, plantilla, gestor) y pestañas Resumen, Contratos y Usuarios.</li><li>Solo datos reales, con comparación contra el periodo anterior.</li><li>Exportar CSV, XLSX y PDF de verdad desde cualquier vista.</li><li>El gestor ve las mismas pantallas limitadas a sus contratos.</li></ul></div></div>
+    <div class="screen" data-r="admin supervisor gestor user"><div class="sc-name"><b>Notificaciones</b><code>NotificationCenter · ExpiryAlerts</code><div class="roles"><span class="role">todos</span></div></div>
+      <div><div class="col-h bad">Hoy</div><ul><li>Consulta el servidor cada 30 s, aunque la pestaña esté oculta.</li><li>Los avisos no llevan al contrato.</li><li><code>ExpiryAlerts</code> se importa pero nunca se muestra.</li></ul></div>
+      <div><div class="col-h good">Propuesta</div><ul><li>Panel desde la campana con agrupación (hoy, esta semana) y enlace a cada contrato.</li><li>Tiempo real por SSE.</li><li>Página <code>/notificaciones</code> con filtros y preferencias.</li></ul></div></div>
+    <div class="screen" data-r="admin supervisor gestor user"><div class="sc-name"><b>Perfil</b><code>UserProfile.tsx</code><div class="roles"><span class="role">todos</span></div></div>
+      <div><div class="col-h bad">Hoy</div><ul><li>Al cambiar la foto se sigue viendo la anterior (caché).</li><li>Todo en una sola columna larga.</li></ul></div>
+      <div><div class="col-h good">Propuesta</div><ul><li>Secciones: Datos personales, Seguridad (contraseña, sesiones activas) y Preferencias (notificaciones, tema claro u oscuro).</li><li>Avatar con recorte.</li></ul></div></div>
+    <div class="screen" data-r="admin"><div class="sc-name"><b>Configuración</b><code>SystemConfiguration · ContractStatusUpdater</code><div class="roles"><span class="role">admin</span></div></div>
+      <div><div class="col-h bad">Hoy</div><ul><li>Indicadores «Activo» fijos que no reflejan nada real.</li><li>El recálculo de estados solo corre mientras esta pantalla está abierta.</li></ul></div>
+      <div><div class="col-h good">Propuesta</div><ul><li>Ajustes reales: días de aviso de vencimiento, datos de la institución para el PDF, correo saliente.</li><li>Estado de las tareas programadas (última ejecución y resultado) y botón «Ejecutar ahora».</li><li>Registro de auditoría global con filtros.</li></ul></div></div>
+  </div>
+</section>
+
+<section id="calidad">
+  <div class="sec-head"><span class="eyebrow">06 · En todas las pantallas</span><h2>Calidad transversal</h2></div>
+  <div class="quality">
+    <div class="panel"><h3>Responsive</h3><ul><li>Puntos de corte: 360, 640, 1024 y 1280 px; se prueba cada pantalla en los cuatro.</li><li>Tablas que pasan a tarjetas en móvil; modales que pasan a hoja inferior.</li><li>Áreas táctiles de 44 px como mínimo.</li></ul></div>
+    <div class="panel"><h3>Accesibilidad</h3><ul><li>Modales con <code>role="dialog"</code>, Escape, foco atrapado y bloqueo del scroll.</li><li><code>aria-label</code> en los ~200 botones de solo icono.</li><li>Contraste AA en ambos temas y foco visible.</li></ul></div>
+    <div class="panel"><h3>Estados y avisos</h3><ul><li>Skeleton al cargar, vacío con acción sugerida y error con «Reintentar».</li><li>Toasts para confirmar; <code>ConfirmDialog</code> en lugar de <code>alert</code> y <code>confirm</code>.</li><li>Formularios con validación Zod compartida con el backend.</li></ul></div>
+    <div class="panel"><h3>Código</h3><ul><li>Cero errores de <code>tsc</code> (hoy 132) y build con verificación de tipos.</li><li>Fuera los ~100 <code>console.log</code>, el código muerto y las dependencias sin usar.</li><li>Datos con TanStack Query: caché, reintentos y sin recargas en cascada.</li></ul></div>
+  </div>
+</section>
+
+<section id="orden">
+  <div class="sec-head"><span class="eyebrow">07 · Ejecución</span><h2>Orden de trabajo de la interfaz</h2>
+    <p>En paralelo, Codex construye el backend. Cada bloque se conecta a la API nueva en cuanto su parte esté lista.</p></div>
+  <div class="sprints">
+    <div class="sprint"><span class="num">1</span><div><b>Sistema de diseño y shell</b><p>Tokens en Tailwind 4, fuentes, los 24 componentes base, AppShell con rutas y guard por rol, Error Boundary.</p></div><span class="who">Claude</span></div>
+    <div class="sprint"><span class="num">2</span><div><b>Acceso</b><p>Login, registro, recuperar, restablecer y confirmar, ya contra la API nueva de autenticación.</p></div><span class="who">Claude + API T01</span></div>
+    <div class="sprint"><span class="num">3</span><div><b>Contratos</b><p>Lista, asistente de creación, detalle con documento, acciones por estado.</p></div><span class="who">Claude + API T02</span></div>
+    <div class="sprint"><span class="num">4</span><div><b>Aprobación y firma</b><p>Cola con vista dividida, flujo de firma móvil, PDF.</p></div><span class="who">Claude + API T02</span></div>
+    <div class="sprint"><span class="num">5</span><div><b>Plantillas, variables, usuarios y renovaciones</b><p>Editor de plantillas con variables, tabla de usuarios con invitación, tablero de renovaciones.</p></div><span class="who">Claude + API T03</span></div>
+    <div class="sprint"><span class="num">6</span><div><b>Inicio, reportes, notificaciones, perfil y configuración</b><p>Inicio por rol, reportes reales y exportación, SSE, perfil por secciones.</p></div><span class="who">Claude + API T03</span></div>
+    <div class="sprint"><span class="num">7</span><div><b>Pulido final</b><p>Revisión de cada pantalla a 360 / 768 / 1280 px en los dos temas, accesibilidad y rendimiento.</p></div><span class="who">Claude</span></div>
+  </div>
+</section>
+
+<footer>SIMAUD-LEX · Propuesta de interfaz elaborada a partir del código del repositorio y de un recorrido por la app con datos de ejemplo. Las maquetas son ilustrativas; los textos y estados son los que usará la app.</footer>
+</div>
+
+<script>
+(function () {
+  var btns = document.querySelectorAll('.fbtn');
+  var screens = document.querySelectorAll('.screen');
+  btns.forEach(function (b) {
+    b.addEventListener('click', function () {
+      var f = b.getAttribute('data-f');
+      btns.forEach(function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); });
+      screens.forEach(function (s) { s.hidden = f !== 'all' && (s.getAttribute('data-r') || '').split(' ').indexOf(f) === -1; });
+      document.querySelectorAll('.area').forEach(function (a) { a.hidden = !a.querySelector('.screen:not([hidden])'); });
+    });
+  });
+})();
+</script>

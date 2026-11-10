@@ -317,7 +317,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({ onCreateUser }) 
       {/* Delete Confirmation Modal */}
       {deleteConfirmUser && (
         <ModalPortal>
-        <div className="fixed inset-0 z-[100] flex items-start sm:items-center justify-center overflow-y-auto bg-slate-950/55 p-3 sm:p-4 backdrop-blur-[2px]">
+        <div className="fixed inset-0 z-100 flex items-start sm:items-center justify-center overflow-y-auto bg-slate-950/55 p-3 sm:p-4 backdrop-blur-[2px]">
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}

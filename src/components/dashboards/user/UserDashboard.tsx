@@ -414,9 +414,9 @@ export const UserDashboard: React.FC = () => {
   };
 
   return (
-    <div className="flex h-[100dvh] min-h-[100svh] min-w-0 bg-gray-50">
+    <div className="flex h-dvh min-h-svh min-w-0 bg-gray-50">
       {/* Sidebar */}
-      <div className={`fixed inset-y-0 left-0 z-[60] flex w-64 flex-col bg-white shadow-xl transform ${
+      <div className={`fixed inset-y-0 left-0 z-60 flex w-64 flex-col bg-white shadow-xl transform ${
         sidebarOpen ? 'translate-x-0' : '-translate-x-full'
       } transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0`}>
         
@@ -480,7 +480,7 @@ export const UserDashboard: React.FC = () => {
             }}
             className="w-full flex items-center space-x-3 mb-3 p-2 rounded-lg hover:bg-gray-50 transition-colors duration-200"
           >
-            <div className="flex items-center justify-center w-10 h-10 bg-gradient-to-r from-orange-500 to-orange-600 rounded-full">
+            <div className="flex items-center justify-center w-10 h-10 bg-linear-to-r from-orange-500 to-orange-600 rounded-full">
               <User className="w-5 h-5 text-white" />
             </div>
             <div className="flex-1 min-w-0">
@@ -555,7 +555,7 @@ export const UserDashboard: React.FC = () => {
                 exit={{ opacity: 0, y: -10 }}
                 className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6 flex items-start space-x-3"
               >
-                <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
+                <CheckCircle className="w-5 h-5 text-green-500 shrink-0 mt-0.5" />
                 <div className="flex-1">
                   <h4 className="text-sm font-semibold text-green-800">Contrato Firmado</h4>
                   <p className="text-sm text-green-700 mt-1">{successMessage}</p>
@@ -577,7 +577,7 @@ export const UserDashboard: React.FC = () => {
                 exit={{ opacity: 0, y: -10 }}
                 className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 flex items-start space-x-3"
               >
-                <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                <AlertTriangle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
                 <div className="flex-1">
                   <h4 className="text-sm font-semibold text-red-800">Error</h4>
                   <p className="text-sm text-red-700 mt-1">{error}</p>
@@ -768,7 +768,7 @@ const DashboardHome: React.FC<{
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-gradient-to-r from-orange-500 to-orange-600 rounded-xl shadow-sm p-6 text-white"
+        className="bg-linear-to-r from-orange-500 to-orange-600 rounded-xl shadow-sm p-6 text-white"
       >
         <div className="flex items-center space-x-4">
           <div className="flex items-center justify-center w-12 h-12 bg-white bg-opacity-20 rounded-full">
@@ -794,7 +794,7 @@ const DashboardHome: React.FC<{
               className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow duration-200"
             >
               <div className="flex items-center justify-between mb-4">
-                <div className={`p-3 rounded-lg bg-gradient-to-r ${stat.color}`}>
+                <div className={`p-3 rounded-lg bg-linear-to-r ${stat.color}`}>
                   <Icon className="w-6 h-6 text-white" />
                 </div>
               </div>

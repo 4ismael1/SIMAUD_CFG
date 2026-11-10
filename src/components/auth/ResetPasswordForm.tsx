@@ -162,7 +162,7 @@ export const ResetPasswordForm: React.FC<ResetPasswordFormProps> = ({ onSuccess 
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ type: 'spring', stiffness: 100 }}
-            className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-green-500 to-green-600 rounded-full mb-4"
+            className="inline-flex items-center justify-center w-16 h-16 bg-linear-to-r from-green-500 to-green-600 rounded-full mb-4"
           >
             <CheckCircle className="w-8 h-8 text-white" />
           </motion.div>
@@ -174,7 +174,7 @@ export const ResetPasswordForm: React.FC<ResetPasswordFormProps> = ({ onSuccess 
 
         <div className="bg-green-50 border border-green-200 rounded-lg p-4">
           <div className="flex items-start space-x-3">
-            <CheckCircle className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
+            <CheckCircle className="w-5 h-5 text-green-600 mt-0.5 shrink-0" />
             <div>
               <p className="text-green-800 font-medium text-sm mb-1">
                 Contraseña actualizada exitosamente
@@ -200,7 +200,7 @@ export const ResetPasswordForm: React.FC<ResetPasswordFormProps> = ({ onSuccess 
     <div className="space-y-6">
       {/* Header */}
       <div className="text-center">
-        <div className="inline-flex items-center justify-center w-12 h-12 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full mb-3">
+        <div className="inline-flex items-center justify-center w-12 h-12 bg-linear-to-r from-blue-500 to-blue-600 rounded-full mb-3">
           <Lock className="w-6 h-6 text-white" />
         </div>
         <h2 className="text-2xl font-bold text-gray-900 mb-1">Nueva Contraseña</h2>
@@ -291,7 +291,7 @@ export const ResetPasswordForm: React.FC<ResetPasswordFormProps> = ({ onSuccess 
             animate={{ opacity: 1, y: 0 }}
             className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start space-x-3"
           >
-            <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+            <AlertTriangle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
             <div>
               <h4 className="text-sm font-semibold text-red-800">Error</h4>
               <p className="text-sm text-red-700 mt-1">{error}</p>
@@ -302,7 +302,7 @@ export const ResetPasswordForm: React.FC<ResetPasswordFormProps> = ({ onSuccess 
         <motion.button
           type="submit"
           disabled={loading}
-          className="w-full bg-gradient-to-r from-green-500 to-green-600 text-white py-2.5 px-4 rounded-lg font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+          className="w-full bg-linear-to-r from-green-500 to-green-600 text-white py-2.5 px-4 rounded-lg font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
           whileHover={{ scale: loading ? 1 : 1.02 }}
           whileTap={{ scale: loading ? 1 : 0.98 }}
         >

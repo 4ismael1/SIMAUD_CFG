@@ -181,7 +181,7 @@ export const ExpiryAlerts: React.FC<ExpiryAlertsProps> = ({
         >
           <div className="flex items-start justify-between mb-3">
             <div className="flex items-start space-x-3">
-              <div className={`flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r ${getUrgencyColor(contract.days_until_expiry)}`}>
+              <div className={`flex items-center justify-center w-8 h-8 rounded-full bg-linear-to-r ${getUrgencyColor(contract.days_until_expiry)}`}>
                 <AlertTriangle className="w-4 h-4 text-white" />
               </div>
               <div className="flex-1">
@@ -205,7 +205,7 @@ export const ExpiryAlerts: React.FC<ExpiryAlertsProps> = ({
             </div>
             
             <div className="flex items-center space-x-2">
-              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-bold text-white bg-gradient-to-r ${getUrgencyColor(contract.days_until_expiry)}`}>
+              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-bold text-white bg-linear-to-r ${getUrgencyColor(contract.days_until_expiry)}`}>
                 {contract.days_until_expiry} día{contract.days_until_expiry !== 1 ? 's' : ''}
               </span>
               <button

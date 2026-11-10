@@ -297,9 +297,9 @@ export const TemplateManagement: React.FC<TemplateManagementProps> = ({ onCreate
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex-1">
                       <h3 className="text-lg font-semibold text-gray-900 mb-2 truncate">{template.title}</h3>
-                      <p className="text-sm text-gray-600 line-clamp-2 break-words">{template.description}</p>
+                      <p className="text-sm text-gray-600 line-clamp-2 wrap-break-word">{template.description}</p>
                     </div>
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium flex-shrink-0 ${getStatusColor(template.status)}`}>
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium shrink-0 ${getStatusColor(template.status)}`}>
                       <StatusIcon className="w-3 h-3 mr-1" />
                       {template.status === 'active' ? 'Activa' : 'Inactiva'}
                     </span>
@@ -399,7 +399,7 @@ export const TemplateManagement: React.FC<TemplateManagementProps> = ({ onCreate
       {/* Delete Confirmation Modal */}
       {deleteConfirmTemplate && (
         <ModalPortal>
-        <div className="fixed inset-0 z-[100] flex items-start sm:items-center justify-center overflow-y-auto bg-slate-950/55 p-3 sm:p-4 backdrop-blur-[2px]">
+        <div className="fixed inset-0 z-100 flex items-start sm:items-center justify-center overflow-y-auto bg-slate-950/55 p-3 sm:p-4 backdrop-blur-[2px]">
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}

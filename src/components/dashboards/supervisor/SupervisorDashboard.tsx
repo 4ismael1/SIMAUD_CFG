@@ -132,9 +132,9 @@ export const SupervisorDashboard: React.FC = () => {
   };
 
   return (
-    <div className="flex h-[100dvh] min-h-[100svh] min-w-0 bg-gray-50">
+    <div className="flex h-dvh min-h-svh min-w-0 bg-gray-50">
       {/* Sidebar */}
-      <div className={`fixed inset-y-0 left-0 z-[60] flex w-64 flex-col bg-white shadow-xl transform ${
+      <div className={`fixed inset-y-0 left-0 z-60 flex w-64 flex-col bg-white shadow-xl transform ${
         sidebarOpen ? 'translate-x-0' : '-translate-x-full'
       } transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0`}>
         
@@ -198,7 +198,7 @@ export const SupervisorDashboard: React.FC = () => {
             }}
             className="w-full flex items-center space-x-3 mb-3 p-2 rounded-lg hover:bg-gray-50 transition-colors duration-200"
           >
-            <div className="flex items-center justify-center w-10 h-10 bg-gradient-to-r from-green-500 to-green-600 rounded-full">
+            <div className="flex items-center justify-center w-10 h-10 bg-linear-to-r from-green-500 to-green-600 rounded-full">
               <UserCheck className="w-5 h-5 text-white" />
             </div>
             <div className="flex-1 min-w-0">
@@ -390,7 +390,7 @@ const SupervisorDashboardHome: React.FC<{
               className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow duration-200"
             >
               <div className="flex items-center justify-between mb-4">
-                <div className={`p-3 rounded-lg bg-gradient-to-r ${stat.color}`}>
+                <div className={`p-3 rounded-lg bg-linear-to-r ${stat.color}`}>
                   <Icon className="w-6 h-6 text-white" />
                 </div>
                 <span className={`text-sm font-semibold px-2 py-1 rounded-full ${

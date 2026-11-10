@@ -260,7 +260,7 @@ export const VariableManagement: React.FC<VariableManagementProps> = ({ onCreate
                         {`{{${variable.name}}}`}
                       </code>
                     </div>
-                    <div className="flex flex-col items-end space-y-2 flex-shrink-0">
+                    <div className="flex flex-col items-end space-y-2 shrink-0">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getTypeColor(variable.type)}`}>
                         <TypeIcon className="w-3 h-3 mr-1" />
                         {variable.type}
@@ -346,7 +346,7 @@ export const VariableManagement: React.FC<VariableManagementProps> = ({ onCreate
       {/* Delete Confirmation Modal */}
       {deleteConfirmVariable && (
         <ModalPortal>
-        <div className="fixed inset-0 z-[100] flex items-start sm:items-center justify-center overflow-y-auto bg-slate-950/55 p-3 sm:p-4 backdrop-blur-[2px]">
+        <div className="fixed inset-0 z-100 flex items-start sm:items-center justify-center overflow-y-auto bg-slate-950/55 p-3 sm:p-4 backdrop-blur-[2px]">
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}

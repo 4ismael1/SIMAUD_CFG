@@ -1,0 +1,80 @@
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
+import { apiFetch } from "../client";
+import { keys } from "../keys";
+import { invalidateKeys } from "./cache";
+import type {
+  User,
+  UserResponse,
+  UserInput,
+  UserPatch,
+  UserQuery,
+  UserLookup,
+  Paginated,
+  MessageResponse,
+} from "../types";
+export function useUsers(query: UserQuery = {}) {
+  return useQuery({
+    queryKey: keys.users.list({ ...query }),
+    queryFn: ({ signal }) =>
+      apiFetch<Paginated<User>>("/users", { query: { ...query }, signal }),
+    placeholderData: keepPreviousData,
+  });
+}
+export function useUser(id: string) {
+  return useQuery({
+    queryKey: keys.users.detail(id),
+    queryFn: ({ signal }) => apiFetch<User>("/users/" + id, { signal }),
+    enabled: Boolean(id),
+  });
+}
+export function useUserLookup(cedula: string) {
+  return useQuery({
+    queryKey: keys.users.lookup(cedula),
+    queryFn: ({ signal }) =>
+      apiFetch<UserLookup | null>("/users/lookup", {
+        query: { cedula },
+        signal,
+      }),
+    enabled: Boolean(cedula),
+  });
+}
+export function useCreateUser() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (body: UserInput) =>
+      apiFetch<UserResponse>("/users", { method: "POST", body }),
+    onSuccess: () => invalidateKeys(client, [keys.users.all, keys.reports.all]),
+  });
+}
+export function useUpdateUser(id: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (body: UserPatch) =>
+      apiFetch<UserResponse>("/users/" + id, { method: "PATCH", body }),
+    onSuccess: () =>
+      invalidateKeys(client, [
+        keys.users.all,
+        keys.me,
+        keys.dashboard.all,
+        keys.reports.all,
+      ]),
+  });
+}
+export function useDeleteUser(id: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      apiFetch<MessageResponse>("/users/" + id, { method: "DELETE" }),
+    onSuccess: () =>
+      invalidateKeys(client, [
+        keys.users.all,
+        keys.reports.all,
+        keys.dashboard.all,
+      ]),
+  });
+}

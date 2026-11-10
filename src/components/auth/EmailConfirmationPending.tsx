@@ -50,7 +50,7 @@ export const EmailConfirmationPending: React.FC<EmailConfirmationPendingProps> =
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
           transition={{ delay: 0.2, type: 'spring', stiffness: 100 }}
-          className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full mb-6"
+          className="inline-flex items-center justify-center w-20 h-20 bg-linear-to-r from-blue-500 to-purple-600 rounded-full mb-6"
         >
           <Mail className="w-10 h-10 text-white" />
         </motion.div>
@@ -61,7 +61,7 @@ export const EmailConfirmationPending: React.FC<EmailConfirmationPendingProps> =
         
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
           <div className="flex items-start space-x-3">
-            <CheckCircle className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+            <CheckCircle className="w-5 h-5 text-blue-600 mt-0.5 shrink-0" />
             <div className="text-left">
               <p className="text-blue-900 font-medium text-sm mb-2">
                 ¡Registro exitoso!
@@ -104,7 +104,7 @@ export const EmailConfirmationPending: React.FC<EmailConfirmationPendingProps> =
           <motion.button
             onClick={handleResendConfirmation}
             disabled={isResending}
-            className="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white py-3 px-4 rounded-lg font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+            className="w-full bg-linear-to-r from-blue-500 to-purple-600 text-white py-3 px-4 rounded-lg font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
             whileHover={{ scale: isResending ? 1 : 1.02 }}
             whileTap={{ scale: isResending ? 1 : 0.98 }}
           >
