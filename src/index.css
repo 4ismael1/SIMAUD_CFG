@@ -1,5 +1,7 @@
-@import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&display=swap')
-layer(base);
+/* Self-hosted fonts (OFL): no third-party requests, works offline and under the strict CSP. */
+@import '@fontsource-variable/geist/wght.css';
+@import '@fontsource-variable/geist-mono/wght.css';
+@import '@fontsource-variable/source-serif-4/opsz.css';
 
 @import 'tailwindcss';
 
@@ -8,9 +10,9 @@ layer(base);
  * Neutrals: Tailwind slate. Brand: "vino" from the logo (#8B2029), used as an accent only.
  */
 @theme {
-  --font-sans: 'Geist', ui-sans-serif, system-ui, sans-serif;
-  --font-mono: 'Geist Mono', ui-monospace, 'Cascadia Mono', monospace;
-  --font-serif: 'Source Serif 4', Georgia, 'Times New Roman', serif;
+  --font-sans: 'Geist Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'Geist Mono Variable', ui-monospace, 'Cascadia Mono', monospace;
+  --font-serif: 'Source Serif 4 Variable', Georgia, 'Times New Roman', serif;
 
   --color-vino-50: #fbeef0;
   --color-vino-100: #f6dde0;
@@ -79,6 +81,8 @@ layer(base);
 @layer base {
   html {
     scroll-behavior: smooth;
+    /* Reserve the scrollbar's space so pages don't shift sideways when it appears. */
+    scrollbar-gutter: stable;
     -webkit-text-size-adjust: 100%;
     text-rendering: optimizeLegibility;
   }

@@ -1,51 +1,65 @@
-import { lazy, Suspense } from 'react';
+import { lazy, type ComponentType } from 'react';
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { AppLayout } from './layout/AppLayout';
 import { ProtectedRoute, PublicOnlyRoute, RoleRoute, StaffHome } from './guards';
 import { RouteError, NotFoundPage } from './RouteError';
 
-/* Pages are code-split so each role downloads only what it opens. */
-const LandingPage = lazy(() => import('../features/landing/LandingPage').then((m) => ({ default: m.LandingPage })));
-const LoginPage = lazy(() => import('../features/auth/LoginPage').then((m) => ({ default: m.LoginPage })));
-const RegisterPage = lazy(() => import('../features/auth/RegisterPage').then((m) => ({ default: m.RegisterPage })));
-const VerifyEmailPage = lazy(() => import('../features/auth/EmailPages').then((m) => ({ default: m.VerifyEmailPage })));
-const ConfirmEmailPage = lazy(() => import('../features/auth/EmailPages').then((m) => ({ default: m.ConfirmEmailPage })));
-const ForgotPasswordPage = lazy(() => import('../features/auth/PasswordPages').then((m) => ({ default: m.ForgotPasswordPage })));
-const ResetPasswordPage = lazy(() => import('../features/auth/PasswordPages').then((m) => ({ default: m.ResetPasswordPage })));
-const ForcePasswordChangePage = lazy(() => import('../features/auth/PasswordPages').then((m) => ({ default: m.ForcePasswordChangePage })));
+/*
+ * Pages are code-split so each role downloads only what it opens. They use the router's own `lazy`
+ * (not React.lazy): the router downloads the page BEFORE navigating, so the current page stays on
+ * screen until the next one is ready — no spinner flash and no layout jump between pages.
+ */
+function page<Module>(load: () => Promise<Module>, pick: (module: Module) => ComponentType) {
+  return async () => ({ Component: pick(await load()) });
+}
+
+// The dashboard is rendered inside StaffHome (role switch), so it keeps React.lazy.
 const DashboardPage = lazy(() => import('../features/dashboard/DashboardPage').then((m) => ({ default: m.DashboardPage })));
-const ContractsListPage = lazy(() => import('../features/contracts/ContractsListPage').then((m) => ({ default: m.ContractsListPage })));
-const SignContractPage = lazy(() => import('../features/signatures/SignContractPage').then((m) => ({ default: m.SignContractPage })));
-const ContractWizardPage = lazy(() => import('../features/contracts/wizard/ContractWizardPage').then((m) => ({ default: m.ContractWizardPage })));
-const SignaturesInboxPage = lazy(() => import('../features/signatures/SignaturesInboxPage').then((m) => ({ default: m.SignaturesInboxPage })));
-const ApprovalsPage = lazy(() => import('../features/approvals/ApprovalsPage').then((m) => ({ default: m.ApprovalsPage })));
-const UsersPage = lazy(() => import('../features/users/UsersPage').then((m) => ({ default: m.UsersPage })));
-const ProfilePage = lazy(() => import('../features/profile/ProfilePage').then((m) => ({ default: m.ProfilePage })));
-const SettingsPage = lazy(() => import('../features/settings/SettingsPage').then((m) => ({ default: m.SettingsPage })));
-const TemplatesPage = lazy(() => import('../features/templates/TemplatesPage').then((m) => ({ default: m.TemplatesPage })));
-const TemplateEditorPage = lazy(() => import('../features/templates/TemplateEditorPage').then((m) => ({ default: m.TemplateEditorPage })));
-const RenewalsPage = lazy(() => import('../features/renewals/RenewalsPage').then((m) => ({ default: m.RenewalsPage })));
-const ReportsPage = lazy(() => import('../features/reports/ReportsPage').then((m) => ({ default: m.ReportsPage })));
-const ContractDetailPage = lazy(() => import('../features/contracts/ContractDetailPage').then((m) => ({ default: m.ContractDetailPage })));
+
+const auth = {
+  login: page(() => import('../features/auth/LoginPage'), (m) => m.LoginPage),
+  register: page(() => import('../features/auth/RegisterPage'), (m) => m.RegisterPage),
+  verify: page(() => import('../features/auth/EmailPages'), (m) => m.VerifyEmailPage),
+  confirm: page(() => import('../features/auth/EmailPages'), (m) => m.ConfirmEmailPage),
+  forgot: page(() => import('../features/auth/PasswordPages'), (m) => m.ForgotPasswordPage),
+  reset: page(() => import('../features/auth/PasswordPages'), (m) => m.ResetPasswordPage),
+  forceChange: page(() => import('../features/auth/PasswordPages'), (m) => m.ForcePasswordChangePage),
+};
+
+const app = {
+  contracts: page(() => import('../features/contracts/ContractsListPage'), (m) => m.ContractsListPage),
+  contract: page(() => import('../features/contracts/ContractDetailPage'), (m) => m.ContractDetailPage),
+  wizard: page(() => import('../features/contracts/wizard/ContractWizardPage'), (m) => m.ContractWizardPage),
+  sign: page(() => import('../features/signatures/SignContractPage'), (m) => m.SignContractPage),
+  inbox: page(() => import('../features/signatures/SignaturesInboxPage'), (m) => m.SignaturesInboxPage),
+  approvals: page(() => import('../features/approvals/ApprovalsPage'), (m) => m.ApprovalsPage),
+  users: page(() => import('../features/users/UsersPage'), (m) => m.UsersPage),
+  profile: page(() => import('../features/profile/ProfilePage'), (m) => m.ProfilePage),
+  settings: page(() => import('../features/settings/SettingsPage'), (m) => m.SettingsPage),
+  templates: page(() => import('../features/templates/TemplatesPage'), (m) => m.TemplatesPage),
+  templateEditor: page(() => import('../features/templates/TemplateEditorPage'), (m) => m.TemplateEditorPage),
+  renewals: page(() => import('../features/renewals/RenewalsPage'), (m) => m.RenewalsPage),
+  reports: page(() => import('../features/reports/ReportsPage'), (m) => m.ReportsPage),
+};
 
 export const router = createBrowserRouter([
-  { path: '/', element: <LandingPage />, errorElement: <RouteError /> },
+  { path: '/', lazy: page(() => import('../features/landing/LandingPage'), (m) => m.LandingPage), errorElement: <RouteError /> },
   {
     path: '/auth',
     errorElement: <RouteError />,
     children: [
       // Links sent by email must keep working even when the user is signed in.
-      { path: 'confirmar', element: <ConfirmEmailPage /> },
-      { path: 'restablecer', element: <ResetPasswordPage /> },
-      { path: 'cambiar-clave', element: <ForcePasswordChangePage /> },
+      { path: 'confirmar', lazy: auth.confirm },
+      { path: 'restablecer', lazy: auth.reset },
+      { path: 'cambiar-clave', lazy: auth.forceChange },
       {
         element: <PublicOnlyRoute />,
         children: [
           { index: true, element: <Navigate to="/auth/login" replace /> },
-          { path: 'login', element: <LoginPage /> },
-          { path: 'registro', element: <RegisterPage /> },
-          { path: 'verifica', element: <VerifyEmailPage /> },
-          { path: 'recuperar', element: <ForgotPasswordPage /> },
+          { path: 'login', lazy: auth.login },
+          { path: 'registro', lazy: auth.register },
+          { path: 'verifica', lazy: auth.verify },
+          { path: 'recuperar', lazy: auth.forgot },
         ],
       },
     ],
@@ -56,47 +70,40 @@ export const router = createBrowserRouter([
     errorElement: <RouteError />,
     children: [
       // Full-screen signing flow (no sidebar); the API decides whether it is this user's turn.
-      {
-        path: 'contratos/:id/firmar',
-        element: (
-          <Suspense fallback={null}>
-            <SignContractPage />
-          </Suspense>
-        ),
-      },
+      { path: 'contratos/:id/firmar', lazy: app.sign },
       {
         element: <AppLayout />,
         errorElement: <RouteError />,
         children: [
           { index: true, element: <StaffHome dashboard={<DashboardPage />} /> },
           // Signers reach contracts through their inbox; the detail page itself is checked by the API.
-          { path: 'contratos/:id', element: <ContractDetailPage /> },
-          { path: 'firmas', element: <SignaturesInboxPage /> },
-          { path: 'perfil', element: <ProfilePage /> },
+          { path: 'contratos/:id', lazy: app.contract },
+          { path: 'firmas', lazy: app.inbox },
+          { path: 'perfil', lazy: app.profile },
           {
             element: <RoleRoute roles={['admin', 'supervisor']} />,
             children: [
-              { path: 'aprobaciones', element: <ApprovalsPage /> },
-              { path: 'plantillas/nueva', element: <TemplateEditorPage /> },
-              { path: 'plantillas/:id', element: <TemplateEditorPage /> },
+              { path: 'aprobaciones', lazy: app.approvals },
+              { path: 'plantillas/nueva', lazy: app.templateEditor },
+              { path: 'plantillas/:id', lazy: app.templateEditor },
             ],
           },
           {
             element: <RoleRoute roles={['admin']} />,
             children: [
-              { path: 'usuarios', element: <UsersPage /> },
-              { path: 'configuracion', element: <SettingsPage /> },
+              { path: 'usuarios', lazy: app.users },
+              { path: 'configuracion', lazy: app.settings },
             ],
           },
           {
             element: <RoleRoute roles={['admin', 'supervisor', 'gestor']} />,
             children: [
-              { path: 'contratos', element: <ContractsListPage /> },
-              { path: 'contratos/nuevo', element: <ContractWizardPage /> },
-              { path: 'contratos/:id/editar', element: <ContractWizardPage /> },
-              { path: 'plantillas', element: <TemplatesPage /> },
-              { path: 'renovaciones', element: <RenewalsPage /> },
-              { path: 'reportes', element: <ReportsPage /> },
+              { path: 'contratos', lazy: app.contracts },
+              { path: 'contratos/nuevo', lazy: app.wizard },
+              { path: 'contratos/:id/editar', lazy: app.wizard },
+              { path: 'plantillas', lazy: app.templates },
+              { path: 'renovaciones', lazy: app.renewals },
+              { path: 'reportes', lazy: app.reports },
             ],
           },
           { path: '*', element: <NotFoundPage /> },
