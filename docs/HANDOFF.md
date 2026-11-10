@@ -6,7 +6,19 @@ Rama `feat/backend-propio-y-nueva-ui`. Commits de esta sesión: `aaba3ad` (fix /
 `66dcf50`…`34d2d86` (editor TipTap con formato), `ae1cab0` (módulo Variables), **`51a3e88` T10 + T12a (Codex)**,
 `dcdc549`/`a5f4fce`/`9d79f28` (docs: plan premium, rich-v2, T14), **`4036335` editor premium fase 1**.
 
-### ESTADO A LAS 02:00 (más reciente que la tabla de abajo)
+### ESTADO 10 nov ~13:45 (lo MÁS reciente)
+- **T13 + T12b commiteados** en `e54e1ed` (suite completa 573/574 en verde, 1 omitido; `npm audit` online bloqueado por un problema TLS
+  del registro npm en esta red: repetir cuando funcione). `simaud_test` se reinició con `NODE_ENV=test npm run db:reset`
+  (quedó sucia por procesos de vitest que no murieron: al parar una suite, comprobar que no queden `node … vitest`).
+- SIMAUD_RUN en `e54e1ed`, migraciones 0011/0012 aplicadas a `simaud_dev`, API corriendo. El editor ya guarda en `rich-v1`.
+- **Codex en curso (lanzados ~13:40)**: **T15** (BD `simaud_test2`, migración 0013) y **T16** (BD `simaud_test3`, migración 0014).
+  Logs en el scratch de la sesión 4: `codex-T15.log`, `codex-T16.log`. Después: **T17** enmiendas (`docs/tasks/T17-enmiendas.md`).
+- Front hecho hoy: `213f0cd` /verificar + método de firma, `3a476d9` Usuarios (invitaciones/enlaces), `918c38c` Auditoría,
+  `2a4507e` firmas cómodas (no saltan, ↑↓, no se borran al escribir), `dbd8383` **código viejo y supabase/ borrados**.
+- La suite de la API tarda ~29 min (tests de integración contra el Postgres del VPS por el túnel). Propuesto al dueño: Postgres
+  local en Docker para tests (2–4 min) o repartir en 3 BD; sin decidir.
+
+### ESTADO A LAS 02:00
 - **T12b TERMINADO** (informe `docs/tasks/T12b-auditoria-global-usuarios.REPORT.md`), **sin revisar ni commitear**.
 - **T13 casi terminado**: sus 61 tests pasan, typecheck/format/build/audit OK; estaba corriendo la 2.ª suite completa.
   Si al retomar no hay `codex.exe` vivo (`tasklist | grep -c codex.exe` → 2 = solo la app) y no existe
