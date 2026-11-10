@@ -161,7 +161,7 @@ function downloadFilename(disposition: string | null) {
       /* Conserva el nombre simple si el servidor envía una codificación inválida. */
     }
   }
-  return filename.replace(/[\/\\]/g, "_");
+  return filename.replace(/[/\\]/g, "_");
 }
 export async function apiDownload(path: string, query?: QueryParams) {
   const response = await authorizedResponse(path, { query });
