@@ -104,8 +104,16 @@ export const VariableNode = Node.create<VariableNodeOptions>({
     return {
       insertVariable:
         (name) =>
-        ({ commands }) =>
-          commands.insertContent([{ type: this.name, attrs: { name } }, { type: 'text', text: ' ' }]),
+        ({ tr, commands }) => {
+          // Never glue the chip to the previous word: "PRESTACIÓN[Fecha]" → "PRESTACIÓN [Fecha]".
+          const before = tr.selection.$from.nodeBefore;
+          const needsSpace = Boolean(before?.isText && /\S$/.test(before.text ?? ''));
+          return commands.insertContent([
+            ...(needsSpace ? [{ type: 'text', text: ' ' }] : []),
+            { type: this.name, attrs: { name } },
+            { type: 'text', text: ' ' },
+          ]);
+        },
     };
   },
 });
