@@ -21,6 +21,7 @@
 - **No hay datos de Supabase que migrar** (confirmado por el dueño): BD limpia en producción.
 - `RESEND_API_KEY` ya está en `api/.env`. Al terminar T08: configurar `MAIL_DRIVER=resend` y `MAIL_FROM`; sin dominio verificado en Resend solo se puede enviar al correo del dueño de la cuenta (usar `onboarding@resend.dev` como remitente para pruebas).
 - Recomendar al dueño **rotar** las claves de Resend e Instabox al final del proyecto (se pegaron en el chat).
+- **Correo configurado con Brevo (SMTP)** en `api/.env`: `SMTP_URL` (smtp-relay.brevo.com:587) y `MAIL_FROM=SIMAUD <simaud.notificaciones@gmail.com>`. Verificado: login OK y correo de prueba aceptado (250). `MAIL_DRIVER=smtp` está **comentado** a propósito: activarlo solo tras confirmar que los tests fuerzan `MAIL_DRIVER=log` (si no, enviarían correos reales a direcciones falsas y dañarían la reputación de la cuenta). Gmail bloqueó crear contraseña de aplicación por ser cuenta nueva → reintentar en 1-2 días; Resend queda como alternativa.
 - Siguiente: probar firma con sesión, bandeja `/app/firmas`, stagger en paneles, asistente de nuevo contrato (6.3 punto 4).
 
 > Escrito por Claude el 9 nov 2026 para que otra sesión (otra cuenta) continúe **exactamente** donde se quedó.
