@@ -27,3 +27,4 @@ dist-ssr
 # Production secrets (deploy)
 .env.prod
 deploy/.env.prod
+.env.ops

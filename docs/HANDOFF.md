@@ -16,6 +16,11 @@
 - **Instabox** sirve de servidor de pruebas (autorizado por el dueño): Docker 29.8, Compose v5.6, 4 CPU, 7.8 GB RAM, 9.8 GB libres. Desplegar allí con `docker-compose.prod.yml` tras T08.
 - Correo: el dueño usará **Resend** ahora y **SMTP institucional** después (ambos configurables, T08). Falta que el dueño ponga `RESEND_API_KEY` en `api/.env` y verifique un dominio en Resend.
 - Pendiente de diseño: pulir de nuevo AuthLayout/tarjetas de acceso (el dueño las considera pobres), stagger en paneles.
+- **Instabox por API** (autorizado por el dueño; tocar SOLO la máquina `simaud` = `m_agq4fpcgma6kpfqey5ffoy2wui`, nunca `projectcloud` ni `android`). Clave en `.env.ops` (raíz, ignorado por git). API: `https://api.instabox.sh/v1`, cabecera `X-API-Key`. Puertos: `GET/POST /v1/machines/<id>/ports` (body `{port, name, access:"public", protocol:"http"}`, enviar `Idempotency-Key`); URL pública `https://<puerto>-agq4fpcgma6kpfqey5ffoy2wui.<dominio>/` con HTTPS ya terminado por Instabox. Máx. 16 puertos. CLI alternativa: `npx instabox port publish ...` con `INSTABOX_API_KEY`.
+- **Plan de staging**: Instabox termina TLS → crear `deploy/docker-compose.staging.yml` (override) con nginx solo HTTP en un puerto ≥1024 (p. ej. 8080), sin redirección 80→443, `TRUST_PROXY=2`, `APP_URL` = URL pública; publicar ese puerto. HSTS puede quedarse (la URL pública es HTTPS).
+- **No hay datos de Supabase que migrar** (confirmado por el dueño): BD limpia en producción.
+- `RESEND_API_KEY` ya está en `api/.env`. Al terminar T08: configurar `MAIL_DRIVER=resend` y `MAIL_FROM`; sin dominio verificado en Resend solo se puede enviar al correo del dueño de la cuenta (usar `onboarding@resend.dev` como remitente para pruebas).
+- Recomendar al dueño **rotar** las claves de Resend e Instabox al final del proyecto (se pegaron en el chat).
 - Siguiente: probar firma con sesión, bandeja `/app/firmas`, stagger en paneles, asistente de nuevo contrato (6.3 punto 4).
 
 > Escrito por Claude el 9 nov 2026 para que otra sesión (otra cuenta) continúe **exactamente** donde se quedó.
