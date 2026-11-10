@@ -67,6 +67,13 @@ export function TemplateEditorPage() {
   return <Editor key={id ?? "new"} template={template.data} />;
 }
 
+/** Hand-drawn signature lines such as «______________» in templates written before the «Firmas» block. */
+const MANUAL_SIGNATURE_LINE = /_{8,}/;
+
+function hasSignatureBlock(doc: RichDoc) {
+  return doc.content.some((block) => block.type === "signatures");
+}
+
 interface Draft {
   title: string;
   category: string;
@@ -224,6 +231,15 @@ function Editor({ template }: { template?: TemplateDetail }) {
           Se conservan los párrafos, la negrita y los datos; títulos, cursiva,
           listas, tablas, firmas y la configuración de página se guardarán
           cuando se actualice la API.
+        </Alert>
+      )}
+      {bestFormat === "rich-v2" && !hasSignatureBlock(draft.content) && richDocText(draft.content).length > 0 && (
+        <Alert tone="warning" title="Esta plantilla no tiene casillas de firma">
+          {MANUAL_SIGNATURE_LINE.test(richDocText(draft.content))
+            ? "Las líneas de firma escritas a mano (____) no se reconocen como casillas: en el PDF las firmas se añadirían al final y se verían duplicadas. "
+            : "Sin casillas, las firmas se añaden al final del PDF. "}
+          Borra esas líneas e inserta el bloque <b>Firmas</b> desde la barra (botón «Firmas») o escribiendo «/firmas»: la casilla 1 es
+          para quien firma primero.
         </Alert>
       )}
       {bestFormat === "rich-v1" && (
