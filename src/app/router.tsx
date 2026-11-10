@@ -37,6 +37,7 @@ const app = {
   profile: page(() => import('../features/profile/ProfilePage'), (m) => m.ProfilePage),
   settings: page(() => import('../features/settings/SettingsPage'), (m) => m.SettingsPage),
   templates: page(() => import('../features/templates/TemplatesPage'), (m) => m.TemplatesPage),
+  audit: page(() => import('../features/audit/AuditPage'), (m) => m.AuditPage),
   variables: page(() => import('../features/templates/VariablesPage'), (m) => m.VariablesPage),
   templateEditor: page(() => import('../features/templates/TemplateEditorPage'), (m) => m.TemplateEditorPage),
   renewals: page(() => import('../features/renewals/RenewalsPage'), (m) => m.RenewalsPage),
@@ -97,6 +98,7 @@ export const router = createBrowserRouter([
             children: [
               { path: 'usuarios', lazy: app.users },
               { path: 'configuracion', lazy: app.settings },
+              { path: 'auditoria', lazy: app.audit },
             ],
           },
           {

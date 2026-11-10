@@ -78,12 +78,17 @@ function CommandPalette({ open, onClose, role, placeholder }: CommandPaletteProp
   const flatItems = sections.flatMap((section) => section.items);
   const activeItem = flatItems[Math.min(activeIndex, flatItems.length - 1)];
 
-  useEffect(() => {
-    if (!open) return;
-    setMounted(true);
-    setSearch('');
-    setActiveIndex(0);
-  }, [open]);
+  // Each time the palette opens it starts empty (state adjusted during render, as React recommends
+  // for reacting to a prop change, instead of an effect).
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (open) {
+      setMounted(true);
+      setSearch('');
+      setActiveIndex(0);
+    }
+  }
 
   useEffect(() => {
     const dialog = dialogRef.current;
