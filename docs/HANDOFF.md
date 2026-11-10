@@ -6,7 +6,23 @@ Rama `feat/backend-propio-y-nueva-ui`. Commits de esta sesión: `aaba3ad` (fix /
 `66dcf50`…`34d2d86` (editor TipTap con formato), `ae1cab0` (módulo Variables), **`51a3e88` T10 + T12a (Codex)**,
 `dcdc549`/`a5f4fce`/`9d79f28` (docs: plan premium, rich-v2, T14), **`4036335` editor premium fase 1**.
 
-### ⚡⚡⚡ ESTADO 10 nov ~15:00 — LEER ESTO PRIMERO (cambio de cuenta)
+### ⚡⚡⚡⚡ ESTADO 10 nov ~16:40 (sesión 5, otra cuenta) — LEER PRIMERO
+- **T15 + T16 commiteados** (`dabb3e1` API, `954dbcc` front: importes exactos + `fetchAllPages` porque aprobaciones/versiones/
+  elegibles ahora se paginan). Suite completa **642/642 en 5 min contra PostgreSQL LOCAL** (ver abajo). Arreglos míos: test de
+  migración de almacenamiento determinista; el repartidor de correos usa el reloj de la BD (el de PG iba ~10 ms adelantado).
+- `f4ee36b` transiciones suaves (View Transitions) en Firmar y Verificar.
+- **SIMAUD_RUN en `954dbcc`**, migraciones 0013/0014 aplicadas a `simaud_dev`, API reiniciada (en segundo plano de la sesión 5).
+- PDF nuevo comprobado renderizando CT-2026-0018 (`SIMAUD_RUN/api/tmp/render-contract.ts`, no guarda nada): igual que la
+  pantalla, sin cabecera «SIMAUD». Los contratos YA firmados conservan su PDF final antiguo (inmutable, sellado).
+  **Las firmas solo caen en su casilla si la plantilla usa el bloque «Firmas»**; la plantilla de prueba tiene líneas `____` a mano.
+- **T18 lanzada** (`docs/tasks/T18-verificacion-y-colocacion-de-firmas.md`, BD local `simaud_test2`): verificación v2 (código
+  largo, huella en navegador, copia oficial con marca), colocación de firmas (arrastrar/ajustar, re-firmar antes de activar),
+  IP real tras proxy, cédulas con formato, H17. Después **T17** (enmiendas). Front de T18 = Claude.
+- Decisiones del dueño hoy: copia oficial descargable con el código largo (protegida); Instabox gratis = pausa a las 8 h o 30 min
+  sin uso; PostgreSQL portable local para tests (Docker descartado por pesado).
+- El túnel 55432 lo relanza la sesión 5 en bucle; si se cambia de wifi se cae y vuelve solo.
+
+### ⚡⚡⚡ ESTADO 10 nov ~15:00 — (anterior) cambio de cuenta
 **Sin commitear en `api/`: trabajo de Codex T15 + T16 (NO descartar).** **T16 además modificó archivos del front** (`src/features/reports/*`, `src/features/dashboard/AdminDashboardExtras.tsx`, `src/ui/bar-charts.tsx`, `src/lib/format.ts` + test: importes exactos como string, H11) y `docs/PRINCIPIOS.md` (regla de autoaprobación): revisar ese diff antes de commitear (front = Claude). T15 terminó su código e informe
 (`docs/tasks/T15-plantillas-premium-pdf.REPORT.md`, ya en disco sin commitear). T16 estaba pasando su suite completa
 (60 casos OK, 0 fallos a las 14:53) sobre el árbol con T15+T16; su informe saldrá en `docs/tasks/T16-correcciones-auditoria.REPORT.md`.
@@ -24,8 +40,15 @@ Al retomar:
 5. Prueba de punta a punta y AVISAR AL DUEÑO (lo pidió: «avísame cuando esté 100 % para probar»).
 6. Luego lanzar **T17 enmiendas** (`docs/tasks/T17-enmiendas.md`).
 
-**Instabox (BD de desarrollo y pruebas): plan GRATUITO** → se suspende tras **120 min seguidos** o 30 min sin uso, con enfriamiento
-(~10 min). Arrancó a las 13:37 → corte ~15:37. Al volver no hay que hacer nada (vuelve sola a `running`); el túnel se reconecta solo.
+**PostgreSQL LOCAL para tests (10 nov, autorizado por el dueño):** PostgreSQL 17.11 portable en `C:\Users\ismae\pgsql-simaud`
+(sin instalador; solo escucha en 127.0.0.1:55433; auth `trust` solo local; `fsync=off`, SOLO para tests). BD: `simaud_test`,
+`simaud_test2`, `simaud_test3`. Arrancar: `/c/Users/ismae/pgsql-simaud/bin/pg_ctl.exe -D /c/Users/ismae/pgsql-simaud/data -l /c/Users/ismae/pgsql-simaud/data/server.log start`
+(parar: `… stop`). Usar en tests sin tocar `api/.env` (dotenv no pisa variables ya exportadas):
+`export DATABASE_URL_TEST=postgres://simaud@127.0.0.1:55433/simaud_test PATH="/c/Users/ismae/pgsql-simaud/bin:$PATH"`.
+A Codex pasarle la misma variable con `simaud_test2`/`simaud_test3`. `simaud_dev` sigue en Instabox.
+
+**Instabox (BD de desarrollo; ya no para tests): plan GRATUITO** → se pausa tras **8 h seguidas** o **30 min sin uso** (dato oficial de
+Instabox confirmado por el dueño; el «120 min» anterior era erróneo). Hora de arranque: `runStartedAt` en `GET /v1/machines/<id>` (UTC). Al volver no hay que hacer nada (vuelve sola a `running`); el túnel se reconecta solo.
 Error «Ocurrió un error interno» al entrar = máquina suspendida (ver `GET /v1/machines/<id>` con la clave de `.env.ops`: `state`, `cooldownUntil`).
 La suite de la API tarda ~30 min y no hay que lanzar dos a la vez. Propuesto al dueño: Postgres local en Docker para tests (sin respuesta).
 
