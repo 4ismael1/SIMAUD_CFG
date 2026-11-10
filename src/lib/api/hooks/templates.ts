@@ -89,7 +89,8 @@ export function usePreviewTemplate() {
 
 /** The rendered body of a preview, whatever its format. */
 export function previewContent(response: PreviewResponse): DocumentContent {
-  return response.contentFormat === "rich-v1" ? response.document : response.html;
+  // Every formatted version (rich-v1, rich-v2…) comes as a document; only plain text comes as html.
+  return "document" in response ? response.document : response.html;
 }
 
 /**

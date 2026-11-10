@@ -110,6 +110,31 @@ export function partyValues(signatories: SignatoryData[]): VariableValues {
 }
 
 /**
+ * T19: templates with signature boxes. Each box with a data prefix (party) is filled from the person in
+ * that box — {party}_nombre, _cedula, _email, _telefono — as the server does when saving. Only used for
+ * the preview: the server ignores/validates these values itself.
+ */
+export function slotPartyValues(
+  signatories: (SignatoryData & { slotIndex: number | null })[],
+  slots: { index: number; party: string | null }[],
+): VariableValues {
+  const out: VariableValues = {};
+  for (const slot of slots) {
+    const person = slot.party ? signatories.find((signatory) => signatory.slotIndex === slot.index) : undefined;
+    if (!slot.party || !person) continue;
+    const cedula = validateCedula(person.cedula);
+    const values: Record<string, string> = {
+      nombre: person.name.trim().replace(/\s+/g, ' '),
+      cedula: cedula.ok ? formatCedula(cedula.value) : person.cedula.trim(),
+      email: person.email.trim().toLowerCase(),
+      telefono: person.phone.trim(),
+    };
+    for (const [suffix, value] of Object.entries(values)) if (value) out[`${slot.party}_${suffix}`] = value;
+  }
+  return out;
+}
+
+/**
  * What is sent to the API and the preview: what the user typed plus what the wizard filled, limited to
  * the variables the template actually uses (the API rejects unknown ones, e.g. a representative's email
  * when the template only prints their name).

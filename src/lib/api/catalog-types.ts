@@ -65,4 +65,4 @@ export interface PreviewInput {
 /** Plain: `html` (escaped text). rich-v1: `document`. Older APIs omit contentFormat. */
 export type PreviewResponse =
   | { contentFormat?: "plain"; html: string; missing: string[] }
-  | { contentFormat: "rich-v1"; document: RichDoc; missing: string[] };
+  | { contentFormat: "rich-v1" | "rich-v2"; document: RichDoc; missing: string[] };

@@ -9,7 +9,7 @@ import { validateMoney } from '../../../lib/validation';
 import { DocumentView } from '../components/DocumentView';
 import { SIGNATORY_ROLE_LABELS } from '../components/SignatoriesPanel';
 import { signingOrderFor, type WizardDraft } from './wizard-state';
-import { effectiveVariables } from './bound-variables';
+import { effectiveVariables, slotPartyValues } from './bound-variables';
 
 interface StepReviewProps {
   draft: WizardDraft;
@@ -23,8 +23,11 @@ export function StepReview({ draft, template }: StepReviewProps) {
   const contentFormat = template?.contentFormat;
 
   useEffect(() => {
-    if (content) mutate({ contentFormat, content, values: effectiveVariables(draft, template?.variables) });
-  }, [content, contentFormat, draft, template?.variables, mutate]);
+    if (!content) return;
+    // With signature boxes, the people's data comes from the box each person signs (T19).
+    const people = template?.signatureSlots?.length ? slotPartyValues(draft.signatories, template.signatureSlots) : {};
+    mutate({ contentFormat, content, values: { ...effectiveVariables(draft, template?.variables), ...people } });
+  }, [content, contentFormat, draft, template?.variables, template?.signatureSlots, mutate]);
 
   const money = validateMoney(draft.value);
 
