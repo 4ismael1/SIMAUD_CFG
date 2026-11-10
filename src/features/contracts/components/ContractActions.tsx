@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Archive, ArchiveRestore, Ban, Download, Ellipsis, PenLine, Pencil, RotateCcw, Send, ShieldAlert, Trash2 } from 'lucide-react';
+import { Archive, ArchiveRestore, Ban, Download, Ellipsis, PenLine, Pencil, RotateCcw, Send, ShieldAlert, Trash2, UserRoundCog } from 'lucide-react';
 import { Button, ButtonLink, ConfirmDialog, IconButton, Menu, useAction, useToast, type MenuItem } from '../../../ui';
 import {
   useArchiveContract,
@@ -14,9 +14,11 @@ import {
 import type { ContractDetail } from '../../../lib/api/types';
 import { errorMessage } from '../../../lib/errors';
 import { downloadFromApi } from '../../../lib/download';
+import { useReassignContract } from '../../../lib/api/hooks/contract-admin';
+import { ReassignDialog } from '../admin/ReassignDialog';
 import { CancelContractDialog, OverrideStatusDialog } from './ContractDialogs';
 
-type OpenDialog = 'submit' | 'cancel' | 'delete' | 'override' | null;
+type OpenDialog = 'submit' | 'cancel' | 'delete' | 'override' | 'reassign' | null;
 
 /** Primary and secondary actions for a contract, shown only when the API says the user may perform them. */
 export function ContractActions({ contract }: { contract: ContractDetail }) {
@@ -33,6 +35,7 @@ export function ContractActions({ contract }: { contract: ContractDetail }) {
   const unarchive = useUnarchiveContract(contract.id);
   const remove = useDeleteContract(contract.id);
   const override = useOverrideContractStatus(contract.id);
+  const reassign = useReassignContract();
 
   async function run(action: () => Promise<unknown>, successMessage: string) {
     try {
@@ -93,17 +96,18 @@ export function ContractActions({ contract }: { contract: ContractDetail }) {
         }),
     });
   }
+  if (can.reassign) {
+    secondary.push({ label: 'Reasignar gestor…', icon: <UserRoundCog />, onSelect: () => setDialog('reassign'), separatorBefore: true });
+  }
   if (can.override) {
-    secondary.push({ label: 'Forzar estado…', icon: <ShieldAlert />, onSelect: () => setDialog('override'), separatorBefore: true });
+    secondary.push({ label: 'Forzar estado…', icon: <ShieldAlert />, onSelect: () => setDialog('override'), separatorBefore: !can.reassign });
   }
   if (can.cancel) {
     secondary.push({ label: 'Cancelar contrato…', icon: <Ban />, danger: true, onSelect: () => setDialog('cancel'), separatorBefore: !can.override });
   }
   if (can.delete) {
-    secondary.push({ label: 'Eliminar…', icon: <Trash2 />, danger: true, onSelect: () => setDialog('delete') });
+    secondary.push({ label: 'Eliminar borrador…', icon: <Trash2 />, danger: true, onSelect: () => setDialog('delete') });
   }
-
-  const deleteNeedsCode = contract.status !== 'draft';
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -163,17 +167,22 @@ export function ContractActions({ contract }: { contract: ContractDetail }) {
         open={dialog === 'delete'}
         onClose={() => setDialog(null)}
         tone="danger"
-        title="Eliminar contrato"
-        description="Se borrarán el contrato, sus versiones y sus firmas. No se puede deshacer."
-        confirmLabel="Eliminar definitivamente"
-        confirmationText={deleteNeedsCode ? contract.code : undefined}
+        title="¿Eliminar este borrador?"
+        description={`Se borrará ${contract.code} con sus versiones. No se puede deshacer; la eliminación queda en la auditoría.`}
+        confirmLabel="Eliminar borrador"
         loading={remove.isPending}
         onConfirm={() =>
           void run(async () => {
-            await remove.mutateAsync(deleteNeedsCode ? contract.code : undefined);
+            await remove.mutateAsync();
             navigate('/app/contratos', { replace: true });
-          }, 'Contrato eliminado.')
+          }, 'Se eliminó el borrador.')
         }
+      />
+      <ReassignDialog
+        contract={dialog === 'reassign' ? contract : null}
+        onClose={() => setDialog(null)}
+        loading={reassign.isPending}
+        onConfirm={(body) => void run(() => reassign.mutateAsync({ id: contract.id, ...body }), `Se reasignó ${contract.code}.`)}
       />
     </div>
   );

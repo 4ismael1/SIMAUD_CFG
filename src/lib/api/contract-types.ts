@@ -87,7 +87,10 @@ export type ContractPermissions = Record<
   | "delete"
   | "override",
   boolean
->;
+> & {
+  /** Admin only; arrived with T12a, so an older API omits it. */
+  reassign?: boolean;
+};
 export interface ContractDetail extends Contract {
   signatories: Signatory[];
   can: ContractPermissions;
