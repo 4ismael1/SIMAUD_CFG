@@ -1,5 +1,14 @@
 # HANDOFF — SIMAUD: estado del trabajo y cómo continuar
 
+## ⚡ ÚLTIMA ACTUALIZACIÓN (al cortar la sesión) — leer primero
+- Rama de trabajo: **`feat/backend-propio-y-nueva-ui`** (commits WIP hechos; `main` intacta). Sigue commiteando en esta rama.
+- **Codex T03** seguía corriendo al cortar (sin `T03-api-ciclo-vida.REPORT.md` aún). El proceso se perdió con la sesión: revisa `api/` (ya existen módulos dashboard, notifications, renewals, reports, system, jobs y migraciones 0004/0005). Ejecuta en `api/`: `npm run format && npm run typecheck && npm test && npm audit`. Si falla algo o falta el REPORT, relanza Codex con T03 indicándole que continúe y escriba el REPORT. El código de T03 sigue compactado (SQL en una línea) → exigir el refactor de la sección 0.
+- **T04 terminado**; revisado por encima por Claude (tests pasan). Detectado y corregido: la API espera el ticket SSE como `?token=` (no `?ticket=`); ya está arreglado en `src/lib/api/server-events.ts`.
+- **Probado en vivo** con la API real: login admin → panel con datos reales, lista de contratos, SSE 200. Todo el código nuevo (`src/ui|app|features|lib`) compila sin errores.
+- Contraseña de desarrollo de las 4 cuentas seed: está en `api/.env` como `SEED_PASSWORD` (aplicada con `npx tsx src/db/dev-reset-seed-passwords.ts` desde `api/`).
+- Recién escritos y **AÚN NO registrados en el router**: `src/features/signatures/SignaturePad.tsx` y `SignContractPage.tsx` (ruta prevista `/app/contratos/:id/firmar`, fuera del AppLayout: pantalla completa dentro de `ProtectedRoute`). No se han probado.
+- Siguiente paso inmediato: registrar la ruta de firma, hacer la bandeja `/app/firmas` (usar `useSignatures('pending'|'signed')`, campo `myTurn`), y luego el asistente de nuevo/editar contrato (sección 6.3, punto 4).
+
 > Escrito por Claude el 9 nov 2026 para que otra sesión (otra cuenta) continúe **exactamente** donde se quedó.
 > Léelo completo antes de tocar nada. Después lee `docs/PLAN.md` y `docs/CODE_STANDARDS.md`.
 
