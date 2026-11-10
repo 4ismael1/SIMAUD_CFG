@@ -8,13 +8,12 @@ interface EditForm {
   name: string;
   cedula: string;
   phone: string;
-  position: string;
 }
 
 type EditErrors = Partial<Record<keyof EditForm, string>>;
 
 function formOf(user: User): EditForm {
-  return { name: user.name, cedula: user.cedula ? formatCedula(user.cedula) : '', phone: user.phone ?? '', position: user.position ?? '' };
+  return { name: user.name, cedula: user.cedula ? formatCedula(user.cedula) : '', phone: user.phone ?? '' };
 }
 
 function validate(form: EditForm): EditErrors {
@@ -27,7 +26,6 @@ function validate(form: EditForm): EditErrors {
     const phone = validatePhoneDo(form.phone);
     if (!phone.ok) errors.phone = phone.message;
   }
-  if (form.position.trim().length > 120) errors.position = 'Máximo 120 caracteres.';
   return errors;
 }
 
@@ -38,7 +36,6 @@ function changesOf(user: User, form: EditForm): UserPatch {
   if (form.name.trim() !== initial.name) patch.name = form.name.trim();
   if (form.cedula !== initial.cedula) patch.cedula = form.cedula;
   if (form.phone.trim() !== initial.phone) patch.phone = form.phone.trim();
-  if (form.position.trim() !== initial.position) patch.position = form.position.trim() || null;
   return patch;
 }
 
@@ -104,9 +101,6 @@ export function EditUserDialog({ user, open, onClose }: EditUserDialogProps) {
         </Field>
         <Field label="Teléfono" optional error={errors.phone}>
           <Input inputMode="tel" placeholder="809-000-0000" value={form.phone} onChange={(event) => set('phone', event.target.value)} />
-        </Field>
-        <Field label="Cargo" optional error={errors.position} hint="Sale en los contratos que firma (p. ej. «en su calidad de Directora administrativa»).">
-          <Input value={form.position} maxLength={120} placeholder="Directora administrativa" onChange={(event) => set('position', event.target.value)} />
         </Field>
         <Field label="Correo electrónico" hint="El correo identifica la cuenta; la persona lo cambia desde su perfil.">
           <Input value={user.email} readOnly disabled />

@@ -44,8 +44,6 @@ export interface User {
   name: string;
   phone: string | null;
   cedula: string | null;
-  /** T19: job title («Directora administrativa»); fills {party}_cargo in contracts. */
-  position?: string | null;
   role: Role;
   avatarPath: string | null;
   emailConfirmedAt: string | null;
@@ -61,8 +59,6 @@ export interface User {
   invitedAt?: string | null;
 }
 export interface ProfileInput {
-  /** T19: job title, 0–120 characters; null clears it. */
-  position?: string | null;
   name: string;
   phone: string;
   cedula: string;
@@ -108,5 +104,5 @@ export interface UserQuery extends ListQuery {
 }
 export type UserLookup = Pick<
   User,
-  "id" | "name" | "email" | "phone" | "cedula" | "position"
+  "id" | "name" | "email" | "phone" | "cedula"
 >;

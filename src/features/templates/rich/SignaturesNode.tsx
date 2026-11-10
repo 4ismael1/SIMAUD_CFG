@@ -224,7 +224,7 @@ function SignaturesView({ node, updateAttributes, deleteNode, selected, editor, 
                       maxLength={30}
                       list="signature-party-suggestions"
                       placeholder="ninguno"
-                      title="Prefijo de los datos de esta persona: «cliente» rellena {{cliente_nombre}}, {{cliente_cedula}}, {{cliente_email}}, {{cliente_telefono}} y {{cliente_cargo}}."
+                      title="Prefijo de los datos de esta persona: «cliente» rellena {{cliente_nombre}}, {{cliente_cedula}}, {{cliente_email}} y {{cliente_telefono}}."
                       aria-label={`Datos que rellena la firma ${offset + index + 1}`}
                       onChange={(event) => {
                         const party = event.target.value.toLowerCase().replace(/[^a-z0-9]/g, '').replace(/^[0-9]+/, '');
@@ -236,7 +236,7 @@ function SignaturesView({ node, updateAttributes, deleteNode, selected, editor, 
                   </label>
                   {slot.party && (
                     <span className="font-sans text-[10.5px] text-slate-400">
-                      {`{{${slot.party}_nombre}}, {{${slot.party}_cedula}}, {{${slot.party}_cargo}}…`}
+                      {`{{${slot.party}_nombre}}, {{${slot.party}_cedula}}, {{${slot.party}_email}}…`}
                     </span>
                   )}
                 </>

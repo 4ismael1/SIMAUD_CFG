@@ -64,7 +64,6 @@ function PersonalSection() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [name, setName] = useState(user?.name ?? '');
   const [phone, setPhone] = useState(user?.phone ?? '');
-  const [position, setPosition] = useState(user?.position ?? '');
   const [errors, setErrors] = useState<{ name?: string; phone?: string }>({});
   if (!user) return null;
 
@@ -79,7 +78,7 @@ function PersonalSection() {
     }
     setErrors(next);
     if (Object.keys(next).length > 0) return;
-    const result = await runAction({ run: () => updateMe.mutateAsync({ name: name.trim(), phone, position: position.trim() || null }), success: 'Datos actualizados.' });
+    const result = await runAction({ run: () => updateMe.mutateAsync({ name: name.trim(), phone }), success: 'Datos actualizados.' });
     if (result.ok) await refreshUser();
   }
 
@@ -137,9 +136,6 @@ function PersonalSection() {
             <Input value={user.cedula ? formatCedula(user.cedula) : '—'} disabled className="font-mono" />
           </Field>
         </div>
-        <Field label="Cargo" optional hint="Sale en los contratos que firmas en nombre de la institución.">
-          <Input value={position} maxLength={120} placeholder="Directora administrativa" onChange={(event) => setPosition(event.target.value)} autoComplete="organization-title" />
-        </Field>
         <div className="flex items-center justify-between gap-3">
           <Badge tone={roleStatus[user.role].tone}>{roleStatus[user.role].label}</Badge>
           <Button type="submit" variant="primary" loading={running && updateMe.isPending}>Guardar cambios</Button>
