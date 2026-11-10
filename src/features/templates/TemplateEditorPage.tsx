@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { useBlocker, useNavigate, useParams } from 'react-router-dom';
-import { Braces, Save } from 'lucide-react';
+import { Braces, Plus, Save } from 'lucide-react';
 import { Alert, Button, ButtonLink, Card, CardHeader, EmptyState, Field, Input, PageHeader, Skeleton, Textarea, cn, useAction, useConfirm } from '../../ui';
 import { useCreateTemplate, usePreviewTemplate, useTemplate, useUpdateTemplate } from '../../lib/api/hooks/templates';
 import { useVariables } from '../../lib/api/hooks/variables';
 import type { TemplateDetail, Variable } from '../../lib/api/catalog-types';
 import { errorMessage } from '../../lib/errors';
 import { DocumentView } from '../contracts/components/DocumentView';
-import { VARIABLE_TYPE_LABELS } from './TemplatesPage';
+import { VARIABLE_TYPE_LABELS, VariableDialog } from './TemplatesPage';
 
 const PREVIEW_DELAY_MS = 500;
 
@@ -48,6 +48,8 @@ function Editor({ template }: { template?: TemplateDetail }) {
   const [saved, setSaved] = useState(false);
   const [suggest, setSuggest] = useState<{ query: string; index: number } | null>(null);
   const [errors, setErrors] = useState<{ title?: string; content?: string }>({});
+  /** Name to prefill in the "new variable" drawer ('' = blank); null = closed. */
+  const [creating, setCreating] = useState<string | null>(null);
 
   const dirty = !saved && JSON.stringify(draft) !== JSON.stringify(initial);
   const blocker = useBlocker(dirty);
@@ -58,16 +60,21 @@ function Editor({ template }: { template?: TemplateDetail }) {
     );
   }, [blocker, confirm]);
 
-  // Live preview with sample values: each variable shows its label, so gaps are obvious.
-  const sampleValues = useMemo(() => Object.fromEntries((variables.data ?? []).map((variable) => [variable.name, `[${variable.label}]`])), [variables.data]);
-  useEffect(() => {
-    if (!draft.content.trim()) return;
-    const timer = window.setTimeout(() => requestPreview({ content: draft.content, values: sampleValues }), PREVIEW_DELAY_MS);
-    return () => window.clearTimeout(timer);
-  }, [draft.content, sampleValues, requestPreview]);
-
   const used = useMemo(() => new Set([...draft.content.matchAll(/\{\{\s*([a-z0-9_]+)\s*\}\}/g)].map((match) => match[1])), [draft.content]);
   const unknown = [...used].filter((name) => !(variables.data ?? []).some((variable) => variable.name === name));
+  const hasUnknown = unknown.length > 0;
+
+  // Live preview. No values are sent: the API validates them by type (a date must be AAAA-MM-DD),
+  // so the placeholders are swapped for each variable's label here instead.
+  useEffect(() => {
+    if (!draft.content.trim() || hasUnknown) return;
+    const timer = window.setTimeout(() => requestPreview({ content: draft.content, values: {} }), PREVIEW_DELAY_MS);
+    return () => window.clearTimeout(timer);
+  }, [draft.content, hasUnknown, requestPreview]);
+  const previewHtml = useMemo(
+    () => (preview.data ? labelPlaceholders(preview.data.html, variables.data ?? []) : undefined),
+    [preview.data, variables.data],
+  );
   const suggestions = suggest ? (variables.data ?? []).filter((variable) => variable.name.includes(suggest.query) || variable.label.toLowerCase().includes(suggest.query)) : [];
 
   function insertVariable(variable: Variable) {
@@ -191,29 +198,65 @@ function Editor({ template }: { template?: TemplateDetail }) {
                 </ul>
               )}
             </div>
-            <VariablePalette variables={variables.data ?? []} used={used} onInsert={insertVariable} />
+            <VariablePalette variables={variables.data ?? []} used={used} onInsert={insertVariable} onCreate={() => setCreating('')} />
           </div>
         </Card>
 
         <section className="flex min-w-0 flex-col gap-3 xl:sticky xl:top-24">
           <CardHeader title="Vista previa" description="Con los nombres de los datos en lugar de valores reales." className="px-0 pt-0" />
-          {preview.isError && <Alert tone="danger">{errorMessage(preview.error)}</Alert>}
-          {draft.content.trim() && preview.data ? (
-            <DocumentView escapedContent={preview.data.html} heading={draft.title || 'Sin título'} className="max-h-[75dvh] overflow-y-auto" />
+          {hasUnknown ? (
+            <Alert tone="warning">
+              <div className="flex flex-col gap-2">
+                <span>Estas variables no existen todavía. Créalas o corrige el nombre para ver la vista previa:</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {unknown.map((name) => (
+                    <Button key={name} size="sm" icon={<Plus />} onClick={() => setCreating(name)}>
+                      <span className="font-mono text-xs">{name}</span>
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            </Alert>
+          ) : (
+            preview.isError && <Alert tone="danger">{errorMessage(preview.error)}</Alert>
+          )}
+          {draft.content.trim() && previewHtml !== undefined && !hasUnknown ? (
+            <DocumentView escapedContent={previewHtml} heading={draft.title || 'Sin título'} className="max-h-[75dvh] overflow-y-auto" />
           ) : (
             <Card><EmptyState icon={<Braces />} title="Escribe el contenido" description="La vista previa aparecerá aquí." /></Card>
           )}
         </section>
       </div>
+      {creating !== null && <VariableDialog variable={null} initialName={creating} onClose={() => setCreating(null)} />}
     </>
   );
 }
 
-function VariablePalette({ variables, used, onInsert }: { variables: Variable[]; used: Set<string>; onInsert: (variable: Variable) => void }) {
-  if (variables.length === 0) return null;
+const HTML_ESCAPES: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+
+/** Replace the `{{name}}` left in the escaped preview text with «[Label]», escaped the same way. */
+function labelPlaceholders(escapedHtml: string, variables: Variable[]): string {
+  const labels = new Map(variables.map((variable) => [variable.name, variable.label]));
+  return escapedHtml.replace(/\{\{\s*([a-z0-9_]+)\s*\}\}/g, (match, name: string) => {
+    const label = labels.get(name);
+    return label ? `[${label}]`.replace(/[&<>"']/g, (char) => HTML_ESCAPES[char]) : match;
+  });
+}
+
+interface VariablePaletteProps {
+  variables: Variable[];
+  used: Set<string>;
+  onInsert: (variable: Variable) => void;
+  onCreate: () => void;
+}
+
+function VariablePalette({ variables, used, onInsert, onCreate }: VariablePaletteProps) {
   return (
     <div className="flex flex-col gap-2">
-      <span className="text-xs font-semibold text-slate-500">Insertar variable</span>
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs font-semibold text-slate-500">Insertar variable</span>
+        <Button size="sm" variant="ghost" icon={<Plus />} onClick={onCreate}>Nueva variable</Button>
+      </div>
       <div className="flex flex-wrap gap-1.5">
         {variables.map((variable) => (
           <button

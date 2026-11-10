@@ -300,14 +300,27 @@ function VariablesTable({ canManage }: { canManage: boolean }) {
   );
 }
 
-function VariableDialog({ variable, onClose }: { variable: Variable | null; onClose: () => void }) {
+/** Name in snake_case → readable label: "ciudad_cliente" → "Ciudad cliente". */
+function labelFromName(name: string): string {
+  const words = name.replace(/_/g, ' ').trim();
+  return words ? words[0].toUpperCase() + words.slice(1) : '';
+}
+
+interface VariableDialogProps {
+  variable: Variable | null;
+  /** Prefilled technical name when creating (e.g. from an unknown {{name}} in the template editor). */
+  initialName?: string;
+  onClose: () => void;
+}
+
+export function VariableDialog({ variable, initialName = '', onClose }: VariableDialogProps) {
   const create = useCreateVariable();
   const update = useUpdateVariable(variable?.id ?? '');
   const remove = useDeleteVariable(variable?.id ?? '');
   const { runAction, running } = useAction();
   const [form, setForm] = useState<VariableInput>({
-    name: variable?.name ?? '',
-    label: variable?.label ?? '',
+    name: variable?.name ?? initialName,
+    label: variable?.label ?? labelFromName(initialName),
     type: variable?.type ?? 'text',
     required: variable?.required ?? true,
     options: variable?.options ?? [],
