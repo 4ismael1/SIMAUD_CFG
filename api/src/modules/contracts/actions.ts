@@ -1,4 +1,5 @@
 import { assertAmendmentCanReopen } from "./amendments.js";
+import { assertSignatoryCedulas } from "./cedula.js";
 import type { FastifyRequest } from "fastify";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import { z } from "zod";
@@ -104,6 +105,7 @@ async function submitForApproval(context: ActionContext): Promise<ActionResult> 
       (req.user.role === "gestor" && contract.createdBy !== req.user.id)
     )
       throw contractService.forbidden();
+    if (["draft", "rejected"].includes(contract.status)) assertSignatoryCedulas(allSignatories);
     throw contractService.conflict();
   }
   next = transition(contract.status, "submit");
@@ -278,6 +280,7 @@ async function overrideContractStatus(context: ActionContext): Promise<ActionRes
   if (contract.status === "cancelled") await assertAmendmentCanReopen(tx, contract);
   next = overrideTransition(contract.status, input.status, contract.previousStatus);
   if (next === "pending_approval") {
+    assertSignatoryCedulas(allSignatories);
     await tx
       .update(signatories)
       .set({ status: "pending" })

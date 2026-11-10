@@ -38,12 +38,16 @@ export const signatory = z
     name: zPersonName,
     email: zEmail,
     phone: zPhoneDo.optional(),
-    cedula: zCedula.optional(),
+    cedula: zCedula,
     role: z.enum(signatoryRole.enumValues).optional(),
     slotIndex: z.number().int().min(0).max(23999).nullable().optional(),
     signingOrder: z.number().int().min(1).max(1000).optional(),
   })
   .strict();
+// Historical copies and metadata-only edits may retain a missing identity document.
+export type InternalSignatory = Omit<z.infer<typeof signatory>, "cedula"> & {
+  cedula?: string;
+};
 export const contractFields = z
   .object({
     templateId: uuid,

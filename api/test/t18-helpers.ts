@@ -16,6 +16,7 @@ export async function signingFixture(app: FastifyInstance, count = 3) {
       userId: actor.user.id,
       name: actor.user.name,
       email: actor.user.email,
+      cedula: actor.user.cedula,
       role: "client" as const,
       signingOrder: index + 1,
     })),

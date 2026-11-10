@@ -30,8 +30,9 @@ export const partyFields = {
   cedula: "cedula",
   email: "email",
   telefono: "phone",
-  cargo: "text",
 } as const;
+// The job title ({party}_cargo) is NOT taken from the user: users only carry their system role
+// (owner's decision, 10 nov 2026). It stays an ordinary template variable asked in «Datos».
 
 export function partyDefinitions(content: string, format: ContentFormat) {
   return signatureSlots(content, format).flatMap((slot) =>

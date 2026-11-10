@@ -73,7 +73,13 @@ async function createContract(templateId: string) {
     startDate: "2026-11-01",
     endDate: "2027-11-01",
     signatories: [
-      { name: admin.user.name, email: admin.user.email, role: "client", signingOrder: 1 },
+      {
+        name: admin.user.name,
+        email: admin.user.email,
+        cedula: admin.user.cedula,
+        role: "client",
+        signingOrder: 1,
+      },
     ],
   });
   expect(response.statusCode, response.body).toBe(201);

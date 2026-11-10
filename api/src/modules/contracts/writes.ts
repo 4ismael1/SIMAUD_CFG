@@ -9,6 +9,7 @@ import type { ContentFormat } from "../../lib/rich-doc/types.js";
 import { lockVariableCatalog } from "./variable-history.js";
 import { prepareSlotSignatories, assertSameSlots, fillPartyValues } from "./slot-signatories.js";
 import { contractFields, contractInput, contractRelations, values, parse } from "./schemas.js";
+import type { InternalSignatory } from "./schemas.js";
 import { transition } from "./state-machine.js";
 import * as service from "./service.js";
 
@@ -97,7 +98,7 @@ function editedDocument(source: DocumentSource, input?: unknown): DocumentSource
 async function prepareWrite(
   tx: Transaction,
   document: DocumentSource,
-  input: ContractInput["signatories"],
+  input: InternalSignatory[],
   existingValues: Record<string, unknown>,
   submitted?: Record<string, unknown>,
 ) {

@@ -1,5 +1,6 @@
 import { amendmentRoutes } from "./amendment-routes.js";
 import { createContract, updateContract } from "./writes.js";
+import { missingCedula } from "./cedula.js";
 import { hasOpenAmendment, hasOpenRenewal, mirrorAmendmentEvent } from "./amendments.js";
 import { canResetSignature } from "./amendment-permissions.js";
 import { ownSignatureSlot } from "./signature-placement.js";
@@ -48,6 +49,7 @@ export async function contractRoutes(app: FastifyInstance) {
       const requestedBy = await getPendingApprovalRequester(tx, id);
       return {
         ...(await contractService.decorate(tx, contract)),
+        missingCedula: missingCedula(allSignatories),
         signatories: allSignatories.map((item) => ({
           ...item,
           canResetSignature: canResetSignature(contract, req.user, item),

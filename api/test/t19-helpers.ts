@@ -13,7 +13,7 @@ export function partyDocument(prefixes = parties): RichDoc {
     content: [
       ...prefixes.map((party) => ({
         type: "paragraph",
-        content: ["nombre", "cedula", "email", "telefono", "cargo"].flatMap((suffix) => [
+        content: ["nombre", "cedula", "email", "telefono"].flatMap((suffix) => [
           { type: "variable", attrs: { name: `${party}_${suffix}` } },
           { type: "text", text: " | " },
         ]),

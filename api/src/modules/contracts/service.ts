@@ -32,6 +32,7 @@ import { canReview } from "./review-permissions.js";
 import { lockContractRows } from "./contract-locks.js";
 import { partyDefinitions } from "../../lib/rich-doc/slots.js";
 import type { PreparedSignatory } from "./slot-signatories.js";
+import { missingCedula } from "./cedula.js";
 export type Contract = typeof contracts.$inferSelect;
 export type Signatory = typeof signatories.$inferSelect;
 export type Actor = FastifyRequest["user"];
@@ -97,7 +98,7 @@ export function permissions(
       !contract.signedPdfSha256 &&
       !contract.systemSeal &&
       !contract.activatedAt,
-    submit: editor && editable,
+    submit: editor && editable && missingCedula(signatories).length === 0,
     approve: reviewer,
     reject: reviewer,
     sign:

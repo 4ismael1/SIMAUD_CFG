@@ -1,15 +1,11 @@
-import { and, eq, isNull, isNotNull } from "drizzle-orm";
-import type { z } from "zod";
 import type { Transaction } from "../../db/client.js";
-import { users } from "../../db/schema.js";
 import { signatureSlots } from "../../lib/rich-doc/slots.js";
 import type { ContentFormat } from "../../lib/rich-doc/types.js";
 import { formatCedula } from "../../lib/validation/format-cedula.js";
 import { normalizeEmail } from "./identities.js";
-import type { signatory } from "./schemas.js";
+import type { InternalSignatory } from "./schemas.js";
 import { invalid } from "./service.js";
 
-type InputSignatory = z.infer<typeof signatory>;
 export const legacyRoleLabels = {
   client: "Cliente",
   contractor: "Contratista",
@@ -19,7 +15,7 @@ export const legacyRoleLabels = {
 export function prepareSlotSignatories(
   content: string,
   format: ContentFormat,
-  input: InputSignatory[],
+  input: InternalSignatory[],
 ) {
   const slots = signatureSlots(content, format);
   if (!slots.length) return input.map(legacySignatory);
@@ -43,7 +39,7 @@ export function prepareSlotSignatories(
   });
 }
 
-function assertSlotAssignments(slotCount: number, input: InputSignatory[]) {
+function assertSlotAssignments(slotCount: number, input: InternalSignatory[]) {
   const assigned = input.flatMap((signer) => (signer.slotIndex == null ? [] : [signer.slotIndex]));
   if (
     assigned.length !== slotCount ||
@@ -56,7 +52,7 @@ function assertSlotAssignments(slotCount: number, input: InputSignatory[]) {
     throw invalid("Solo se admiten hasta diez testigos adicionales sin casilla.");
 }
 
-function legacySignatory(signer: InputSignatory) {
+function legacySignatory(signer: InternalSignatory) {
   if (signer.slotIndex != null) throw invalid("Esta plantilla no tiene casillas de firma.");
   if (!signer.role || signer.signingOrder === undefined)
     throw invalid("Indica el rol y el orden de cada firmante para esta plantilla.");
@@ -104,23 +100,11 @@ export async function fillPartyValues(
   }
 }
 
-async function signatoryPartyData(tx: Transaction, signer: PreparedSignatory) {
-  const [user] = await tx
-    .select({ position: users.position })
-    .from(users)
-    .where(
-      and(
-        eq(users.email, normalizeEmail(signer.email)),
-        eq(users.isActive, true),
-        isNull(users.deletedAt),
-        isNotNull(users.emailConfirmedAt),
-      ),
-    );
+async function signatoryPartyData(_tx: Transaction, signer: PreparedSignatory) {
   return {
     nombre: signer.name,
     cedula: signer.cedula ? formatCedula(signer.cedula) : "",
     email: normalizeEmail(signer.email),
     telefono: signer.phone ?? "",
-    cargo: user?.position ?? "",
   };
 }

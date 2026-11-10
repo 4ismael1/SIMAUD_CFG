@@ -111,39 +111,20 @@ it("admin y propio usuario editan cargo, lo reciben en me, usuarios y búsqueda 
   ).toBeNull();
 });
 
-it("un cambio de cargo actualiza el borrador al editarlo y un invitado no hereda cargo de otra identidad", async () => {
+it("el cargo del usuario nunca rellena datos del contrato (es un dato de la plantilla)", async () => {
   const fixture = await roleFixture(app);
-  const created = await fixture.create();
-  expect(created.statusCode, created.body).toBe(201);
-  const id = created.json().id as string;
   const person = fixture.people[0]!;
-  const headers = authorization((await signIn(app, person)).token);
   await app.inject({
     method: "PATCH",
     url: "/api/v1/me",
-    headers,
+    headers: authorization((await signIn(app, person)).token),
     payload: { position: "Cargo nuevo" },
   });
-  const [before] = await db.select().from(contracts).where(eq(contracts.id, id));
-  expect((before!.variablesData as Record<string, unknown>).arrendador_cargo).toBe("Cargo 0");
-  const edited = await app.inject({
-    method: "PATCH",
-    url: `/api/v1/contracts/${id}`,
-    headers: fixture.admin.headers,
-    payload: { title: "Cargo actualizado" },
-  });
-  expect(edited.statusCode, edited.body).toBe(200);
-  expect(edited.json().variablesData.arrendador_cargo).toBe("Cargo nuevo");
-  const unconfirmed = await createUser({ position: "Privado", emailConfirmedAt: null });
-  const absent = await fixture.create({
-    ...fixture.input,
-    signatories: fixture.input.signatories.map((signer, index) =>
-      index === 0 ? { ...signer, email: unconfirmed.email, cedula: unconfirmed.cedula } : signer,
-    ),
-  });
-  expect(absent.statusCode, absent.body).toBe(201);
-  expect(absent.json().variablesData.arrendador_cargo).toBe("");
-  expect(JSON.stringify(absent.json().generatedContent)).not.toContain('"type":"variable"');
+  const created = await fixture.create();
+  expect(created.statusCode, created.body).toBe(201);
+  expect(created.json().variablesData).not.toHaveProperty("arrendador_cargo");
+  expect(JSON.stringify(created.json().generatedContent)).not.toContain("Cargo nuevo");
+  expect(JSON.stringify(created.json().generatedContent)).not.toContain('"type":"variable"');
 });
 
 it("valida party y etiquetas en contenido nuevo y mantiene legibles y editables los documentos anteriores", async () => {

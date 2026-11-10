@@ -43,8 +43,9 @@ it("resuelve tres roles y sus quince variables desde los firmantes, con un testi
       [`${party}_cedula`]: formatCedula(person.cedula),
       [`${party}_email`]: person.email,
       [`${party}_telefono`]: person.phone,
-      [`${party}_cargo`]: person.position,
     });
+    // The user's job title never fills the contract (owner's decision): cargo is template data.
+    expect(detail.variablesData).not.toHaveProperty(`${party}_cargo`);
   });
   expect(JSON.stringify(detail.generatedContent)).toContain(
     formatCedula(fixture.people[0]!.cedula),
@@ -120,7 +121,7 @@ it("rechaza valores de party distintos y actualiza las variables al editar o per
   const fixture = await roleFixture(app);
   const bad = await fixture.create({
     ...fixture.input,
-    variables: { arrendador_cargo: "Cargo inventado" },
+    variables: { arrendador_nombre: "Nombre inventado" },
   });
   expect(bad.statusCode).toBe(400);
   const created = await fixture.create({
@@ -153,7 +154,7 @@ it("rechaza valores de party distintos y actualiza las variables al editar o per
   });
   expect(patched.statusCode, patched.body).toBe(200);
   expect(patched.json().variablesData.arrendador_nombre).toBe(fixture.people[2]!.name);
-  expect(patched.json().variablesData.fiador_cargo).toBe(fixture.people[0]!.position);
+  expect(patched.json().variablesData.fiador_nombre).toBe(fixture.people[0]!.name);
   const invalid = await app.inject({
     method: "PATCH",
     url: `/api/v1/contracts/${id}`,
@@ -179,15 +180,14 @@ it("rechaza valores de party distintos y actualiza las variables al editar o per
 });
 
 it("el party declarado prevalece sobre variables del catálogo cliente y representante", async () => {
-  await db.insert(templateVariables).values([
-    { name: "cliente_nombre", label: "Nombre", type: "text", required: true },
-    { name: "representante_cargo", label: "Cargo", type: "text", required: true },
-  ]);
+  await db
+    .insert(templateVariables)
+    .values([{ name: "cliente_nombre", label: "Nombre", type: "text", required: true }]);
   const fixture = await roleFixture(app, ["cliente", "representante", "fiador"]);
   const response = await fixture.create();
   expect(response.statusCode, response.body).toBe(201);
   expect(response.json().variablesData.cliente_nombre).toBe(fixture.people[0]!.name);
-  expect(response.json().variablesData.representante_cargo).toBe(fixture.people[1]!.position);
+  expect(response.json().variablesData.representante_nombre).toBe(fixture.people[1]!.name);
   const [template] = await db
     .select()
     .from(contractTemplates)
