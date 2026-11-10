@@ -30,7 +30,11 @@ nueva si hace falta, `api/test/t15-*.test.ts`. No toques `src/**` (front).
 - PDF final (última firma, T10): la imagen de cada firma (descifrada en memoria, nunca a disco en claro) se estampa sobre
   su línea, con la fecha de firma debajo. El PDF final sigue siendo inmutable y su hash entra en el sello como hoy.
 
-## 4. Vista previa con el PDF real
+## 4. Capacidades
+`GET /templates/capabilities` (staff) → `{ formats: ["plain", "rich-v1", "rich-v2"], paperSizes: ["letter","legal","a4"],
+fonts: ["serif","sans"], previewPdf: true }`. El front lo usa para decidir qué formato guardar.
+
+## 5. Vista previa con el PDF real
 `POST /templates/preview-pdf` (mismos permisos que `/templates/preview`): recibe `{ contentFormat, content, title }`
 y devuelve el PDF (application/pdf, `no-store`) con los datos como «[Etiqueta]» y las firmas como «[Firmante n]».
 Límite de tamaño y rate limit (p. ej. 20/min por usuario). `GET /contracts/:id/pdf` ya existente sirve para contratos.
