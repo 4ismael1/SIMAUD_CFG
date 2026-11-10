@@ -9,8 +9,18 @@ import {
   formatCedula,
   isValidCedula,
   formatPhone,
+  compareMoney,
+  moneyChangePercent,
 } from "./format";
 describe("formato dominicano", () => {
+  it("compara centavos de grandes importes y calcula porcentajes con decimales exactos", () => {
+    expect(compareMoney("1009999999999998.99", "1009999999999998.98")).toBe(1);
+    expect(compareMoney("1.0", "1.00")).toBe(0);
+    expect(moneyChangePercent("100.01", "100.00")).toBe("+0,0 %");
+    expect(moneyChangePercent("150.00", "100.00")).toBe("+50,0 %");
+    expect(moneyChangePercent("99.00", "100.00")).toBe("-1,0 %");
+    expect(moneyChangePercent("1.00", "0.00")).toBeNull();
+  });
   it("formatea montos decimales y conserva precisión sin convertir strings a float", () => {
     expect(formatMoney("87500")).toBe("RD$ 87.500,00");
     expect(formatMoney("9007199254740993.99")).toBe(

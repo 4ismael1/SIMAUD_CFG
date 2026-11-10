@@ -1,12 +1,12 @@
-import type { ContractStatus, Role } from './core-types';
+import type { ContractStatus, Role } from "./core-types";
 
 /** One indicator for the chosen range and for the range of equal length right before it. */
-export interface Comparison {
-  value: number | null;
-  previous: number | null;
+export interface Comparison<T extends string | number = number> {
+  value: T | null;
+  previous: T | null;
 }
 
-export type ReportGranularity = 'week' | 'month' | 'quarter' | 'year';
+export type ReportGranularity = "week" | "month" | "quarter" | "year";
 
 export interface ReportsOverviewQuery {
   from?: string;
@@ -28,16 +28,16 @@ export interface TimelinePoint {
   label: string;
   created: number;
   activated: number;
-  value: number;
+  value: string;
   previousCreated: number | null;
-  previousValue: number | null;
+  previousValue: string | null;
 }
 
 export interface ManagerReportRow {
   managerId: string;
   name: string;
   count: number;
-  value: number;
+  value: string;
   activated: number;
   approvalRate: number | null;
   avgApprovalDays: number | null;
@@ -57,15 +57,15 @@ export interface TopContractRow {
   code: string;
   title: string;
   status: ContractStatus;
-  contractValue: number;
+  contractValue: string;
   managerName: string | null;
   createdAt: string;
 }
 
 export interface ReportKpis {
   created: Comparison;
-  totalValue: Comparison;
-  averageValue: Comparison;
+  totalValue: Comparison<string>;
+  averageValue: Comparison<string>;
   activated: Comparison;
   cancelled: Comparison;
   approvalRate: Comparison;
@@ -78,10 +78,22 @@ export interface ReportsOverview {
   previousRange: DateRange;
   kpis: ReportKpis;
   timeline: TimelinePoint[];
-  byStatus: { status: ContractStatus; count: number; value: number }[];
-  byTemplate: { templateId: string | null; label: string; count: number; value: number }[];
+  byStatus: { status: ContractStatus; count: number; value: string }[];
+  byTemplate: {
+    templateId: string | null;
+    label: string;
+    count: number;
+    value: string;
+  }[];
   byManager: ManagerReportRow[];
-  valueRanges: { key: string; label: string; min: number; max: number | null; count: number; value: number }[];
+  valueRanges: {
+    key: string;
+    label: string;
+    min: number;
+    max: number | null;
+    count: number;
+    value: string;
+  }[];
   topContracts: TopContractRow[];
   approvals: {
     decided: number;

@@ -5,6 +5,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import { apiDownload, apiFetch } from "../client";
+import { fetchAllPages } from "../fetch-all-pages";
 import { keys } from "../keys";
 import { invalidateContract } from "./cache";
 import type {
@@ -70,7 +71,7 @@ export function useContractVersions(id: string) {
   return useQuery({
     queryKey: keys.contracts.versions(id),
     queryFn: ({ signal }) =>
-      apiFetch<ContractVersion[]>("/contracts/" + id + "/versions", { signal }),
+      fetchAllPages<ContractVersion>("/contracts/" + id + "/versions", { signal }),
     enabled: Boolean(id),
   });
 }
@@ -100,7 +101,7 @@ export function useContractApprovals(id: string) {
   return useQuery({
     queryKey: keys.contracts.approvals(id),
     queryFn: ({ signal }) =>
-      apiFetch<Approval[]>("/contracts/" + id + "/approvals", { signal }),
+      fetchAllPages<Approval>("/contracts/" + id + "/approvals", { signal }),
     enabled: Boolean(id),
   });
 }

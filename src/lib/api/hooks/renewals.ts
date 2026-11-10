@@ -5,6 +5,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import { apiFetch } from "../client";
+import { fetchAllPages } from "../fetch-all-pages";
 import { keys } from "../keys";
 import { invalidateContract } from "./cache";
 import type {
@@ -30,7 +31,7 @@ export function useEligibleRenewals() {
   return useQuery({
     queryKey: keys.renewals.eligible,
     queryFn: ({ signal }) =>
-      apiFetch<ContractListSummary[]>("/renewals/eligible", { signal }),
+      fetchAllPages<ContractListSummary>("/renewals/eligible", { signal }),
   });
 }
 export function useCreateRenewal() {

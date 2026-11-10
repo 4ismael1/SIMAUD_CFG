@@ -132,3 +132,29 @@ export function formatPhone(value: string) {
     local.slice(6)
   );
 }
+
+export function compareMoney(left: string, right: string) {
+  const difference = decimalCents(left) - decimalCents(right);
+  return difference < BigInt(0) ? -1 : difference > BigInt(0) ? 1 : 0;
+}
+
+export function moneyChangePercent(
+  current: string,
+  previous: string,
+): string | null {
+  const prior = decimalCents(previous);
+  if (prior === BigInt(0)) return null;
+  const difference = decimalCents(current) - prior;
+  const absolute = difference < BigInt(0) ? -difference : difference;
+  const denominator = prior < BigInt(0) ? -prior : prior;
+  const tenths =
+    (absolute * BigInt(1000) + denominator / BigInt(2)) / denominator;
+  const sign = difference > BigInt(0) ? "+" : difference < BigInt(0) ? "-" : "";
+  return (
+    sign +
+    (tenths / BigInt(10)).toString() +
+    "," +
+    (tenths % BigInt(10)).toString() +
+    " %"
+  );
+}

@@ -77,11 +77,16 @@ export interface AdminDashboard {
     newUsersThisMonth: number;
     contracts: number;
     newContractsThisMonth: number;
-    totalValue: number;
-    averageValue: number | null;
+    totalValue: string;
+    averageValue: string | null;
     approvalRate: number | null;
   };
-  topManagers?: { managerId: string; name: string; count: number; value: number }[];
+  topManagers?: {
+    managerId: string;
+    name: string;
+    count: number;
+    value: string;
+  }[];
   usersByRole?: { role: Role; count: number }[];
   recentActivity?: DashboardActivity[];
 }
@@ -98,7 +103,11 @@ export interface SupervisorDashboard {
   templateUsage: { templateId: string; title: string; count: number }[];
   myRecentDecisions: DashboardDecision[];
   /** Added by T12a; an older API omits them. */
-  catalog?: { activeTemplates: number; variables: number; contractsFromTemplates: number };
+  catalog?: {
+    activeTemplates: number;
+    variables: number;
+    contractsFromTemplates: number;
+  };
   templatesByCategory?: { category: string; count: number }[];
   recentActivity?: DashboardActivity[];
 }
@@ -121,7 +130,7 @@ export interface GestorDashboard {
     updatedAt: string;
   })[];
   /** Added by T12a; an older API omits them. */
-  monthly?: { month: string; created: number; signed: number; value: number }[];
+  monthly?: { month: string; created: number; signed: number; value: string }[];
   byStatus?: { status: ContractStatus; count: number }[];
   upcomingExpirations?: DashboardExpiration[];
 }
