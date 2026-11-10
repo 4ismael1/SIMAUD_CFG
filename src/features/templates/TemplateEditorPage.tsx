@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useBlocker, useNavigate, useParams } from "react-router-dom";
 import { Braces, CircleAlert, Eye, PenLine, Plus, Save } from "lucide-react";
 import {
@@ -112,7 +112,10 @@ function Editor({ template }: { template?: TemplateDetail }) {
   const [creating, setCreating] = useState<string | null>(null);
 
   const dirty = !saved && JSON.stringify(draft) !== JSON.stringify(initial);
-  const blocker = useBlocker(dirty);
+  // Set right before leaving after a successful save: the blocker reads it at navigation time, when the
+  // `saved` state update has not been applied yet (otherwise «¿Salir sin guardar?» appeared after saving).
+  const leavingAfterSave = useRef(false);
+  const blocker = useBlocker(() => dirty && !leavingAfterSave.current);
   useEffect(() => {
     if (blocker.state !== "blocked") return;
     void confirm({
@@ -172,6 +175,7 @@ function Editor({ template }: { template?: TemplateDetail }) {
       success: template ? "Plantilla guardada." : "Plantilla creada.",
     });
     if (result.ok) {
+      leavingAfterSave.current = true;
       setSaved(true);
       navigate("/app/plantillas", { replace: true });
     }

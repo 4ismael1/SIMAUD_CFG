@@ -109,7 +109,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         onPointerLeave={() => setPaused(false)}
         onFocus={() => setPaused(true)}
         onBlur={() => setPaused(false)}
-        className="pointer-events-none fixed inset-x-0 bottom-0 z-[60] flex flex-col items-center gap-2 p-3 sm:items-end sm:p-5"
+        // Top centre, under the header: results of an action are seen where the eye is, not in a corner.
+        className="pointer-events-none fixed inset-x-0 top-0 z-[60] flex flex-col items-center gap-2 p-3 sm:pt-[68px]"
       >
         <AnimatePresence initial={false}>
           {toasts.map((toast) => (
@@ -162,9 +163,9 @@ function ToastCard({ toast, paused, onDismiss }: { toast: ToastItem; paused: boo
       layout
       role={toast.tone === 'error' ? 'alert' : 'status'}
       aria-live={toast.tone === 'error' ? 'assertive' : 'polite'}
-      initial={{ opacity: 0, y: 24, scale: 0.96 }}
+      initial={{ opacity: 0, y: -24, scale: 0.96 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, x: 40, scale: 0.96, transition: { duration: 0.18, ease: 'easeIn' } }}
+      exit={{ opacity: 0, y: -16, scale: 0.96, transition: { duration: 0.18, ease: 'easeIn' } }}
       transition={{ type: 'spring', duration: 0.42, bounce: 0.12 }}
       drag="x"
       dragConstraints={{ left: 0, right: 0 }}
