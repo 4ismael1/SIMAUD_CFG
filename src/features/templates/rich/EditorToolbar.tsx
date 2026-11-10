@@ -221,13 +221,20 @@ export function EditorToolbar({ editor, fullscreen, onToggleFullscreen, onInsert
         Insertar dato
       </button>
       <span className="ml-auto" />
-      <ToolButton
-        label={fullscreen ? 'Salir de pantalla completa' : 'Pantalla completa'}
-        shortcut="Esc"
-        icon={fullscreen ? <Minimize2 /> : <Maximize2 />}
-        active={fullscreen}
-        onClick={onToggleFullscreen}
-      />
+      {fullscreen ? (
+        <button
+          type="button"
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={onToggleFullscreen}
+          title="Salir de pantalla completa (Esc)"
+          className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md bg-slate-900 px-2.5 text-[13px] font-medium text-white hover:bg-slate-700 [&_svg]:size-4"
+        >
+          <Minimize2 />
+          Salir
+        </button>
+      ) : (
+        <ToolButton label="Pantalla completa" icon={<Maximize2 />} onClick={onToggleFullscreen} />
+      )}
     </div>
   );
 }

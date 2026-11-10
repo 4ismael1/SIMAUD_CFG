@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { EditorContent, useEditor, useEditorState, type Editor } from '@tiptap/react';
+import { createPortal } from 'react-dom';
 import { Plus } from 'lucide-react';
 import { cn } from '../../../ui';
 import type { Variable } from '../../../lib/api/catalog-types';
@@ -150,7 +151,7 @@ export function RichTextEditor({ initialValue, onChange, variables, onCreateVari
 
   if (!editor) return null;
 
-  return (
+  const body = (
     <div
       className={cn(
         fullscreen
@@ -178,6 +179,10 @@ export function RichTextEditor({ initialValue, onChange, variables, onCreateVari
       )}
     </div>
   );
+
+  // Full screen goes to <body>: an animated ancestor (page transitions) would otherwise trap `position: fixed`
+  // inside the page, under the app header and sidebar.
+  return fullscreen ? createPortal(body, document.body) : body;
 }
 
 function buildOptions(query: string, variables: Variable[], canCreate: boolean): SuggestOption[] {
