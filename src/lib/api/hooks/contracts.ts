@@ -179,6 +179,39 @@ export function useOverrideContractStatus(id: string) {
 export function useRemindSignatory(id: string) {
   return useContractAction<{ signatoryId: string }>(id, "remind");
 }
+/** T17: creates the amendment (a new linked draft) of a signed contract; returns its id and code. */
+export function useCreateAmendment(id: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (reason: string) =>
+      apiFetch<{ id: string; code: string; status: "draft"; amendsContractId: string; amendmentNumber: number }>(
+        "/contracts/" + id + "/amendments",
+        { method: "POST", body: { reason } },
+      ),
+    onSuccess: () => invalidateContract(client, id),
+  });
+}
+/** T17: voids one person's signature before activation so they sign again. */
+export function useResetSignature(id: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ signatoryId, reason }: { signatoryId: string; reason: string }) =>
+      apiFetch<MessageResponse>("/contracts/" + id + "/signatures/" + signatoryId + "/reset", {
+        method: "POST",
+        body: { reason },
+      }),
+    onSuccess: () => invalidateContract(client, id),
+  });
+}
+/** T17: voids every signature before activation; everyone signs again in order. */
+export function useResetSignatures(id: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (reason: string) =>
+      apiFetch<MessageResponse>("/contracts/" + id + "/signatures/reset", { method: "POST", body: { reason } }),
+    onSuccess: () => invalidateContract(client, id),
+  });
+}
 export function downloadContractPdf(id: string, final = false) {
   return apiDownload("/contracts/" + id + "/pdf", { final });
 }

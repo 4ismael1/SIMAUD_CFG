@@ -3,7 +3,7 @@ import type { ContractStatus } from '../../lib/api/types';
 import { contractStatus } from '../../lib/api/status';
 import { CONTRACT_STATUS_COLORS } from '../../lib/api/status-colors';
 
-const STATUS_ORDER: ContractStatus[] = ['active', 'expiring_soon', 'pending_signatures', 'pending_approval', 'draft', 'rejected', 'renewed', 'expired', 'cancelled'];
+const STATUS_ORDER: ContractStatus[] = ['active', 'expiring_soon', 'pending_signatures', 'pending_approval', 'draft', 'rejected', 'renewed', 'amended', 'expired', 'cancelled'];
 
 interface StatusBreakdownCardProps {
   title: string;

@@ -8,7 +8,9 @@ export type ContractStatus =
   | "expiring_soon"
   | "expired"
   | "cancelled"
-  | "renewed";
+  | "renewed"
+  /** T17: replaced by an amendment that is now in force. */
+  | "amended";
 export type ApprovalStatus = "pending" | "approved" | "rejected";
 export type SignatoryRole = "client" | "witness" | "contractor";
 export type SignatoryStatus = "pending" | "signed" | "declined";

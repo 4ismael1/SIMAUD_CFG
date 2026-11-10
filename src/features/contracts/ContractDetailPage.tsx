@@ -7,6 +7,7 @@ import type { ContractDetail } from '../../lib/api/types';
 import { formatDate, formatDateTime, formatMoney } from '../../lib/format';
 import { StatusBadge } from './components/ContractBits';
 import { ContractActions } from './components/ContractActions';
+import { AmendmentChain } from './components/AmendmentChain';
 import { DocumentView } from './components/DocumentView';
 import { SignatoriesPanel } from './components/SignatoriesPanel';
 import { ContractActivity, ContractVersions } from './components/ContractHistory';
@@ -70,6 +71,8 @@ export function ContractDetailPage() {
         </div>
         <ContractActions contract={data} />
       </div>
+
+      <AmendmentChain contract={data} />
 
       {data.status === 'rejected' && data.rejectionReason && (
         <Alert tone="danger" title="Devuelto con observaciones">«{data.rejectionReason}»</Alert>

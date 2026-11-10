@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Bell, Check, X } from 'lucide-react';
-import { Avatar, Button, Card, CardHeader, useAction } from '../../../ui';
-import { useRemindSignatory } from '../../../lib/api/hooks/contracts';
+import { Bell, Check, RefreshCcw, X } from 'lucide-react';
+import { Avatar, Button, Card, CardHeader, ConfirmDialog, useAction, useToast } from '../../../ui';
+import { useRemindSignatory, useResetSignature } from '../../../lib/api/hooks/contracts';
+import { errorMessage } from '../../../lib/errors';
 import { downloadSignature } from '../../../lib/api/hooks/signatures';
 import type { ContractDetail, Signatory, SignatoryRole } from '../../../lib/api/types';
 import { formatDateTime } from '../../../lib/format';
@@ -20,7 +21,10 @@ export function currentSignatory(signatories: Signatory[]): Signatory | undefine
 
 export function SignatoriesPanel({ contract, canRemind }: { contract: ContractDetail; canRemind: boolean }) {
   const { runAction } = useAction();
+  const toast = useToast();
   const remind = useRemindSignatory(contract.id);
+  const resetSignature = useResetSignature(contract.id);
+  const [resetting, setResetting] = useState<Signatory | null>(null);
   const ordered = [...contract.signatories].sort((a, b) => a.signingOrder - b.signingOrder);
   const turn = contract.status === 'pending_signatures' ? currentSignatory(ordered) : undefined;
 
@@ -34,6 +38,17 @@ export function SignatoriesPanel({ contract, canRemind }: { contract: ContractDe
       run: () => remind.mutateAsync({ signatoryId: signatory.id }),
       success: `Recordatorio enviado a ${signatory.name}.`,
     });
+  }
+
+  async function handleReset(reason: string) {
+    if (!resetting) return;
+    try {
+      await resetSignature.mutateAsync({ signatoryId: resetting.id, reason });
+      toast.success(`Se pidió a ${resetting.name} que firme de nuevo.`);
+      setResetting(null);
+    } catch (error) {
+      toast.error(errorMessage(error));
+    }
   }
 
   return (
@@ -59,9 +74,25 @@ export function SignatoriesPanel({ contract, canRemind }: { contract: ContractDe
                 Recordar a {signatory.name.split(' ')[0]}
               </Button>
             )}
+            {signatory.canResetSignature && (
+              <Button size="sm" variant="ghost" icon={<RefreshCcw />} className="ml-9 self-start" onClick={() => setResetting(signatory)}>
+                Pedir nueva firma
+              </Button>
+            )}
           </li>
         ))}
       </ul>
+      <ConfirmDialog
+        open={resetting !== null}
+        onClose={() => setResetting(null)}
+        tone="danger"
+        title={`¿Pedir a ${resetting?.name ?? ''} que firme de nuevo?`}
+        description="Su firma actual queda anulada (se conserva en el historial) y recibirá un aviso para volver a firmar. Las demás firmas no cambian."
+        reasonLabel="Motivo"
+        confirmLabel="Pedir nueva firma"
+        loading={resetSignature.isPending}
+        onConfirm={(reason) => void handleReset(reason)}
+      />
     </Card>
   );
 }

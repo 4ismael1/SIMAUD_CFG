@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Archive, ArchiveRestore, Ban, Download, Ellipsis, PenLine, Pencil, RotateCcw, Send, ShieldAlert, Trash2, UserRoundCog } from 'lucide-react';
+import { Archive, ArchiveRestore, Ban, Download, Ellipsis, FilePen, PenLine, Pencil, RefreshCcw, RotateCcw, Send, ShieldAlert, Trash2, UserRoundCog } from 'lucide-react';
 import { Button, ButtonLink, ConfirmDialog, IconButton, Menu, useAction, useToast, type MenuItem } from '../../../ui';
 import {
   useArchiveContract,
   useCancelContract,
+  useCreateAmendment,
+  useResetSignatures,
   useDeleteContract,
   useOverrideContractStatus,
   useSubmitContract,
@@ -18,7 +20,7 @@ import { useReassignContract } from '../../../lib/api/hooks/contract-admin';
 import { ReassignDialog } from '../admin/ReassignDialog';
 import { CancelContractDialog, OverrideStatusDialog } from './ContractDialogs';
 
-type OpenDialog = 'submit' | 'cancel' | 'delete' | 'override' | 'reassign' | null;
+type OpenDialog = 'submit' | 'cancel' | 'delete' | 'override' | 'reassign' | 'amend' | 'reset-all' | null;
 
 /** Primary and secondary actions for a contract, shown only when the API says the user may perform them. */
 export function ContractActions({ contract }: { contract: ContractDetail }) {
@@ -36,6 +38,8 @@ export function ContractActions({ contract }: { contract: ContractDetail }) {
   const remove = useDeleteContract(contract.id);
   const override = useOverrideContractStatus(contract.id);
   const reassign = useReassignContract();
+  const amend = useCreateAmendment(contract.id);
+  const resetAll = useResetSignatures(contract.id);
 
   async function run(action: () => Promise<unknown>, successMessage: string) {
     try {
@@ -96,6 +100,9 @@ export function ContractActions({ contract }: { contract: ContractDetail }) {
         }),
     });
   }
+  if (can.resetSignatures) {
+    secondary.push({ label: 'Reiniciar firmas…', icon: <RefreshCcw />, onSelect: () => setDialog('reset-all'), separatorBefore: secondary.length > 0 });
+  }
   if (can.reassign) {
     secondary.push({ label: 'Reasignar gestor…', icon: <UserRoundCog />, onSelect: () => setDialog('reassign'), separatorBefore: true });
   }
@@ -124,6 +131,11 @@ export function ContractActions({ contract }: { contract: ContractDetail }) {
       )}
       {can.approve && (
         <ButtonLink to="/app/aprobaciones" variant="primary">Revisar en aprobaciones</ButtonLink>
+      )}
+      {can.amend && (
+        <Button icon={<FilePen />} onClick={() => setDialog('amend')}>
+          Crear enmienda
+        </Button>
       )}
       {can.sign && (
         <ButtonLink to={`/app/contratos/${contract.id}/firmar`} viewTransition variant="primary" icon={<PenLine />}>
@@ -177,6 +189,32 @@ export function ContractActions({ contract }: { contract: ContractDetail }) {
             navigate('/app/contratos', { replace: true });
           }, 'Se eliminó el borrador.')
         }
+      />
+      <ConfirmDialog
+        open={dialog === 'amend'}
+        onClose={() => setDialog(null)}
+        title="Crear una enmienda"
+        description={`Se crea un borrador enlazado a ${contract.code} con el mismo contenido y firmantes. Podrás corregirlo; después pasa por aprobación y todos firman de nuevo. Cuando se active, este contrato quedará como «Enmendado», con su PDF y su verificación intactos.`}
+        reasonLabel="Motivo de la enmienda"
+        confirmLabel="Crear enmienda"
+        loading={amend.isPending}
+        onConfirm={(reason) =>
+          void run(async () => {
+            const created = await amend.mutateAsync(reason);
+            navigate(`/app/contratos/${created.id}/editar`, { viewTransition: true });
+          }, 'Enmienda creada. Revisa y corrige lo necesario.')
+        }
+      />
+      <ConfirmDialog
+        open={dialog === 'reset-all'}
+        onClose={() => setDialog(null)}
+        tone="danger"
+        title="¿Reiniciar todas las firmas?"
+        description="Las firmas registradas quedan anuladas (se conservan en el historial) y todos vuelven a firmar en su orden. Se avisa al primero. El contenido y la aprobación no cambian."
+        reasonLabel="Motivo"
+        confirmLabel="Reiniciar firmas"
+        loading={resetAll.isPending}
+        onConfirm={(reason) => void run(() => resetAll.mutateAsync(reason), 'Firmas reiniciadas.')}
       />
       <ReassignDialog
         contract={dialog === 'reassign' ? contract : null}

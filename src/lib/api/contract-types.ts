@@ -25,6 +25,8 @@ export interface Signatory extends Omit<SignatoryInput, "phone" | "cedula"> {
   status: SignatoryStatus;
   signaturePath: string | null;
   signatureFileId: string | null;
+  /** T17: an admin or the responsible manager may ask this person to sign again (before activation). */
+  canResetSignature?: boolean;
   /** T18: null = automatic fit (centred, full size). */
   placement?: SignaturePlacement | null;
   signedAt: string | null;
@@ -96,8 +98,23 @@ export type ContractPermissions = Record<
   /** Admin only; arrived with T12a, so an older API omits it. */
   reassign?: boolean;
   /** T18: the actor already signed and may still move/resize or redo their signature (before activation). */
-  adjustSignature?: boolean;
+  adjustSignature?: boolean;  /** T17: create an amendment of a signed contract. */
+  amend?: boolean;
+  /** T17: at least one other person's signature can be voided before activation. */
+  resetSignature?: boolean;
+  /** T17: every signature can be voided (the actor's own is not among them). */
+  resetSignatures?: boolean;
 };
+/** T17: one link of the original ↔ amendments chain (no personal data). */
+export interface AmendmentLink {
+  id: string;
+  code: string;
+  status: ContractStatus;
+  amendsContractId: string | null;
+  amendmentRootId: string | null;
+  amendedByContractId: string | null;
+  amendmentNumber: number | null;
+}
 /** T18: where a signature sits in its box — centre relative to the box (0–1) and size (0.5–1 of the largest fit). */
 export interface SignaturePlacement {
   x: number;
@@ -117,7 +134,12 @@ export interface ContractDetail extends Contract {
   signatories: Signatory[];
   can: ContractPermissions;
   /** T18: only the actor's own box; null when the actor is not a signatory or on older APIs. */
-  signatureSlot?: SignatureSlotGeometry | null;
+  signatureSlot?: SignatureSlotGeometry | null;  /** T17: whole chain, root first; one element when there are no amendments. */
+  amendmentChain?: AmendmentLink[];
+  amendsContractId?: string | null;
+  amendedByContractId?: string | null;
+  amendmentNumber?: number | null;
+  amendmentReason?: string | null;
 }
 export interface ContractQuery extends ListQuery {
   status?: ContractStatus;

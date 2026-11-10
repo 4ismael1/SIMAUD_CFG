@@ -66,7 +66,7 @@ export function MyContractsPage() {
 
 function ContractRow({ row }: { row: SignatureInboxItem }) {
   const { runAction } = useAction();
-  const fullySigned = ['active', 'expiring_soon', 'expired', 'renewed'].includes(row.status);
+  const fullySigned = ['active', 'expiring_soon', 'expired', 'renewed', 'amended'].includes(row.status);
   const mySignature = row.signatory?.signedAt ? `Firmaste el ${formatDateTime(row.signatory.signedAt)}` : row.myTurn ? 'Es tu turno de firmar' : 'Aún no firmas';
 
   return (

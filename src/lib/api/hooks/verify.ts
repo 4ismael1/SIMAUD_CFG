@@ -8,7 +8,7 @@ import { apiFetch } from '../client';
  * No session needed; the API masks personal data.
  */
 
-export type VerificationStatus = 'registered' | 'revoked' | 'cancelled' | 'integrity_error' | 'not_found';
+export type VerificationStatus = 'registered' | 'amended' | 'revoked' | 'cancelled' | 'integrity_error' | 'not_found';
 
 export interface VerificationResult {
   status: VerificationStatus;
@@ -28,6 +28,8 @@ export interface VerificationResult {
   evidenceChainValid?: boolean;
   systemSignatureValid?: boolean;
   pdfIntegrityValid?: boolean;
+  /** T17: the amendment that replaced this contract (its own verification code). */
+  amendedBy?: { verificationCode: string; title: string; code: string; amendmentNumber: number | null };
 }
 
 export interface HashVerificationResult {

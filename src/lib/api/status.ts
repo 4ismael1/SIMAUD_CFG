@@ -15,6 +15,7 @@ export const contractStatus: Record<ContractStatus, StatusPresentation> = {
   expired: { label: "Vencido", tone: "danger" },
   cancelled: { label: "Cancelado", tone: "neutral" },
   renewed: { label: "Renovado", tone: "violet" },
+  amended: { label: "Enmendado", tone: "violet" },
 };
 export const roleStatus: Record<Role, StatusPresentation> = {
   admin: { label: "Administrador", tone: "violet" },

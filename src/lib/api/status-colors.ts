@@ -11,4 +11,5 @@ export const CONTRACT_STATUS_COLORS: Record<ContractStatus, string> = {
   rejected: '#f87171',
   expired: '#7f1d1d',
   cancelled: '#64748b',
+  amended: '#a855f7',
 };

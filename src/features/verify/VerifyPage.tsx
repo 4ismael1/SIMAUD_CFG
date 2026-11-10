@@ -212,6 +212,12 @@ const STATUS_VIEW: Record<VerificationStatus, { title: string; detail: string; t
     tone: 'border-sky-200 bg-sky-50 text-sky-950',
     icon: <ShieldCheck className="size-7 text-sky-600" />,
   },
+  amended: {
+    title: 'Contrato sustituido por una enmienda',
+    detail: 'El contrato se firmó y sigue siendo auténtico, pero ya no está vigente: lo sustituyó una enmienda firmada después.',
+    tone: 'border-violet-200 bg-violet-50 text-violet-950',
+    icon: <ShieldAlert className="size-7 text-violet-600" />,
+  },
   cancelled: {
     title: 'Contrato cancelado',
     detail: 'El contrato se firmó, pero después se canceló. Ya no tiene efecto.',
@@ -252,7 +258,7 @@ function CodeResult({ code }: { code: string }) {
 
 function ResultCard({ result, code }: { result: VerificationResult; code: string }) {
   const view = STATUS_VIEW[result.status];
-  const hasData = result.status === 'registered' || result.status === 'cancelled' || result.status === 'integrity_error';
+  const hasData = result.status !== 'not_found' && result.status !== 'revoked';
 
   return (
     <section aria-live="polite" className="flex animate-rise-in flex-col gap-4">
@@ -262,6 +268,15 @@ function ResultCard({ result, code }: { result: VerificationResult; code: string
           <h2 className="text-lg font-semibold">{view.title}</h2>
           <p className="mt-0.5 text-sm opacity-80">{view.detail}</p>
           <p className="mt-2 font-mono text-xs break-all opacity-70">{code}</p>
+          {result.amendedBy && (
+            <p className="mt-2 text-sm">
+              Sustituido por la enmienda {result.amendedBy.amendmentNumber ? `E${result.amendedBy.amendmentNumber} ` : ''}(
+              <span className="font-mono">{result.amendedBy.code}</span>).{' '}
+              <Link to={`/verificar/${result.amendedBy.verificationCode}`} viewTransition className="font-medium underline">
+                Verificar la enmienda
+              </Link>
+            </p>
+          )}
         </div>
       </div>
 
