@@ -23,6 +23,8 @@ interface DataTableProps<Row> {
   caption: string;
   /** Primary content of the mobile card (title line). Defaults to the first column. */
   mobileTitle?: (row: Row) => ReactNode;
+  /** Keys of the rows to highlight as selected. */
+  selectedKeys?: ReadonlySet<string>;
 }
 
 const SKELETON_ROWS = 5;
@@ -41,6 +43,7 @@ export function DataTable<Row>({
   onRowClick,
   caption,
   mobileTitle,
+  selectedKeys,
 }: DataTableProps<Row>) {
   const showSkeleton = loading && !rows;
   const isEmpty = !loading && rows !== undefined && rows.length === 0;
@@ -83,7 +86,11 @@ export function DataTable<Row>({
               <tr
                 key={rowKey(row)}
                 onClick={onRowClick ? () => onRowClick(row) : undefined}
-                className={cn('border-b border-slate-100 last:border-b-0', onRowClick && 'cursor-pointer hover:bg-slate-50')}
+                className={cn(
+                  'border-b border-slate-100 transition-colors last:border-b-0',
+                  onRowClick && 'cursor-pointer hover:bg-slate-50',
+                  selectedKeys?.has(rowKey(row)) && 'bg-vino-50/60 hover:bg-vino-50',
+                )}
               >
                 {columns.map((column) => (
                   <td

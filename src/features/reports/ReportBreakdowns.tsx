@@ -97,7 +97,7 @@ export function TopContractsCard({ rows }: { rows: TopContractRow[] }) {
       <ol className="mt-3 flex flex-col">
         {rows.map((row, index) => (
           <li key={row.id} className="border-t border-slate-100 first:border-t-0">
-            <Link to={`/contratos/${row.id}`} className="flex items-center gap-3 px-5 py-2.5 transition-colors hover:bg-slate-50">
+            <Link to={`/app/contratos/${row.id}`} className="flex items-center gap-3 px-5 py-2.5 transition-colors hover:bg-slate-50">
               <span className="tabular w-5 shrink-0 text-xs font-semibold text-slate-400">{index + 1}</span>
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-[13px] font-medium text-slate-900">{row.title}</span>
