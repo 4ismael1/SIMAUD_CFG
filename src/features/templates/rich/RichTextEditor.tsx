@@ -89,16 +89,15 @@ export function RichTextEditor({
     for (const [name, text] of labels) labelStore.set(name, text);
   });
 
+  const suggestMode = suggest?.mode;
+  const suggestQuery = suggest?.query ?? "";
+  const canCreate = Boolean(onCreateVariable);
   const options = useMemo(
     () =>
-      suggest?.mode === "command"
-        ? buildCommandOptions(suggest.query)
-        : buildOptions(
-            suggest?.query ?? "",
-            variables,
-            Boolean(onCreateVariable),
-          ),
-    [suggest?.mode, suggest?.query, variables, onCreateVariable],
+      suggestMode === "command"
+        ? buildCommandOptions(suggestQuery)
+        : buildOptions(suggestQuery, variables, canCreate),
+    [suggestMode, suggestQuery, variables, canCreate],
   );
   // Refs let ProseMirror's key handler (registered once) see the current popup.
   const popupRef = useRef<{
