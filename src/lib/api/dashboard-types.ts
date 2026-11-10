@@ -1,4 +1,4 @@
-import type { ContractStatus, SignatoryStatus } from "./core-types";
+import type { ContractStatus, Role, SignatoryStatus } from "./core-types";
 export interface Metric {
   value: number | string;
   previous: number | string;
@@ -38,6 +38,16 @@ export interface DashboardSignature extends DashboardContract {
   signatureStatus: SignatoryStatus;
   myTurn: boolean;
 }
+/** One entry of the contract audit trail, as shown in the panels. */
+export interface DashboardActivity {
+  id: string;
+  at: string;
+  action: string;
+  actorName: string | null;
+  contractId: string | null;
+  contractCode: string | null;
+  contractTitle: string | null;
+}
 export interface AdminDashboard {
   attention: {
     pendingApprovals: number;
@@ -60,6 +70,19 @@ export interface AdminDashboard {
     endDate: string;
     value: string | null;
   })[];
+  /** The fields below arrived with T12a; an older API simply omits them. */
+  totals?: {
+    users: number;
+    newUsersThisMonth: number;
+    contracts: number;
+    newContractsThisMonth: number;
+    totalValue: number;
+    averageValue: number | null;
+    approvalRate: number | null;
+  };
+  topManagers?: { managerId: string; name: string; count: number; value: number }[];
+  usersByRole?: { role: Role; count: number }[];
+  recentActivity?: DashboardActivity[];
 }
 export interface SupervisorDashboard {
   kpis: Record<

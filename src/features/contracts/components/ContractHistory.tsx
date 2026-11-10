@@ -2,36 +2,11 @@ import { useState } from 'react';
 import { History } from 'lucide-react';
 import { Card, EmptyState, Pagination, Skeleton } from '../../../ui';
 import { useContractAudit, useContractVersions } from '../../../lib/api/hooks/contracts';
-import type { AuditEntry } from '../../../lib/api/types';
+import { auditActionLabel } from '../../../lib/api/audit-labels';
 import { formatDateTime } from '../../../lib/format';
 import { DocumentView } from './DocumentView';
 
 const AUDIT_PAGE_SIZE = 20;
-
-/** Action names written by the API (src/modules/contracts) and the scheduled jobs. */
-const AUDIT_ACTION_LABELS: Record<string, string> = {
-  create: 'Contrato creado',
-  edit: 'Contrato editado',
-  submit: 'Enviado a aprobación',
-  approve: 'Aprobado',
-  reject: 'Devuelto con observaciones',
-  sign: 'Firmado',
-  decline: 'Firma rechazada',
-  cancel: 'Cancelado',
-  uncancel: 'Reactivado',
-  archive: 'Archivado',
-  unarchive: 'Desarchivado',
-  override: 'Estado forzado por administración',
-  'override-status': 'Estado forzado por administración',
-  remind: 'Recordatorio enviado',
-  renewed: 'Renovado',
-  expire: 'Vencido',
-  expiring: 'Marcado como próximo a vencer',
-};
-
-function actionLabel(entry: AuditEntry): string {
-  return AUDIT_ACTION_LABELS[entry.action] ?? entry.action.replaceAll('_', ' ');
-}
 
 export function ContractActivity({ contractId }: { contractId: string }) {
   const [page, setPage] = useState(1);
@@ -49,7 +24,7 @@ export function ContractActivity({ contractId }: { contractId: string }) {
           {entries.map((entry) => (
             <li key={entry.id} className="flex flex-wrap items-baseline gap-x-4 gap-y-1 px-5 py-3 text-sm">
               <span className="w-40 shrink-0 font-mono text-xs text-slate-500">{formatDateTime(entry.createdAt)}</span>
-              <span className="min-w-0 flex-1 font-medium">{actionLabel(entry)}</span>
+              <span className="min-w-0 flex-1 font-medium">{auditActionLabel(entry.action)}</span>
               {entry.ip && <span className="font-mono text-xs text-slate-400">IP {entry.ip}</span>}
             </li>
           ))}

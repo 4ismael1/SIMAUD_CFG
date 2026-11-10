@@ -4,33 +4,25 @@ import { ButtonLink, Card, CardHeader, Delta, DonutChart, EmptyState, Kpi, LineC
 import type { AdminDashboard } from '../../lib/api/dashboard-types';
 import type { ContractStatus } from '../../lib/api/types';
 import { contractStatus } from '../../lib/api/status';
+import { CONTRACT_STATUS_COLORS } from '../../lib/api/status-colors';
 import { daysUntil, formatDate, formatMoney, formatMoneyShort } from '../../lib/format';
 import { daysLabel } from '../contracts/components/ContractBits';
+import { QuickActions, RecentActivityCard, TopManagersCard, TotalsStrip, UsersByRoleCard } from './AdminDashboardExtras';
 import { ApprovalRows } from './ApprovalRows';
 import { absoluteChange, formatDecimal, monthLabel, percentChange, toNumber, trendOf, trendValues } from './metrics';
 
-const STATUS_COLORS: Partial<Record<ContractStatus, string>> = {
-  active: '#15803d',
-  renewed: '#8b2029',
-  draft: '#cbd5e1',
-  pending_signatures: '#1d4ed8',
-  expiring_soon: '#d97706',
-  pending_approval: '#fbbf24',
-  rejected: '#f87171',
-  expired: '#7f1d1d',
-  cancelled: '#64748b',
-};
+const STATUS_ORDER: ContractStatus[] = ['active', 'expiring_soon', 'pending_signatures', 'pending_approval', 'draft', 'rejected', 'renewed', 'expired', 'cancelled'];
 
 export function AdminDashboardView({ data }: { data: AdminDashboard }) {
   const { attention, kpis } = data;
-  const slices: DonutSlice[] = (Object.keys(STATUS_COLORS) as ContractStatus[])
-    .map((status) => ({ label: contractStatus[status].label, value: data.byStatus[status] ?? 0, color: STATUS_COLORS[status] ?? '#cbd5e1' }))
+  const slices: DonutSlice[] = STATUS_ORDER.map((status) => ({ label: contractStatus[status].label, value: data.byStatus[status] ?? 0, color: CONTRACT_STATUS_COLORS[status] }))
     .filter((slice) => slice.value > 0);
   const totalContracts = slices.reduce((sum, slice) => sum + slice.value, 0);
 
   return (
     <>
       <AttentionBanner attention={attention} />
+      <QuickActions />
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <MetricKpi label="Contratos vigentes" icon={<FileText />} value={formatDecimal(kpis.activeContracts.value, 0)} metric={kpis.activeContracts} />
@@ -50,6 +42,8 @@ export function AdminDashboardView({ data }: { data: AdminDashboard }) {
           changeText={absoluteChange(kpis.avgApprovalDays, ' días')}
         />
       </div>
+
+      {data.totals && <TotalsStrip totals={data.totals} />}
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         <Card>
@@ -140,6 +134,16 @@ export function AdminDashboardView({ data }: { data: AdminDashboard }) {
           )}
         </Card>
       </div>
+
+      {(data.recentActivity || data.topManagers || data.usersByRole) && (
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+          {data.recentActivity && <RecentActivityCard entries={data.recentActivity} />}
+          <div className="flex flex-col gap-4">
+            {data.topManagers && <TopManagersCard rows={data.topManagers} />}
+            {data.usersByRole && <UsersByRoleCard rows={data.usersByRole} />}
+          </div>
+        </div>
+      )}
     </>
   );
 }
