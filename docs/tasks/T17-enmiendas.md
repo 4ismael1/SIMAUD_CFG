@@ -20,6 +20,23 @@ Lo firmado siempre coincide con lo guardado; el original se conserva íntegro, c
 - Auditoría (T10/T12b): crear, aprobar, firmar y activar enmiendas quedan en el historial de **ambos** contratos.
 - H01 (del informe T14): incluye la marca histórica de aprobación y la protección de borrado, porque comparte el modelo.
 
+## Volver a firmar ANTES de la activación (decisión del dueño, 10 nov 2026)
+Contrato en `pending_signatures` con alguna firma registrada (no activo, sin PDF final):
+- **Pedir nueva firma** `POST /contracts/:id/signatures/:signatoryId/reset` (admin, y gestor dueño), motivo obligatorio
+  (≤ 500): anula la firma vigente de ese firmante (queda en la evidencia como `superseded`, con el motivo; nada se borra),
+  el firmante vuelve a `pending` y se le notifica. Se respeta el orden: si firmantes posteriores ya firmaron, sus firmas
+  **se conservan** (el documento no cambia) salvo que se use «Reiniciar firmas». El turno vuelve al primer pendiente.
+- **Reiniciar firmas** `POST /contracts/:id/signatures/reset` (admin, y gestor dueño), motivo obligatorio: anula todas las
+  firmas vigentes (evidencia `superseded`), todos vuelven a `pending` en su orden y se notifica al primero.
+- Ambas acciones: bloqueo del contrato (orden de locks de T16), 409 si el contrato ya está activo/tiene PDF final (para
+  eso, enmienda) o si no hay firmas que anular; auditoría en el historial; cadena de evidencia de T10 válida tras anular;
+  no reabren la aprobación. Nadie se pide nueva firma a sí mismo como atajo para saltar el turno.
+- `can.resetSignature` / `can.resetSignatures` en el detalle (y por firmante, cuál se puede anular).
+- Compatible con T18 (el firmante también puede rehacer su propia firma antes de la activación): reutilizar el mismo modelo
+  de «firma sustituida».
+- Pruebas: anular una firma intermedia y conservar las posteriores, reiniciar todas, permisos por rol, 409 tras activar,
+  concurrencia anular vs firmar, evidencia y verificación correctas tras volver a firmar.
+
 ## Entrega
 Migración nueva (número siguiente libre), pruebas de todo el flujo (incluido verificar el original tras la enmienda,
 concurrencia de dos enmiendas, permisos por rol), suite completa en verde (Git Bash), sin commit, sin secretos.
