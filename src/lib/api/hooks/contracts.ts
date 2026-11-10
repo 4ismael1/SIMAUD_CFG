@@ -34,6 +34,20 @@ export function useContracts(query: ContractQuery = {}) {
     placeholderData: keepPreviousData,
   });
 }
+const SEARCH_MIN_LENGTH = 2;
+const SEARCH_RESULT_LIMIT = 6;
+/** Quick lookup for the command palette; idle until the text is long enough to be meaningful. */
+export function useContractSearch(text: string) {
+  const query = { q: text, pageSize: SEARCH_RESULT_LIMIT, sort: "-updatedAt" };
+  return useQuery({
+    queryKey: keys.contracts.list(query),
+    queryFn: ({ signal }) =>
+      apiFetch<Paginated<Contract>>("/contracts", { query, signal }),
+    enabled: text.length >= SEARCH_MIN_LENGTH,
+    placeholderData: keepPreviousData,
+    staleTime: 30_000,
+  });
+}
 export function useContract(id: string) {
   return useQuery({
     queryKey: keys.contracts.detail(id),

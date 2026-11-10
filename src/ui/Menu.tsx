@@ -23,10 +23,22 @@ interface MenuProps {
   }) => ReactNode;
   items: MenuItem[];
   align?: 'start' | 'end';
+  /** Where the panel opens relative to the trigger. "right" suits narrow rails. */
+  placement?: 'bottom' | 'top' | 'right';
+  /** Non-interactive content shown above the items (for example, who is signed in). */
+  header?: ReactNode;
+  /** Makes the wrapper fill its parent so the trigger can be full width. */
+  block?: boolean;
 }
 
+const PLACEMENT_CLASSES = {
+  bottom: 'top-full mt-1',
+  top: 'bottom-full mb-1.5',
+  right: 'bottom-0 left-full ml-2',
+};
+
 /** Dropdown menu operable by mouse, touch and keyboard (arrows, Home/End, Escape). */
-export function Menu({ trigger, items, align = 'end' }: MenuProps) {
+export function Menu({ trigger, items, align = 'end', placement = 'bottom', header, block }: MenuProps) {
   const [open, setOpen] = useState(false);
   const menuId = useId();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -91,7 +103,7 @@ export function Menu({ trigger, items, align = 'end' }: MenuProps) {
     );
 
   return (
-    <div ref={containerRef} className="relative inline-flex">
+    <div ref={containerRef} className={cn('relative', block ? 'flex w-full' : 'inline-flex')}>
       {trigger({
         'aria-haspopup': 'menu',
         'aria-expanded': open,
@@ -105,10 +117,12 @@ export function Menu({ trigger, items, align = 'end' }: MenuProps) {
           role="menu"
           onKeyDown={handleMenuKeyDown}
           className={cn(
-            'absolute top-full z-30 mt-1 flex min-w-[220px] animate-pop-in flex-col rounded-xl border border-slate-200 bg-white p-1.5 shadow-pop',
-            align === 'end' ? 'right-0' : 'left-0',
+            'absolute z-40 flex min-w-[220px] animate-pop-in flex-col rounded-xl border border-slate-200 bg-white p-1.5 shadow-pop',
+            PLACEMENT_CLASSES[placement],
+            placement !== 'right' && (align === 'end' ? 'right-0' : 'left-0'),
           )}
         >
+          {header && <div className="mb-1 border-b border-slate-200 px-2.5 pt-2 pb-3">{header}</div>}
           {items.map((item, index) => (
             <div key={item.label} className={cn(item.separatorBefore && 'mt-1 border-t border-slate-200 pt-1')}>
               {item.to ? (
