@@ -47,8 +47,24 @@ describe('planPages', () => {
       geometry,
     );
     expect(plan.spacers.get(1)).toBe(300);
-    // Block 2 now ends at 2100; the signatures (2100–2300) cross the end of page 2 (2200) and move to 2400.
-    expect(plan.spacers.get(3)).toBe(300);
+    // Block 2 (1400–2100) + signatures (2100–2300) cross the end of page 2 (2200): both move to page 3 (2400).
+    expect(plan.spacers.get(2)).toBe(1000);
+    expect(plan.spacers.has(3)).toBe(false);
     expect(plan.pages).toBe(3);
+  });
+
+  it("el párrafo de cierre baja junto con las firmas", () => {
+    // Closing line 860–900, signatures 900–1100: together they do not fit (page ends at 1000) → both move.
+    const plan = planPages([block("other", 0, 860), block("other", 860, 40), block("signatures", 900, 200)], geometry);
+    expect(plan.spacers.get(1)).toBe(340);
+    expect(plan.spacers.has(2)).toBe(false);
+    expect(plan.pages).toBe(2);
+  });
+
+  it("el plan es estable: medir con los espacios ya aplicados da el mismo resultado", () => {
+    const blocks = [block("other", 0, 860), block("other", 860, 40), block("signatures", 900, 200)];
+    const first = planPages(blocks, geometry);
+    const again = planPages(blocks, geometry);
+    expect([...again.spacers]).toEqual([...first.spacers]);
   });
 });

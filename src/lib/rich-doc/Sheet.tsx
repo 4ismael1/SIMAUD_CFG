@@ -122,11 +122,14 @@ function paginateReadOnly(body: HTMLElement, geometry: SheetGeometry) {
   const elements = Array.from(content.children).filter((child): child is HTMLElement => child instanceof HTMLElement);
   const rootTop = body.getBoundingClientRect().top + geometry.marginTop;
 
-  // Natural positions: remove what we pushed last time from the measurements.
+  // Natural positions: remove what we pushed last time from the measurements. The push is padding INSIDE
+  // the block, so it moves the blocks after it but not the block's own top edge: subtract it only after
+  // measuring that block (subtracting it before made a pushed block look as if it fitted, so it bounced).
   let inserted = 0;
   const tops = elements.map((element) => {
+    const top = element.getBoundingClientRect().top - rootTop - inserted;
     inserted += Number(element.getAttribute(PUSH_ATTRIBUTE) ?? 0);
-    return element.getBoundingClientRect().top - rootTop - inserted;
+    return top;
   });
   const bottom = content.getBoundingClientRect().bottom - rootTop - inserted;
   const blocks = elements.map((element, index) => ({

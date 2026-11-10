@@ -1,6 +1,8 @@
 import { Node, mergeAttributes } from '@tiptap/core';
+import { NodeSelection, Plugin, TextSelection } from '@tiptap/pm/state';
+import type { Editor } from '@tiptap/react';
 import { NodeViewWrapper, ReactNodeViewRenderer, type ReactNodeViewProps } from '@tiptap/react';
-import { Columns2, Columns3, Plus, RectangleHorizontal, Trash2, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, Columns2, Columns3, Plus, RectangleHorizontal, Trash2, X } from 'lucide-react';
 import { cn } from '../../../ui';
 
 /**
@@ -52,6 +54,27 @@ export const SignaturesNode = Node.create({
     return (node.attrs.slots as EditorSignatureSlot[]).map((slot) => `____________ ${slot.label}`).join('\n');
   },
 
+  // A selected signature block is never replaced by typing (clicking the gap before it selects it):
+  // the text goes into a new paragraph after the block. Only Supr/Retroceso or its own button delete it.
+  addProseMirrorPlugins() {
+    return [
+      new Plugin({
+        props: {
+          handleTextInput: (view, _from, _to, text) => {
+            const { selection } = view.state;
+            if (!(selection instanceof NodeSelection) || selection.node.type.name !== this.name) return false;
+            const after = selection.to;
+            const paragraph = view.state.schema.nodes.paragraph.create(null, view.state.schema.text(text));
+            const tr = view.state.tr.insert(after, paragraph);
+            tr.setSelection(TextSelection.create(tr.doc, after + 1 + text.length));
+            view.dispatch(tr.scrollIntoView());
+            return true;
+          },
+        },
+      }),
+    ];
+  },
+
   addNodeView() {
     return ReactNodeViewRenderer(SignaturesView);
   },
@@ -71,6 +94,24 @@ const COLUMN_OPTIONS = [
   { value: 2, label: 'Dos columnas', icon: Columns2 },
   { value: 3, label: 'Tres columnas', icon: Columns3 },
 ] as const;
+
+/** Move the block one place up or down among its siblings and keep it selected. */
+function moveBlock(editor: Editor, position: number, direction: -1 | 1) {
+  const { state } = editor;
+  const node = state.doc.nodeAt(position);
+  if (!node) return;
+  const $pos = state.doc.resolve(position);
+  const index = $pos.index();
+  const parent = $pos.parent;
+  const neighbour = parent.maybeChild(index + direction);
+  if (!neighbour) return;
+  const tr = state.tr.delete(position, position + node.nodeSize);
+  const target = direction === -1 ? position - neighbour.nodeSize : position + neighbour.nodeSize;
+  tr.insert(target, node);
+  tr.setSelection(NodeSelection.create(tr.doc, target));
+  editor.view.dispatch(tr.scrollIntoView());
+  editor.view.focus();
+}
 
 function SignaturesView({ node, updateAttributes, deleteNode, selected, editor, getPos }: ReactNodeViewProps) {
   const slots = node.attrs.slots as EditorSignatureSlot[];
@@ -112,6 +153,24 @@ function SignaturesView({ node, updateAttributes, deleteNode, selected, editor, 
               <option.icon />
             </button>
           ))}
+          <button
+            type="button"
+            title="Subir el bloque de firmas"
+            aria-label="Subir el bloque de firmas"
+            onClick={() => moveBlock(editor, here, -1)}
+            className="grid size-7 place-items-center rounded-md text-slate-500 hover:bg-slate-100 [&_svg]:size-4"
+          >
+            <ArrowUp />
+          </button>
+          <button
+            type="button"
+            title="Bajar el bloque de firmas"
+            aria-label="Bajar el bloque de firmas"
+            onClick={() => moveBlock(editor, here, 1)}
+            className="grid size-7 place-items-center rounded-md text-slate-500 hover:bg-slate-100 [&_svg]:size-4"
+          >
+            <ArrowDown />
+          </button>
           <button
             type="button"
             title="Añadir firmante"

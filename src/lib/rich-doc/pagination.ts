@@ -8,6 +8,7 @@
  *  - a block that fits in one page never splits: if it does not fit in what is left, it moves whole
  *    to the next page (so every page end falls between blocks and the gap can be drawn);
  *  - a heading (clause title) never stays alone at the bottom: it moves with the start of the next block;
+ *  - the paragraph just before a signature block moves together with it (signatures never start a page alone);
  *  - after a page break, the next block starts on a new page;
  *  - only a block taller than a whole page continues across pages.
  */
@@ -57,8 +58,12 @@ export function planPages(blocks: MeasuredBlock[], { usable, stride }: PageGeome
     if (top > pageEnd(page) - EPSILON) page += 1;
     let target = Math.max(top, pageStart(page));
 
-    const needed =
-      block.kind === 'heading' ? block.height + Math.min(blocks[index + 1]?.height ?? 0, KEEP_WITH_NEXT_PX) : block.height;
+    const next = blocks[index + 1];
+    let needed = block.height;
+    if (block.kind === 'heading') needed += Math.min(next?.height ?? 0, KEEP_WITH_NEXT_PX);
+    // The closing line before a signature block («En constancia de lo anterior…») travels with it,
+    // so signatures never start a page alone.
+    else if (next?.kind === 'signatures' && block.kind === 'other' && block.height + next.height <= usable) needed += next.height;
     const startsPage = target - pageStart(page) < EPSILON;
     if (forceNextPage && !startsPage) {
       page += 1;
