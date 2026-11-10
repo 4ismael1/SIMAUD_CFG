@@ -32,6 +32,12 @@ layer(base);
   --animate-fade-in: fade-in 160ms ease-out;
   --animate-slide-in-right: slide-in-right 200ms ease-out;
   --animate-pop-in: pop-in 160ms ease-out;
+  --animate-page-in: page-in 380ms var(--ease-out-expo) both;
+  --animate-rise-in: rise-in 640ms var(--ease-out-expo) both;
+  --animate-hero-doc: hero-doc 1100ms 200ms var(--ease-out-expo) both;
+  --animate-float: float 8s 1.4s ease-in-out infinite;
+
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
 
   @keyframes fade-in {
     from { opacity: 0; }
@@ -44,6 +50,22 @@ layer(base);
   @keyframes pop-in {
     from { transform: translateY(4px) scale(0.98); opacity: 0; }
     to { transform: none; opacity: 1; }
+  }
+  @keyframes page-in {
+    from { transform: translateY(10px); opacity: 0; }
+    to { transform: none; opacity: 1; }
+  }
+  @keyframes rise-in {
+    from { transform: translateY(18px); opacity: 0; filter: blur(4px); }
+    to { transform: none; opacity: 1; filter: none; }
+  }
+  @keyframes hero-doc {
+    from { transform: translateY(48px) rotate(3deg) scale(0.96); opacity: 0; }
+    to { transform: none; opacity: 1; }
+  }
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
   }
 }
 
@@ -85,15 +107,79 @@ layer(base);
   /* Highlighted template value inside a rendered contract document. */
   .doc-var {
     @apply rounded-[3px] bg-vino-50 px-[3px] font-semibold text-vino-700;
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+  }
+}
+
+/*
+ * Motion system (see src/ui/motion.ts).
+ * - .stagger: children rise in one after another as soon as they mount.
+ * - .reveal / .reveal-stagger: same, but wait until useScrollReveal marks them .is-visible.
+ * Set --stagger-step / --stagger-delay on the container to tune timing.
+ */
+@layer components {
+  .stagger > * {
+    animation: var(--animate-rise-in);
+    animation-delay: calc(var(--stagger-delay, 0ms) + var(--i, 0) * var(--stagger-step, 70ms));
+  }
+
+  .reveal,
+  .reveal-stagger > * {
+    opacity: 0;
+    transform: translateY(28px);
+    transition:
+      opacity 800ms var(--ease-out-expo),
+      transform 800ms var(--ease-out-expo);
+  }
+  .reveal-stagger > * {
+    transition-delay: calc(var(--stagger-delay, 0ms) + var(--i, 0) * var(--stagger-step, 90ms));
+  }
+  .reveal.is-visible,
+  .reveal-stagger.is-visible > * {
+    opacity: 1;
+    transform: none;
+  }
+
+  :is(.stagger, .reveal-stagger) > :nth-child(2) { --i: 1; }
+  :is(.stagger, .reveal-stagger) > :nth-child(3) { --i: 2; }
+  :is(.stagger, .reveal-stagger) > :nth-child(4) { --i: 3; }
+  :is(.stagger, .reveal-stagger) > :nth-child(5) { --i: 4; }
+  :is(.stagger, .reveal-stagger) > :nth-child(6) { --i: 5; }
+  :is(.stagger, .reveal-stagger) > :nth-child(7) { --i: 6; }
+  :is(.stagger, .reveal-stagger) > :nth-child(8) { --i: 7; }
+  :is(.stagger, .reveal-stagger) > :nth-child(n + 9) { --i: 8; }
+
+  /* Lift on hover for clickable cards. */
+  .lift {
+    transition:
+      transform 220ms var(--ease-out-expo),
+      box-shadow 220ms var(--ease-out-expo),
+      border-color 220ms;
+  }
+  .lift:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-pop);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .reveal,
+  .reveal-stagger > * {
+    opacity: 1;
+    transform: none;
+  }
+  .lift:hover {
+    transform: none;
+  }
+
   *,
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
+    animation-delay: 0s !important;
+    transition-delay: 0s !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }

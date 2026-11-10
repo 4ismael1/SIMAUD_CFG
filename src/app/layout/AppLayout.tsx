@@ -13,6 +13,7 @@ import { useNavCounts } from './useNavCounts';
 export function AppLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const counts = useNavCounts();
   const [drawerOpen, setDrawerOpen] = useState(false);
 
@@ -53,7 +54,10 @@ export function AppLayout() {
 
         <main id="contenido" className="mx-auto flex w-full max-w-[1360px] min-w-0 flex-col gap-5 px-4 py-6 sm:px-6 lg:px-7">
           <Suspense fallback={<PageFallback />}>
-            <Outlet />
+            {/* Keyed by path so every navigation replays the entrance animation. */}
+            <div key={location.pathname} className="flex min-w-0 animate-page-in flex-col gap-5">
+              <Outlet />
+            </div>
           </Suspense>
         </main>
       </div>

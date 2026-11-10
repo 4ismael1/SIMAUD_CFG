@@ -48,7 +48,7 @@ export function NotificationBell() {
 
   return (
     <div ref={containerRef} className="relative">
-      <IconButton label={label} aria-expanded={open} aria-haspopup="dialog" onClick={() => setOpen((value) => !value)}>
+      <IconButton label={label} className="relative" aria-expanded={open} aria-haspopup="dialog" onClick={() => setOpen((value) => !value)}>
         <Bell />
         {unreadCount > 0 && <span className="absolute top-1.5 right-1.5 size-2 rounded-full border-2 border-white bg-vino-600" aria-hidden="true" />}
       </IconButton>

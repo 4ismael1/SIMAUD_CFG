@@ -28,7 +28,11 @@ export function buttonClasses(
 ): string {
   return cn(
     'inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-lg border font-medium',
-    'transition-colors disabled:pointer-events-none disabled:opacity-50',
+    'transition-[color,background-color,border-color,box-shadow,transform] duration-150 active:scale-[0.98]',
+    // Disabled reads as neutral grey (a faded wine looks broken); a loading button keeps its colour.
+    'disabled:pointer-events-none data-[loading]:opacity-80',
+    '[&:disabled:not([data-loading])]:border-slate-200 [&:disabled:not([data-loading])]:bg-slate-100',
+    '[&:disabled:not([data-loading])]:text-slate-400',
     VARIANT_CLASSES[variant],
     SIZE_CLASSES[size],
     extra,
@@ -53,6 +57,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       type={type}
       disabled={disabled || loading}
       aria-busy={loading || undefined}
+      data-loading={loading || undefined}
       className={buttonClasses(variant, size, cn(block && 'w-full', className))}
       {...rest}
     >
@@ -94,7 +99,7 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(functio
       aria-label={label}
       title={label}
       className={cn(
-        'relative inline-grid shrink-0 place-items-center rounded-lg text-slate-500 transition-colors',
+        'inline-grid shrink-0 place-items-center rounded-lg text-slate-500 transition-colors',
         'hover:bg-slate-100 hover:text-slate-900 disabled:opacity-50',
         size === 'sm' ? 'size-8 [&_svg]:size-4' : 'size-9 [&_svg]:size-[18px]',
         className,

@@ -3,10 +3,10 @@ export function HeroDocument() {
   return (
     <div
       aria-hidden="true"
-      className="relative w-full max-w-[470px] -rotate-[1.5deg] rounded-[3px] border border-slate-200 bg-paper px-8 py-9 font-serif text-sm leading-7 text-slate-800 shadow-[0_30px_70px_rgb(15_23_42/0.16),0_3px_10px_rgb(15_23_42/0.06)] sm:px-11 sm:py-10"
+      className="relative w-full -rotate-[1.5deg] animate-float rounded-[3px] border border-slate-200 bg-paper px-6 py-8 font-serif text-[13.5px] leading-7 text-slate-800 shadow-[0_30px_70px_rgb(15_23_42/0.16),0_3px_10px_rgb(15_23_42/0.06)] sm:px-11 sm:py-10"
     >
       <style>{`
-        .hero-signature { stroke-dasharray: 900; stroke-dashoffset: 900; animation: hero-sign 2.6s .6s cubic-bezier(.6,.1,.3,1) forwards; }
+        .hero-signature { stroke-dasharray: 900; stroke-dashoffset: 900; animation: hero-sign 2.4s 1.1s cubic-bezier(.6,.1,.3,1) forwards; }
         @keyframes hero-sign { to { stroke-dashoffset: 0; } }
         @media (prefers-reduced-motion: reduce) { .hero-signature { animation: none; stroke-dashoffset: 0; } }
       `}</style>
@@ -20,7 +20,7 @@ export function HeroDocument() {
       <p className="mt-2">
         <b>PRIMERO.</b> El objeto del presente contrato es la entrega periódica de papel, tóner y artículos de oficina conforme al anexo A.
       </p>
-      <div className="mt-6 grid grid-cols-2 gap-7 font-sans text-[12.5px] text-slate-500">
+      <div className="mt-6 grid grid-cols-2 gap-4 font-sans text-[11.5px] leading-snug text-slate-500 sm:gap-7 sm:text-[12.5px]">
         <div className="border-t border-slate-800 pt-1.5">
           <svg viewBox="0 0 220 60" className="block h-11 w-full">
             <path
@@ -37,7 +37,13 @@ export function HeroDocument() {
           Cliente · firmado 7 nov 2026
         </div>
         <div className="border-t border-slate-800 pt-1.5">
-          <span className="block h-11" />
+          <span className="flex h-11 items-center gap-1.5 text-[11px] font-semibold text-vino-600">
+            <span className="relative flex size-2">
+              <span className="absolute inline-flex size-full animate-ping rounded-full bg-vino-400 opacity-60" />
+              <span className="relative inline-flex size-2 rounded-full bg-vino-600" />
+            </span>
+            Esperando firma
+          </span>
           <b className="text-slate-900">Laura Santos</b>
           <br />
           Testigo · <span className="font-semibold text-vino-600">su turno</span>

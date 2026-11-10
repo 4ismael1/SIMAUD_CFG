@@ -1,4 +1,4 @@
-import { lazy } from 'react';
+import { lazy, Suspense } from 'react';
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { AppLayout } from './layout/AppLayout';
 import { ProtectedRoute, PublicOnlyRoute, RoleRoute, StaffHome } from './guards';
@@ -14,6 +14,7 @@ const ForgotPasswordPage = lazy(() => import('../features/auth/PasswordPages').t
 const ResetPasswordPage = lazy(() => import('../features/auth/PasswordPages').then((m) => ({ default: m.ResetPasswordPage })));
 const DashboardPage = lazy(() => import('../features/dashboard/DashboardPage').then((m) => ({ default: m.DashboardPage })));
 const ContractsListPage = lazy(() => import('../features/contracts/ContractsListPage').then((m) => ({ default: m.ContractsListPage })));
+const SignContractPage = lazy(() => import('../features/signatures/SignContractPage').then((m) => ({ default: m.SignContractPage })));
 const ContractDetailPage = lazy(() => import('../features/contracts/ContractDetailPage').then((m) => ({ default: m.ContractDetailPage })));
 
 export const router = createBrowserRouter([
@@ -42,6 +43,15 @@ export const router = createBrowserRouter([
     element: <ProtectedRoute />,
     errorElement: <RouteError />,
     children: [
+      // Full-screen signing flow (no sidebar); the API decides whether it is this user's turn.
+      {
+        path: 'contratos/:id/firmar',
+        element: (
+          <Suspense fallback={null}>
+            <SignContractPage />
+          </Suspense>
+        ),
+      },
       {
         element: <AppLayout />,
         errorElement: <RouteError />,

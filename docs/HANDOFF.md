@@ -1,13 +1,16 @@
 # HANDOFF — SIMAUD: estado del trabajo y cómo continuar
 
-## ⚡ ÚLTIMA ACTUALIZACIÓN (al cortar la sesión) — leer primero
-- Rama de trabajo: **`feat/backend-propio-y-nueva-ui`** (commits WIP hechos; `main` intacta). Sigue commiteando en esta rama.
-- **Codex T03** seguía corriendo al cortar (sin `T03-api-ciclo-vida.REPORT.md` aún). El proceso se perdió con la sesión: revisa `api/` (ya existen módulos dashboard, notifications, renewals, reports, system, jobs y migraciones 0004/0005). Ejecuta en `api/`: `npm run format && npm run typecheck && npm test && npm audit`. Si falla algo o falta el REPORT, relanza Codex con T03 indicándole que continúe y escriba el REPORT. El código de T03 sigue compactado (SQL en una línea) → exigir el refactor de la sección 0.
-- **T04 terminado**; revisado por encima por Claude (tests pasan). Detectado y corregido: la API espera el ticket SSE como `?token=` (no `?ticket=`); ya está arreglado en `src/lib/api/server-events.ts`.
-- **Probado en vivo** con la API real: login admin → panel con datos reales, lista de contratos, SSE 200. Todo el código nuevo (`src/ui|app|features|lib`) compila sin errores.
-- Contraseña de desarrollo de las 4 cuentas seed: está en `api/.env` como `SEED_PASSWORD` (aplicada con `npx tsx src/db/dev-reset-seed-passwords.ts` desde `api/`).
-- Recién escritos y **AÚN NO registrados en el router**: `src/features/signatures/SignaturePad.tsx` y `SignContractPage.tsx` (ruta prevista `/app/contratos/:id/firmar`, fuera del AppLayout: pantalla completa dentro de `ProtectedRoute`). No se han probado.
-- Siguiente paso inmediato: registrar la ruta de firma, hacer la bandeja `/app/firmas` (usar `useSignatures('pending'|'signed')`, campo `myTurn`), y luego el asistente de nuevo/editar contrato (sección 6.3, punto 4).
+## ⚡ ÚLTIMA ACTUALIZACIÓN (sesión 2, 9 nov 2026) — leer primero
+- Rama: **`feat/backend-propio-y-nueva-ui`**. Sigue commiteando aquí (solo archivos propios; no commitear trabajo de Codex a medias).
+- **T03 verificado**: typecheck, format:check, `npm audit` = 0 y **255 tests pasan**. Seguía compactado → se escribió **`docs/tasks/T03b-api-legibilidad.md`** (refactor sin cambiar comportamiento + escribir `T03-api-ciclo-vida.REPORT.md`). Codex lo estaba ejecutando al cortar. Log: `<scratchpad>/codex-T03b.log`.
+- **T05 despliegue** escrito (`docs/tasks/T05-despliegue.md`: Dockerfiles, nginx con CSP/HSTS y SSE, compose prod, backups, `docs/DEPLOY.md`). Codex lo estaba ejecutando en paralelo (no toca `api/src`). Revisar ambos REPORT cuando existan; si no existen, relanzar con el mismo prompt.
+- **Pulido de pantallas públicas (hecho y verificado en navegador a 1440 y 375 px)**: landing reescrito (contenedor máx. 1200px, cabecera fija con menú móvil, fondo de puntos en vez de la marca de agua, CTA final nuevo), AuthLayout/AuthCardLayout (tarjetas centradas, panel derecho sin marca de agua), título de pestaña «SIMAUD-LEX · Módulo de Gestión Legal Digital».
+- **Bugs corregidos**: el ojo de la contraseña salía debajo del campo (IconButton tenía `relative` fijo y `cn` no resuelve conflictos → también rompía el botón cerrar del menú móvil). Botones deshabilitados ahora gris neutro (antes vino deslavado); con `loading` conservan el color (`data-loading`).
+- ⚠️ **Trampa conocida**: `cn()` NO fusiona clases de Tailwind. Pasar `hidden`/`absolute` a un componente que ya trae `inline-flex`/`relative` no funciona: envolver en un contenedor o quitar la clase base. Valorar `tailwind-merge`.
+- **Sistema de animación** (CSS, sin framer-motion): tokens en `src/index.css` (`animate-page-in`, `animate-rise-in`, `animate-hero-doc`, `animate-float`), utilidades `.stagger` (hijos escalonados al montar), `.reveal`/`.reveal-stagger` + hook `useScrollReveal(ref)` (`src/ui/motion.ts`), `.lift` (hover). Respeta `prefers-reduced-motion`. AppLayout anima cada cambio de ruta. **Pendiente**: aplicar `.stagger` a las rejillas de KPIs/tarjetas de los paneles y listas internas.
+- **Ruta de firma registrada**: `/app/contratos/:id/firmar` (pantalla completa dentro de `ProtectedRoute`). Redirige bien al login sin sesión. **No probada con sesión**: el usuario `usuario@simaud.local` tiene su turno en CT-2026-0004 (`00000000-0000-4000-8001-000000000004`). El navegador de Claude no pudo leer la contraseña seed (bloqueado por permisos): pedir al dueño que inicie sesión en el panel o que lo pruebe él.
+- Nota seguridad a revisar: `GET /me/signatures` devuelve el contrato entero (incluye `signedPdfPath`, `content`, `variablesData`…). Recortar a lo que usa la bandeja.
+- Siguiente: probar firma con sesión, bandeja `/app/firmas`, stagger en paneles, asistente de nuevo contrato (6.3 punto 4).
 
 > Escrito por Claude el 9 nov 2026 para que otra sesión (otra cuenta) continúe **exactamente** donde se quedó.
 > Léelo completo antes de tocar nada. Después lee `docs/PLAN.md` y `docs/CODE_STANDARDS.md`.
