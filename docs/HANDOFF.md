@@ -6,7 +6,25 @@ Rama `feat/backend-propio-y-nueva-ui`. Commits de esta sesión: `aaba3ad` (fix /
 `66dcf50`…`34d2d86` (editor TipTap con formato), `ae1cab0` (módulo Variables), **`51a3e88` T10 + T12a (Codex)**,
 `dcdc549`/`a5f4fce`/`9d79f28` (docs: plan premium, rich-v2, T14), **`4036335` editor premium fase 1**.
 
-### Codex — EN CURSO al escribir esto (3 en paralelo, lanzados ~01:10)
+### ESTADO A LAS 02:00 (más reciente que la tabla de abajo)
+- **T12b TERMINADO** (informe `docs/tasks/T12b-auditoria-global-usuarios.REPORT.md`), **sin revisar ni commitear**.
+- **T13 casi terminado**: sus 61 tests pasan, typecheck/format/build/audit OK; estaba corriendo la 2.ª suite completa.
+  Si al retomar no hay `codex.exe` vivo (`tasklist | grep -c codex.exe` → 2 = solo la app) y no existe
+  `docs/tasks/T13-documentos-con-formato.REPORT.md`, relanzar T13 con «completa el trabajo parcial sin rehacerlo» y BD `simaud_test2`.
+- **Todo lo de `api/` sin commitear es de T13 + T12b** (comparten `schema.ts`, `_journal.json`, migraciones 0011/0012). No descartar.
+- Ambos avisan: `api/test/database.test.ts` espera 22 tablas y ahora hay 24 (T12b añade `admin_audit_head`, `admin_audit_logs`):
+  **ajustarlo yo** (Claude) al revisar.
+- Pasos al retomar: leer ambos informes → revisar diff → ajustar `database.test.ts` → en `api/` (Git Bash)
+  `npm run typecheck && npm run format:check && npm test && npm audit` con **nada más corriendo** → commit (uno por tarea si
+  se puede) → SIMAUD_RUN: `git checkout --detach <commit>`, `npm run db:migrate`, reiniciar API → lanzar **T15**.
+- Front posterior a la tabla de abajo: `913899f` menú «/» y barra flotante, `1d32c93` fix lint, **`a4bea71` hojas separadas y
+  paginación real** (regla en `src/lib/rich-doc/pagination.ts`: bloque que cabe en una página no se parte, títulos con su
+  párrafo, salto de página; editor vía extensión `pagination-extension.ts` con decoraciones; vistas vía `Sheet.tsx`).
+  Verificado midiendo el DOM (5 hojas iguales en editor y vista previa); **falta que el dueño lo vea en su navegador**
+  (el panel de Claude estaba oculto y sus capturas no se actualizaban; por eso los planificadores usan `setTimeout`, no rAF).
+- Pendiente del editor premium: biblioteca de cláusulas, arrastrar bloques, visor del PDF real tras T15.
+
+### Codex — tabla del lanzamiento (~01:10)
 | Tarea | BD de pruebas | Informe al terminar |
 |---|---|---|
 | **T13** documentos con formato `rich-v1` en API/PDF (`docs/tasks/T13-documentos-con-formato.md`; migración **0011**) | `simaud_test2` | `docs/tasks/T13-documentos-con-formato.REPORT.md` |
