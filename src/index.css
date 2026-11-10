@@ -63,6 +63,13 @@ layer(base);
     from { transform: translateY(48px) rotate(3deg) scale(0.96); opacity: 0; }
     to { transform: none; opacity: 1; }
   }
+  @keyframes grow-x {
+    from { transform: scaleX(0); }
+    to { transform: scaleX(1); }
+  }
+  @keyframes blink {
+    50% { opacity: 0; }
+  }
   @keyframes float {
     0%, 100% { transform: translateY(0); }
     50% { transform: translateY(-10px); }
@@ -71,6 +78,7 @@ layer(base);
 
 @layer base {
   html {
+    scroll-behavior: smooth;
     -webkit-text-size-adjust: 100%;
     text-rendering: optimizeLegibility;
   }
@@ -127,7 +135,7 @@ layer(base);
   .reveal,
   .reveal-stagger > * {
     opacity: 0;
-    transform: translateY(28px);
+    transform: translateY(20px);
     transition:
       opacity 800ms var(--ease-out-expo),
       transform 800ms var(--ease-out-expo);
@@ -160,6 +168,33 @@ layer(base);
     to { stroke-dashoffset: 0; }
   }
 
+  /* Landing: the steps rail fills once its section is revealed. */
+  .step-rail {
+    transform: scaleX(0);
+    transition: transform 1400ms 300ms var(--ease-out-expo);
+  }
+  .is-visible .step-rail {
+    transform: scaleX(1);
+  }
+
+  .audit-cursor {
+    animation: blink 1.1s steps(1) infinite;
+  }
+
+  /* FAQ answers fade in when a <details> opens. */
+  .faq-item[open] .faq-answer {
+    animation: var(--animate-rise-in);
+  }
+
+  .cta-signature path {
+    stroke-dasharray: 900;
+    stroke-dashoffset: 900;
+    transition: stroke-dashoffset 2.2s 400ms cubic-bezier(0.6, 0.1, 0.3, 1);
+  }
+  .is-visible .cta-signature path {
+    stroke-dashoffset: 0;
+  }
+
   /* Lift on hover for clickable cards. */
   .lift {
     transition:
@@ -174,6 +209,12 @@ layer(base);
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .step-rail {
+    transform: none;
+  }
+  .cta-signature path {
+    stroke-dashoffset: 0;
+  }
   .hero-signature {
     animation: none;
     stroke-dashoffset: 0;
