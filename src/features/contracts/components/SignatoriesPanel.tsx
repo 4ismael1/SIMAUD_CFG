@@ -9,7 +9,8 @@ import { formatDateTime } from '../../../lib/format';
 export const SIGNATORY_ROLE_LABELS: Record<SignatoryRole, string> = {
   client: 'Cliente',
   witness: 'Testigo',
-  contractor: 'Contratista',
+  // Shown as the institution's side (the API value stays «contractor»).
+  contractor: 'Por la institución',
 };
 
 /** The first pending signatory in signing order is the one whose turn it is. */

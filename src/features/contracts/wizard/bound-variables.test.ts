@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { contractBoundValues, effectiveVariables, isClientVariable, isContractBound, monthsBetween } from './bound-variables';
+import { contractBoundValues, effectiveVariables, isContractBound, isPartyVariable, monthsBetween, partyValues } from './bound-variables';
+import { emptyDraft, validateSignatoriesStep } from './wizard-state';
+
+const person = (role: 'client' | 'contractor' | 'witness', name: string, cedula: string) => ({ role, name, cedula, email: `${name.split(' ')[0].toLowerCase()}@x.do`, phone: '' });
 
 describe('datos que el contrato ya conoce', () => {
   it('calcula la duración en meses completos', () => {
     expect(monthsBetween('2026-11-10', '2026-12-10')).toBe(1);
     expect(monthsBetween('2026-11-10', '2027-11-10')).toBe(12);
-    expect(monthsBetween('2026-11-10', '2026-12-09')).toBe(1); // menos de un mes cuenta como 1
+    expect(monthsBetween('2026-11-10', '2026-12-09')).toBe(1);
     expect(monthsBetween('2026-12-10', '2026-11-10')).toBeNull();
     expect(monthsBetween('', '2026-11-10')).toBeNull();
   });
@@ -18,21 +21,37 @@ describe('datos que el contrato ya conoce', () => {
       duracion_meses: 6,
     });
   });
+});
 
-  it('lo que se envía mezcla lo escrito y lo calculado, ganando lo calculado', () => {
-    const values = effectiveVariables({
-      startDate: '2026-11-10',
-      endDate: '2026-12-10',
-      value: '87000',
-      variables: { cliente_nombre: 'Pedro', valor_contrato: '1', fecha_fin: '' },
+describe('las personas salen de los firmantes', () => {
+  const signatories = [person('contractor', 'Rosa Almonte Díaz', '00112345673'), person('client', 'Pedro Gómez Santana', '03145678904'), person('witness', 'Ana Testigo', '')];
+
+  it('el cliente y el representante se rellenan con el primer firmante de cada rol', () => {
+    expect(partyValues(signatories)).toEqual({
+      representante_nombre: 'Rosa Almonte Díaz',
+      representante_cedula: '001-1234567-3',
+      representante_email: 'rosa@x.do',
+      cliente_nombre: 'Pedro Gómez Santana',
+      cliente_cedula: '031-4567890-4',
+      cliente_email: 'pedro@x.do',
     });
-    expect(values).toMatchObject({ cliente_nombre: 'Pedro', valor_contrato: '87000.00', fecha_fin: '2026-12-10', duracion_meses: 1 });
   });
 
-  it('distingue los datos ligados al contrato y los del cliente', () => {
+  it('lo enviado mezcla lo escrito, los firmantes y el contrato', () => {
+    const values = effectiveVariables({ startDate: '2026-11-10', endDate: '2026-12-10', value: '87000', variables: { representante_cargo: 'Rectora', cliente_nombre: 'otro' }, signatories });
+    expect(values).toMatchObject({ representante_cargo: 'Rectora', cliente_nombre: 'Pedro Gómez Santana', valor_contrato: '87000.00', duracion_meses: 1 });
+  });
+
+  it('avisa si el documento necesita un rol que no está entre los firmantes', () => {
+    const draft = { ...emptyDraft(), signatories: [{ ...emptyDraft().signatories[0], role: 'client' as const, name: 'Pedro', cedula: '03145678904', email: 'p@x.do' }] };
+    const variables = [{ id: '1', name: 'representante_nombre', label: 'Representante', type: 'text' as const, required: true, createdAt: '', updatedAt: '' }];
+    expect(validateSignatoriesStep(draft, variables).signatories).toContain('Por la institución');
+  });
+
+  it('distingue los datos ligados', () => {
     expect(isContractBound('fecha_inicio')).toBe(true);
-    expect(isContractBound('cliente_nombre')).toBe(false);
-    expect(isClientVariable('cliente_cedula')).toBe(true);
-    expect(isClientVariable('forma_pago')).toBe(false);
+    expect(isPartyVariable('cliente_cedula')).toBe(true);
+    expect(isPartyVariable('representante_cargo')).toBe(false); // se pide en «Datos»
+    expect(isPartyVariable('forma_pago')).toBe(false);
   });
 });

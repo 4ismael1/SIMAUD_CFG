@@ -113,7 +113,7 @@ function Wizard({ contractId, initial }: WizardProps) {
   function validateStep(target: StepId): FieldErrors {
     if (target === 'template') return validateTemplateStep(draft);
     if (target === 'details') return validateDetailsStep(draft, variables);
-    if (target === 'signatories') return validateSignatoriesStep(draft);
+    if (target === 'signatories') return validateSignatoriesStep(draft, variables);
     return {};
   }
 

@@ -10,7 +10,7 @@ import {
   validatePersonName,
   validatePhoneDo,
 } from '../../../lib/validation';
-import { effectiveVariables, isContractBound } from './bound-variables';
+import { effectiveVariables, isContractBound, isPartyVariable, partyOf } from './bound-variables';
 
 export const WIZARD_STEPS = [
   { id: 'template', label: 'Plantilla' },
@@ -137,8 +137,8 @@ export function validateDetailsStep(draft: WizardDraft, variables: Variable[]): 
 
   const values = effectiveVariables(draft);
   for (const variable of variables) {
-    // Filled from the contract fields above (already validated there).
-    if (isContractBound(variable.name)) continue;
+    // Filled from the contract fields above, or from the signatories (checked in that step).
+    if (isContractBound(variable.name) || isPartyVariable(variable.name)) continue;
     const raw = values[variable.name];
     const text = raw === null || raw === undefined ? '' : String(raw).trim();
     if (variable.required && text === '') {
@@ -159,8 +159,17 @@ export function validateDetailsStep(draft: WizardDraft, variables: Variable[]): 
   return errors;
 }
 
-export function validateSignatoriesStep(draft: WizardDraft): FieldErrors {
+export function validateSignatoriesStep(draft: WizardDraft, variables: Variable[] = []): FieldErrors {
   const errors: FieldErrors = {};
+  // The document needs this person's data: there must be a signatory with that role.
+  const missingRoles = new Set<string>();
+  for (const variable of variables) {
+    const party = partyOf(variable.name);
+    if (party && variable.required && !draft.signatories.some((signatory) => signatory.role === party.role)) missingRoles.add(party.label);
+  }
+  if (missingRoles.size > 0) {
+    errors.signatories = `El documento necesita los datos de: ${[...missingRoles].join(' y ')}. Añade un firmante con ese rol.`;
+  }
   if (draft.signatories.length === 0) errors.signatories = 'Agrega al menos un firmante.';
   if (draft.signatories.length > MAX_SIGNATORIES) errors.signatories = `Máximo ${MAX_SIGNATORIES} firmantes por contrato.`;
 

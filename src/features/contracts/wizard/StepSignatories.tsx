@@ -179,7 +179,7 @@ export function StepSignatories({ draft, errors, onChange }: StepSignatoriesProp
           Testigo
         </Button>
         <Button variant="ghost" icon={<Plus />} onClick={() => add('contractor')} disabled={atLimit}>
-          Contratista
+          Por la institución
         </Button>
         <span className="ml-auto text-xs text-slate-500 tabular">
           {signatories.length} de {MAX_SIGNATORIES}
