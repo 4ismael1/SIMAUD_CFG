@@ -22,6 +22,10 @@ const ApprovalsPage = lazy(() => import('../features/approvals/ApprovalsPage').t
 const UsersPage = lazy(() => import('../features/users/UsersPage').then((m) => ({ default: m.UsersPage })));
 const ProfilePage = lazy(() => import('../features/profile/ProfilePage').then((m) => ({ default: m.ProfilePage })));
 const SettingsPage = lazy(() => import('../features/settings/SettingsPage').then((m) => ({ default: m.SettingsPage })));
+const TemplatesPage = lazy(() => import('../features/templates/TemplatesPage').then((m) => ({ default: m.TemplatesPage })));
+const TemplateEditorPage = lazy(() => import('../features/templates/TemplateEditorPage').then((m) => ({ default: m.TemplateEditorPage })));
+const RenewalsPage = lazy(() => import('../features/renewals/RenewalsPage').then((m) => ({ default: m.RenewalsPage })));
+const ReportsPage = lazy(() => import('../features/reports/ReportsPage').then((m) => ({ default: m.ReportsPage })));
 const ContractDetailPage = lazy(() => import('../features/contracts/ContractDetailPage').then((m) => ({ default: m.ContractDetailPage })));
 
 export const router = createBrowserRouter([
@@ -71,7 +75,11 @@ export const router = createBrowserRouter([
           { path: 'perfil', element: <ProfilePage /> },
           {
             element: <RoleRoute roles={['admin', 'supervisor']} />,
-            children: [{ path: 'aprobaciones', element: <ApprovalsPage /> }],
+            children: [
+              { path: 'aprobaciones', element: <ApprovalsPage /> },
+              { path: 'plantillas/nueva', element: <TemplateEditorPage /> },
+              { path: 'plantillas/:id', element: <TemplateEditorPage /> },
+            ],
           },
           {
             element: <RoleRoute roles={['admin']} />,
@@ -86,6 +94,9 @@ export const router = createBrowserRouter([
               { path: 'contratos', element: <ContractsListPage /> },
               { path: 'contratos/nuevo', element: <ContractWizardPage /> },
               { path: 'contratos/:id/editar', element: <ContractWizardPage /> },
+              { path: 'plantillas', element: <TemplatesPage /> },
+              { path: 'renovaciones', element: <RenewalsPage /> },
+              { path: 'reportes', element: <ReportsPage /> },
             ],
           },
           { path: '*', element: <NotFoundPage /> },

@@ -11,7 +11,7 @@ import type {
   Renewal,
   RenewalInput,
   RenewalQuery,
-  ContractRecord,
+  ContractListSummary,
   RenewalListItem,
   Paginated,
 } from "../types";
@@ -30,7 +30,7 @@ export function useEligibleRenewals() {
   return useQuery({
     queryKey: keys.renewals.eligible,
     queryFn: ({ signal }) =>
-      apiFetch<ContractRecord[]>("/renewals/eligible", { signal }),
+      apiFetch<ContractListSummary[]>("/renewals/eligible", { signal }),
   });
 }
 export function useCreateRenewal() {

@@ -1,4 +1,4 @@
-import type { Contract, PageQuery, User } from "./types";
+import type { Contract, ContractListSummary, PageQuery, User } from "./types";
 export type Priority = "low" | "medium" | "high" | "urgent";
 export type RenewalStatus = "pending" | "approved" | "rejected" | "cancelled";
 export interface RenewalInput {
@@ -27,7 +27,7 @@ export interface Renewal {
   updatedAt: string;
 }
 export interface RenewalListItem extends Renewal {
-  contract: ContractRecord;
+  contract: ContractListSummary;
   daysToExpiry: number | null;
   currentValue: string | null;
   variationPercent: string | null;
