@@ -15,8 +15,10 @@ export function useNavCounts(): NavCounts {
   const canRenew = hasRole('admin', 'supervisor', 'gestor');
 
   const signatures = useQuery({
-    queryKey: keys.signatures.list('pending'),
-    queryFn: ({ signal }) => apiFetch<SignatureInboxItem[]>('/me/signatures', { query: { status: 'pending' }, signal }),
+    // The inbox is paginated; the largest page the API allows covers any realistic queue for a badge.
+    queryKey: [...keys.signatures.list('pending'), 'nav-count'],
+    queryFn: ({ signal }) =>
+      apiFetch<Paginated<SignatureInboxItem>>('/me/signatures', { query: { status: 'pending', pageSize: 100 }, signal }),
     staleTime: COUNT_STALE_MS,
   });
 
@@ -36,7 +38,7 @@ export function useNavCounts(): NavCounts {
   });
 
   return {
-    pendingSignatures: signatures.data?.filter((item) => item.myTurn).length,
+    pendingSignatures: signatures.data?.data.filter((item) => item.myTurn).length,
     pendingApprovals: canApprove ? approvals.data?.length : undefined,
     urgentRenewals: canRenew ? urgentRenewals.data?.meta.total : undefined,
   };
