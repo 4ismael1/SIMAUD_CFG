@@ -33,7 +33,13 @@ export async function eventRoutes(app: FastifyInstance) {
     tickets.delete(key);
     if (!ticket || ticket.expires <= Date.now()) throw unauthorized();
     const [user] = await db.select().from(users).where(eq(users.id, ticket.userId));
-    if (!user || !user.isActive || user.deletedAt || user.role !== ticket.role)
+    if (
+      !user ||
+      !user.isActive ||
+      user.deletedAt ||
+      user.mustChangePassword ||
+      user.role !== ticket.role
+    )
       throw unauthorized();
     reply.hijack();
     reply.raw.writeHead(200, {

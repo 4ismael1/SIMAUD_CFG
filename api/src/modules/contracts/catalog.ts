@@ -1,3 +1,4 @@
+import { normalizeTemplateValues } from "../../lib/validation/template-values.js";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -127,7 +128,7 @@ export async function catalogRoutes(app: FastifyInstance) {
       if (defs.some((variable) => !active.has(variable.name)))
         throw new ApiError(403, "FORBIDDEN", "Variable no disponible.");
     }
-    return renderTemplate(input.content, input.values, defs);
+    return renderTemplate(input.content, normalizeTemplateValues(input.values, defs), defs);
   });
   async function txActiveNames() {
     return new Set(

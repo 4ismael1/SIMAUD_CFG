@@ -1,4 +1,4 @@
-import { getJobRuns } from "./service.js";
+import { getJobRuns, queueTestMail } from "./service.js";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { requireRole } from "../../plugins/auth.js";
@@ -16,6 +16,10 @@ export async function systemRoutes(app: FastifyInstance, mailer: Mailer) {
       req.body,
     );
     return updateSettings(patch);
+  });
+  app.post("/system/mail/test", admin, async (req, reply) => {
+    const { to } = parse(z.object({ to: z.email() }).strict(), req.body);
+    return reply.code(202).send(await queueTestMail(to));
   });
   app.get("/system/jobs", admin, async () => {
     return getJobRuns();

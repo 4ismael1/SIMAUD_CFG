@@ -1,3 +1,4 @@
+import { normalizeTemplateValues } from "../../lib/validation/template-values.js";
 import { addNotification, notificationLink } from "../notifications/service.js";
 import type { FastifyRequest } from "fastify";
 import { and, eq, isNull, or, sql } from "drizzle-orm";
@@ -12,8 +13,8 @@ import {
 } from "../../db/schema.js";
 import { ApiError } from "../../lib/errors.js";
 import { audit } from "../../lib/audit.js";
-import type { Mail } from "../../lib/mailer.js";
-import { env } from "../../config/env.js";
+import { enqueueMail } from "../../lib/mail/outbox.js";
+import type { MailTemplate } from "../../lib/mail/templates/index.js";
 import { renderTemplate } from "../../lib/render-template.js";
 import { resolveVariables } from "./catalog.js";
 export type Contract = typeof contracts.$inferSelect;
@@ -98,6 +99,7 @@ export async function prepareContent(
   tx: Transaction,
   content: string,
   values: Record<string, unknown>,
+  validateValues = true,
 ) {
   const { defs, names } = await resolveVariables(tx, content);
   const unknown = Object.keys(values).filter((versionNumber) => !names.includes(versionNumber));
@@ -110,6 +112,7 @@ export async function prepareContent(
     )
     .map((item) => item.name);
   if (missing.length) throw invalid("Faltan variables requeridas.", { missing });
+  if (validateValues) Object.assign(values, normalizeTemplateValues(values, defs));
   return renderTemplate(content, values, defs).html;
 }
 export async function reconcileSignatories(
@@ -230,7 +233,6 @@ export async function notify(
   type: string,
   recipients: { userId: string | null; email?: string }[],
   message: string,
-  mails: Mail[],
 ) {
   const seen = new Set<string>();
   for (const r of recipients) {
@@ -238,23 +240,17 @@ export async function notify(
     if (!key || seen.has(key)) continue;
     seen.add(key);
     let email = r.email;
-    let emailEnabled = true;
     if (r.userId) {
       const [u] = await tx
         .select({
           email: users.email,
           isActive: users.isActive,
           deletedAt: users.deletedAt,
-          preferences: users.notificationPreferences,
         })
         .from(users)
         .where(eq(users.id, r.userId));
       if (!u?.isActive || u.deletedAt) continue;
       email = u.email;
-      emailEnabled =
-        type === "signature_required"
-          ? u.preferences.emailOnSignatureRequired
-          : u.preferences.emailOnApprovalResult;
       await addNotification(tx, {
         userId: r.userId,
         type,
@@ -264,15 +260,14 @@ export async function notify(
         actionUrl: notificationLink(type, contract.id),
       });
     }
-    if (emailEnabled && email && ["signature_required", "approval_result"].includes(type))
-      mails.push({
-        to: email,
-        subject: "SIMAUD: " + contract.code,
-        text: message + " " + env.APP_URL.replace(/\/$/, "") + "/contratos/" + contract.id,
+    if (!r.userId && email)
+      await enqueueMail(tx, email, "SIMAUD: " + contract.code, type as MailTemplate, {
+        message,
+        contractId: contract.id,
       });
   }
 }
-export async function nextSigners(tx: Transaction, contract: Contract, mails: Mail[]) {
+export async function nextSigners(tx: Transaction, contract: Contract) {
   const pending = (await getSignatories(tx, contract.id)).filter(
     (signatories) => signatories.status !== "signed",
   );
@@ -283,7 +278,6 @@ export async function nextSigners(tx: Transaction, contract: Contract, mails: Ma
       "signature_required",
       pending.filter((signatories) => signatories.signingOrder === pending[0]!.signingOrder),
       "Tu firma es requerida.",
-      mails,
     );
 }
 export async function decorate(tx: Transaction | typeof db, contract: Contract) {

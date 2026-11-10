@@ -6,6 +6,7 @@ export type ErrorCode =
   | "FORBIDDEN"
   | "NOT_FOUND"
   | "CONFLICT"
+  | "PASSWORD_CHANGE_REQUIRED"
   | "EMAIL_NOT_CONFIRMED"
   | "INVALID_CREDENTIALS"
   | "RATE_LIMITED"
@@ -44,8 +45,18 @@ export function installErrors(app: FastifyInstance) {
       error && typeof error === "object"
         ? (error as { statusCode?: number; validation?: unknown; name?: string })
         : {};
+    if (hasZodFastifySchemaValidationErrors(error))
+      return reply.code(400).send({
+        error: {
+          code: "VALIDATION_ERROR",
+          message: "Los datos enviados no son válidos.",
+          details: error.validation.map((issue) => ({
+            field: issue.instancePath.replace(/^\//, "").replaceAll("/", "."),
+            message: issue.message,
+          })),
+        },
+      });
     if (
-      hasZodFastifySchemaValidationErrors(error) ||
       http.validation ||
       http.statusCode === 400 ||
       http.statusCode === 413 ||

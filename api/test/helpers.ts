@@ -9,6 +9,15 @@ import type { Mail } from "../src/lib/mailer.js";
 export { db, pool };
 export const testPassword = "TestPassword123!";
 let passwordHash: string;
+let documentSequence = 100;
+export function testCedula() {
+  const prefix = "001" + String(documentSequence++).padStart(7, "0");
+  const sum = [...prefix].reduce((total, digit, index) => {
+    const product = Number(digit) * (index % 2 === 0 ? 1 : 2);
+    return total + (product > 9 ? product - 9 : product);
+  }, 0);
+  return prefix + ((10 - (sum % 10)) % 10);
+}
 export async function prepareDatabase() {
   await migrateTestDatabase();
   passwordHash = await hashPassword(testPassword);
@@ -21,7 +30,7 @@ export async function createUser(overrides: Partial<typeof users.$inferInsert> =
       email: randomUUID() + "@example.com",
       name: "Usuario prueba",
       phone: "8095550000",
-      cedula: randomUUID(),
+      cedula: testCedula(),
       passwordHash,
       role: "user",
       emailConfirmedAt: new Date(),
@@ -38,7 +47,7 @@ export function cookie(response: { headers: Record<string, unknown> }) {
   return String(Array.isArray(value) ? value[0] : value).split(";")[0]!;
 }
 export function mailToken(mails: Mail[], index = mails.length - 1) {
-  return new URL(mails[index]!.text.split(" ").at(-1)!).searchParams.get("token")!;
+  return new URL(mails[index]!.text.trim().split(/\s+/).at(-1)!).searchParams.get("token")!;
 }
 export async function signIn(
   app: FastifyInstance,

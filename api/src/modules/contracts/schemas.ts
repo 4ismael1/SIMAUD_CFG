@@ -1,3 +1,12 @@
+import {
+  zCedula,
+  zPhoneDo,
+  zEmail,
+  zPersonName,
+  zMoneyInput,
+  zIsoDate,
+  zFreeText,
+} from "../../lib/validation/zod.js";
 import { z } from "zod";
 import {
   cancellationReason,
@@ -18,18 +27,18 @@ export function parse<T>(schema: z.ZodType<T>, value: unknown): T {
   return result.data;
 }
 export const uuid = z.uuid();
-export const text = z.string().trim().min(1).max(1000);
+export const text = zFreeText();
 export const values = z.record(
   z.string(),
   z.union([z.string().max(20000), z.number().finite(), z.null()]),
 );
-export const date = z.iso.date();
+export const date = zIsoDate;
 export const signatory = z
   .object({
-    name: text,
-    email: z.email().transform((item) => item.toLowerCase()),
-    phone: z.string().trim().max(50).optional(),
-    cedula: z.string().trim().max(100).optional(),
+    name: zPersonName,
+    email: zEmail,
+    phone: zPhoneDo.optional(),
+    cedula: zCedula.optional(),
     role: z.enum(signatoryRole.enumValues),
     signingOrder: z.number().int().min(1).max(1000),
   })
@@ -39,25 +48,38 @@ export const contractFields = z
     templateId: uuid,
     title: text,
     variables: values,
-    value: z.number().finite().nonnegative().max(9999999999999.99),
+    value: zMoneyInput,
     startDate: date,
     endDate: date,
-    notes: z.string().max(20000).nullable().optional(),
+    notes: zFreeText(1, 20000).nullable().optional(),
     signatories: z.array(signatory).min(1).max(100),
   })
   .strict();
-export const contractInput = contractFields
-  .refine((item) => item.endDate > item.startDate, {
-    message: "La fecha final debe ser posterior al inicio.",
+type ContractRelations = {
+  startDate: string;
+  endDate: string;
+  signatories: { email: string; cedula?: string }[];
+};
+function checkContractRelations(input: ContractRelations, context: z.RefinementCtx) {
+  if (input.endDate <= input.startDate)
+    context.addIssue({
+      code: "custom",
+      path: ["endDate"],
+      message: "La fecha final debe ser posterior al inicio.",
+    });
+  const emails = input.signatories.map((signer) => signer.email);
+  const documents = input.signatories.map((signer) => signer.cedula).filter(Boolean);
+  if (new Set(emails).size !== emails.length || new Set(documents).size !== documents.length)
+    context.addIssue({ code: "custom", path: ["signatories"], message: "Firmantes duplicados." });
+}
+export const contractRelations = z
+  .object({
+    startDate: z.string(),
+    endDate: z.string(),
+    signatories: z.array(z.object({ email: z.string(), cedula: z.string().optional() })),
   })
-  .refine(
-    (item) =>
-      new Set(item.signatories.map((signatories) => signatories.email)).size ===
-        item.signatories.length &&
-      new Set(item.signatories.map((signatories) => signatories.cedula).filter(Boolean)).size ===
-        item.signatories.filter((signatories) => signatories.cedula).length,
-    { message: "Firmantes duplicados." },
-  );
+  .superRefine(checkContractRelations);
+export const contractInput = contractFields.superRefine(checkContractRelations);
 export const variableInput = z
   .object({
     name: z.string().regex(/^[a-z][a-z0-9_]*$/),

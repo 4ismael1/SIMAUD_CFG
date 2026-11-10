@@ -17,6 +17,7 @@ try {
       "gestor@simaud.local",
       "usuario@simaud.local",
     ];
+    const cedulas = ["00100000017", "00100000025", "00100000033", "00100000041"];
     const missing = emails.some((email) => !existing.some((u) => u.email === email));
     if (missing) {
       const password = env.SEED_PASSWORD ?? "Simaud1!" + randomBytes(18).toString("base64url");
@@ -26,7 +27,9 @@ try {
           .insert(users)
           .values({
             email: emails[i]!,
-            name: role,
+            name: "Usuario " + role,
+            phone: "809555010" + i,
+            cedula: cedulas[i]!,
             role,
             passwordHash,
             emailConfirmedAt: new Date(),

@@ -6,7 +6,7 @@ if (env.NODE_ENV === "production") {
   console.error("db:reset está prohibido en producción.");
   process.exitCode = 1;
 } else {
-  const target = new URL(env.NODE_ENV === "test" ? env.DATABASE_URL_TEST : env.DATABASE_URL);
+  const target = new URL(env.NODE_ENV === "test" ? env.DATABASE_URL_TEST! : env.DATABASE_URL);
   if (!["/simaud_dev", "/simaud_test"].includes(target.pathname))
     throw new Error("db:reset solo permite simaud_dev o simaud_test");
   try {

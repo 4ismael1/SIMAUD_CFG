@@ -9,7 +9,6 @@ import { z } from "zod";
 import { db } from "../../db/client.js";
 import { contracts, contractSignatories as signatories, files } from "../../db/schema.js";
 import { authenticate } from "../../plugins/auth.js";
-import type { Mail, Mailer } from "../../lib/mailer.js";
 import { ApiError } from "../../lib/errors.js";
 import { parse, uuid } from "./schemas.js";
 import { transition } from "./state-machine.js";
@@ -22,7 +21,7 @@ function safePath(name: string) {
 export async function removeSignatureFiles(names: string[]) {
   for (const name of names) await unlink(safePath(name)).catch(() => {});
 }
-export async function signatureRoutes(app: FastifyInstance, mailer: Mailer) {
+export async function signatureRoutes(app: FastifyInstance) {
   const auth = { preHandler: authenticate };
   app.get("/me/signatures", auth, async (req) => {
     const query = parse(
@@ -80,7 +79,6 @@ export async function signatureRoutes(app: FastifyInstance, mailer: Mailer) {
     if (Date.parse(viewed) > Date.now())
       throw contractService.invalid("viewedAt no puede estar en el futuro.");
     const name = randomUUID() + ".png";
-    const mails: Mail[] = [];
     let written = false;
     let finalName: string | undefined;
     try {
@@ -137,9 +135,8 @@ export async function signatureRoutes(app: FastifyInstance, mailer: Mailer) {
             "contract_signed",
             [{ userId: contract.createdBy }, ...allSignatories],
             "El contrato ha sido firmado por todos.",
-            mails,
           );
-        else await contractService.nextSigners(tx, contract, mails);
+        else await contractService.nextSigners(tx, contract);
         await contractService.record(
           tx,
           req,
@@ -164,7 +161,6 @@ export async function signatureRoutes(app: FastifyInstance, mailer: Mailer) {
       if (finalName) await removeFinalPdf(finalName);
       throw error;
     }
-    for (const mail of mails) await mailer(mail);
     return { message: "Firma registrada." };
   });
   app.get("/files/signatures/:id", auth, async (req, reply) => {

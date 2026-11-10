@@ -1,3 +1,4 @@
+import { dispatchEmails } from "./email-dispatch.js";
 import { updateContractStatus } from "./update-contract-status.js";
 import { expiryNotifications } from "./expiry-notifications.js";
 import { cleanup } from "./cleanup.js";
@@ -7,7 +8,12 @@ import { jobRuns } from "../db/schema.js";
 import { env } from "../config/env.js";
 import type { Mailer } from "../lib/mailer.js";
 
-export const jobNames = ["contract-status", "expiry-notifications", "cleanup"] as const;
+export const jobNames = [
+  "contract-status",
+  "expiry-notifications",
+  "cleanup",
+  "email-dispatch",
+] as const;
 export type JobName = (typeof jobNames)[number];
 
 export function santoDomingoDate(date = new Date()) {
@@ -38,8 +44,10 @@ export async function runJob(name: JobName, mailer: Mailer, now = new Date()) {
       name === "contract-status"
         ? await updateContractStatus(today)
         : name === "expiry-notifications"
-          ? await expiryNotifications(today, mailer)
-          : await cleanup(today);
+          ? await expiryNotifications(today)
+          : name === "email-dispatch"
+            ? await dispatchEmails(mailer, now)
+            : await cleanup(today);
     await connection.query("update job_runs set finished_at=now(),ok=true,summary=$1 where id=$2", [
       JSON.stringify(summary),
       runId,
@@ -70,6 +78,7 @@ export function startScheduler(mailer: Mailer, onError: () => void) {
     void execution.finally(() => running.delete(execution));
   };
   const tasks = [
+    cron.schedule("* * * * *", () => execute("email-dispatch")),
     cron.schedule("15 0 * * *", () => execute("contract-status"), {
       timezone: "America/Santo_Domingo",
     }),

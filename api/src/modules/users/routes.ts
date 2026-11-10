@@ -1,15 +1,15 @@
+import { zCedula } from "../../lib/validation/zod.js";
 import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "../../db/client.js";
 import { users } from "../../db/schema.js";
-import type { Mailer } from "../../lib/mailer.js";
 import { ApiError } from "../../lib/errors.js";
 import { requireRole } from "../../plugins/auth.js";
 import * as schema from "./schemas.js";
 import * as service from "./service.js";
-export async function userRoutes(app: FastifyInstance, send: Mailer) {
+export async function userRoutes(app: FastifyInstance) {
   const a = app.withTypeProvider<ZodTypeProvider>();
   const admin = requireRole("admin");
   a.get(
@@ -17,7 +17,7 @@ export async function userRoutes(app: FastifyInstance, send: Mailer) {
     {
       preHandler: requireRole("admin", "supervisor", "gestor"),
       schema: {
-        querystring: z.object({ cedula: z.string().trim().min(1).max(40) }),
+        querystring: z.object({ cedula: zCedula }),
       },
     },
     async (r) => {
@@ -44,7 +44,7 @@ export async function userRoutes(app: FastifyInstance, send: Mailer) {
     service.findUser(r.params.id),
   );
   a.post("/", { preHandler: admin, schema: { body: schema.createUserBody } }, async (r, reply) => {
-    const result = await service.createUser(r.body, send);
+    const result = await service.createUser(r.body);
     r.log.info(
       {
         actorId: r.user.id,

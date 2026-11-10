@@ -1,3 +1,4 @@
+import { zCedula } from "../../lib/validation/zod.js";
 import { z } from "zod";
 import { email, password, profile } from "../users/schemas.js";
 export const registerBody = profile.extend({ email, password }); // Unknown keys (including role) are discarded.
@@ -13,6 +14,6 @@ export const resetBody = tokenBody.extend({ password });
 export const availabilityQuery = z
   .object({
     email: email.optional(),
-    cedula: z.string().trim().min(1).max(40).optional(),
+    cedula: zCedula.optional(),
   })
   .refine((v) => v.email !== undefined || v.cedula !== undefined);

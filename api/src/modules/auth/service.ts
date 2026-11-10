@@ -2,11 +2,10 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { and, eq, isNull, ne } from "drizzle-orm";
 import { db, type Transaction } from "../../db/client.js";
 import { authTokens, refreshTokens, users } from "../../db/schema.js";
-import { env } from "../../config/env.js";
 import { ApiError, invalidCredentials, unauthorized } from "../../lib/errors.js";
 import { hashPassword, verifyPassword } from "../../lib/auth/password.js";
 import { createAccessToken } from "../../lib/auth/jwt.js";
-import type { Mailer, Mail } from "../../lib/mailer.js";
+import { enqueueMail } from "../../lib/mail/outbox.js";
 import { publicUser } from "../users/schemas.js";
 export const randomToken = () => randomBytes(32).toString("hex");
 export const tokenHash = (token: string) => createHash("sha256").update(token).digest("hex");
@@ -33,6 +32,7 @@ export async function issueAuthToken(
   user: typeof users.$inferSelect,
   type: "email_confirmation" | "password_reset",
   destination = user.email,
+  invitation = false,
 ) {
   // Invalidate older tokens of the same purpose. Caller holds the user lock.
   await tx
@@ -49,17 +49,17 @@ export async function issueAuthToken(
     email: destination,
     expiresAt: new Date(Date.now() + (type === "email_confirmation" ? 24 : 1) * 3600000),
   });
-  const confirmation = type === "email_confirmation";
-  const link =
-    env.APP_URL.replace(/\/$/, "") +
-    (confirmation ? "/auth/confirmar" : "/auth/restablecer") +
-    "?token=" +
-    token;
-  return {
-    to: destination,
-    subject: confirmation ? "Confirma tu email en SIMAUD" : "Restablece tu contraseña de SIMAUD",
-    text: (confirmation ? "Confirma tu email: " : "Establece tu contraseña: ") + link,
-  } satisfies Mail;
+  return enqueueMail(
+    tx,
+    destination,
+    invitation
+      ? "Te invitamos a SIMAUD"
+      : type === "email_confirmation"
+        ? "Confirma tu email en SIMAUD"
+        : "Restablece tu contraseña de SIMAUD",
+    invitation ? "invitation" : type,
+    { name: user.name, token },
+  );
 }
 export async function newSession(
   tx: Transaction,
@@ -81,16 +81,13 @@ export async function newSession(
     .returning();
   return { token, id: row!.id };
 }
-export async function register(
-  input: {
-    email: string;
-    password: string;
-    name: string;
-    phone: string;
-    cedula: string;
-  },
-  send: Mailer,
-) {
+export async function register(input: {
+  email: string;
+  password: string;
+  name: string;
+  phone: string;
+  cedula: string;
+}) {
   const passwordHash = await hashPassword(input.password);
   const result = await db.transaction(async (tx) => {
     const [user] = await tx
@@ -104,10 +101,9 @@ export async function register(
         role: "user",
       })
       .returning();
-    const mail = await issueAuthToken(tx, user!, "email_confirmation");
-    return { user: publicUser(user!), mail };
+    await issueAuthToken(tx, user!, "email_confirmation");
+    return { user: publicUser(user!) };
   });
-  await send(result.mail);
   return {
     user: result.user,
     message: "Revisa tu email para confirmar la cuenta.",
@@ -137,7 +133,7 @@ export async function login(
     const session = await newSession(tx, user.id, context);
     return {
       accessToken: await createAccessToken(user, session.id),
-      user: publicUser(updated!),
+      user: { ...publicUser(updated!), mustChangePassword: updated!.mustChangePassword },
       refreshToken: session.token,
     };
   });
@@ -175,6 +171,12 @@ export async function refresh(
       return null;
     }
     if (!active(user) || !user.emailConfirmedAt || old.expiresAt <= new Date()) return null;
+    if (user.mustChangePassword)
+      throw new ApiError(
+        403,
+        "PASSWORD_CHANGE_REQUIRED",
+        "Debes cambiar tu contraseña temporal antes de renovar la sesión.",
+      );
     const next = await newSession(tx, user.id, context, old.familyId);
     await tx
       .update(refreshTokens)
@@ -195,19 +197,14 @@ export async function logout(raw: string | undefined) {
       .set({ revokedAt: new Date() })
       .where(eq(refreshTokens.tokenHash, tokenHash(raw)));
 }
-export async function requestToken(
-  email: string,
-  type: "email_confirmation" | "password_reset",
-  send: Mailer,
-) {
+export async function requestToken(email: string, type: "email_confirmation" | "password_reset") {
   const [candidate] = await db.select().from(users).where(eq(users.email, email));
   if (!active(candidate)) return;
-  const mail = await db.transaction(async (tx) => {
+  await db.transaction(async (tx) => {
     const user = await lockUser(tx, candidate.id);
     if (!active(user) || (type === "email_confirmation" && user.emailConfirmedAt)) return null;
     return issueAuthToken(tx, user, type);
   });
-  if (mail) await send(mail);
 }
 export async function consumeToken(
   raw: string,
@@ -242,7 +239,20 @@ export async function consumeToken(
         .where(eq(users.id, user.id));
     } else {
       if (!passwordHash) throw invalid();
-      await tx.update(users).set({ passwordHash }).where(eq(users.id, user.id));
+      if (
+        user.mustChangePassword &&
+        password &&
+        (await verifyPassword(user.passwordHash, password))
+      )
+        throw new ApiError(
+          400,
+          "VALIDATION_ERROR",
+          "Elige una contraseña distinta de la temporal.",
+        );
+      await tx
+        .update(users)
+        .set({ passwordHash, mustChangePassword: false })
+        .where(eq(users.id, user.id));
     }
     await tx.update(authTokens).set({ usedAt: new Date() }).where(eq(authTokens.id, token.id));
     await revokeSessions(tx, user.id);

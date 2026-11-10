@@ -17,11 +17,12 @@ import {
   files,
 } from "../../db/schema.js";
 import { authenticate, requireRole } from "../../plugins/auth.js";
-import type { Mail, Mailer } from "../../lib/mailer.js";
 import {
   parse,
   uuid,
   contractInput,
+  contractRelations,
+  values,
   contractFields,
   pageInput,
   actionInput,
@@ -30,7 +31,7 @@ import {
 import { transition } from "./state-machine.js";
 import * as contractService from "./service.js";
 import { signatureRoutes, removeSignatureFiles } from "./signatures.js";
-export async function contractRoutes(app: FastifyInstance, mailer: Mailer) {
+export async function contractRoutes(app: FastifyInstance) {
   const auth = { preHandler: authenticate };
   const staff = { preHandler: requireRole("admin", "supervisor", "gestor") };
   const idOf = (req: FastifyRequest) => parse(uuid, (req.params as { id: string }).id);
@@ -193,11 +194,11 @@ export async function contractRoutes(app: FastifyInstance, mailer: Mailer) {
         req.body,
       );
       if (!Object.keys(patch).length) throw contractService.invalid("Debe indicar algún cambio.");
-      const merged = parse(contractInput, {
+      const merged = {
         templateId: patch.templateId ?? contract.templateId,
         title: patch.title ?? contract.title,
-        variables: patch.variables ?? contract.variablesData,
-        value: patch.value ?? Number(contract.contractValue),
+        variables: patch.variables ?? parse(values, contract.variablesData),
+        value: patch.value ?? contract.contractValue ?? "0",
         startDate: patch.startDate ?? contract.startDate,
         endDate: patch.endDate ?? contract.endDate,
         notes: patch.notes === undefined ? contract.notes : patch.notes,
@@ -211,7 +212,8 @@ export async function contractRoutes(app: FastifyInstance, mailer: Mailer) {
             role: item.role,
             signingOrder: item.signingOrder,
           })),
-      });
+      };
+      parse(contractRelations, merged);
       let content = patch.content ?? contract.content;
       if (patch.templateId && patch.templateId !== contract.templateId) {
         const [template] = await tx
@@ -223,7 +225,12 @@ export async function contractRoutes(app: FastifyInstance, mailer: Mailer) {
           throw contractService.invalid("Plantilla no disponible.");
         content = patch.content ?? template.content;
       }
-      const generatedContent = await contractService.prepareContent(tx, content, merged.variables);
+      const generatedContent = await contractService.prepareContent(
+        tx,
+        content,
+        merged.variables,
+        patch.variables !== undefined,
+      );
       const changes = {
         templateId: merged.templateId,
         title: merged.title,
@@ -264,7 +271,6 @@ export async function contractRoutes(app: FastifyInstance, mailer: Mailer) {
   ] as const) {
     app.post("/contracts/:id/" + action, auth, async (req) => {
       const id = idOf(req);
-      const mails: Mail[] = [];
       await db.transaction(async (tx) => {
         const contract = await contractService.getContract(tx, id, true);
         await contractService.linkSignatories(tx, req.user);
@@ -278,7 +284,6 @@ export async function contractRoutes(app: FastifyInstance, mailer: Mailer) {
           contract,
           allSignatories,
           input,
-          mails,
           id,
           action,
         });
@@ -298,7 +303,6 @@ export async function contractRoutes(app: FastifyInstance, mailer: Mailer) {
           comment: input.comment,
         });
       });
-      for (const mail of mails) await mailer(mail);
       return detail(req, id);
     });
   }
@@ -440,5 +444,5 @@ export async function contractRoutes(app: FastifyInstance, mailer: Mailer) {
       }),
     );
   });
-  await signatureRoutes(app, mailer);
+  await signatureRoutes(app);
 }

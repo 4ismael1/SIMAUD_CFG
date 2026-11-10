@@ -3,7 +3,7 @@ import { env } from "./config/env.js";
 import { pool } from "./db/client.js";
 const app = await buildApp();
 try {
-  await app.listen({ port: env.PORT, host: "127.0.0.1" });
+  await app.listen({ port: env.PORT, host: env.HOST });
 } catch {
   app.log.error("No se pudo iniciar la API.");
   await pool.end();

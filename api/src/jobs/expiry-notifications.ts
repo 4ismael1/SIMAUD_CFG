@@ -3,31 +3,21 @@ import { db } from "../db/client.js";
 import { expiryDeliveries } from "../db/schema.js";
 import { getSettings } from "../modules/system/settings.js";
 import { addNotification } from "../modules/notifications/service.js";
-import { env } from "../config/env.js";
-import type { Mailer, Mail } from "../lib/mailer.js";
 
-export async function expiryNotifications(today: string, mailer: Mailer) {
+export async function expiryNotifications(today: string) {
   const settings = await getSettings();
-  const mails: Mail[] = [];
-  const summary = await db.transaction(async (tx) => {
+  return db.transaction(async (tx) => {
     const recipients = await tx.execute<{
       contract_id: string;
       user_id: string;
       threshold: number;
       title: string;
-      email: string;
-      email_enabled: boolean;
     }>(sql`
       select
         distinct c.id contract_id,
         u.id user_id,
         (c.end_date - ${today}::date)::int threshold,
-        c.title,
-        u.email,
-        coalesce(
-          (u.notification_preferences ->> 'emailOnExpiry')::boolean,
-          true
-        ) email_enabled
+        c.title
       from contracts c
       join users u on u.is_active
       and u.deleted_at is null
@@ -67,17 +57,8 @@ export async function expiryNotifications(today: string, mailer: Mailer) {
       });
       if (notification) {
         sent++;
-        if (row.email_enabled)
-          mails.push({
-            to: row.email,
-            subject: "SIMAUD: vencimiento de contrato",
-            text:
-              notification.message + " " + env.APP_URL.replace(/\/$/, "") + notification.actionUrl,
-          });
       }
     }
     return { sent };
   });
-  for (const mail of mails) await mailer(mail);
-  return summary;
 }

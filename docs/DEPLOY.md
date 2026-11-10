@@ -4,15 +4,15 @@ Guía para un host Linux con Docker Engine y Docker Compose v2. Ejecutar desde l
 
 ## Condiciones previas a producción
 
-- **Bloqueante actual:** api/src/server.ts escucha en 127.0.0.1. El responsable de la API debe permitir 0.0.0.0 dentro del contenedor (preferiblemente mediante HOST validado, con valor local seguro por defecto). No publicar puertos de API como solución. Hasta corregirlo, su healthcheck local puede pasar pero nginx dará 502.
+- La API usa HOST=127.0.0.1 por defecto; Compose fija HOST=0.0.0.0 dentro del contenedor sin publicar su puerto.
 - La web aún importa Google Fonts en src/index.css. Autoalojar Geist, Geist Mono y Source Serif 4, con sus licencias, y eliminar esa importación antes del build final. La CSP las bloquea y mientras tanto se usan fuentes de reserva. No se necesita Internet para los PDF: las fuentes Roboto de api/assets/fonts ya están en la imagen.
-- El seed existente crea cuatro cuentas de demostración, datos y contratos de ejemplo. **No ejecutar db:seed en producción.** Falta un comando que cree solo el primer administrador con email institucional y contraseña segura. El equipo de API debe entregarlo antes de abrir el servicio. No promover cuentas con SQL improvisado ni usar credenciales demo.
+- **No ejecutar db:seed en producción.** Crear solo el primer administrador con el comando descrito abajo.
 - Probar los flujos reales con la CSP estricta: firmas, gráficos, documentos y exportaciones. Los estilos inline de librerías o contenido de plantillas requieren adaptación del frontend si el navegador los bloquea. No añadir unsafe-inline para evitar esa revisión.
 
 ## Requisitos y preparación
 
 1. Host Linux con arquitectura igual a la de las imágenes preparadas (por ejemplo linux/amd64), Docker con plugin Compose v2 y espacio para BD, uploads y hasta once juegos de backup. Usar disco local fiable para PostgreSQL.
-2. DNS institucional para el dominio; firewall entrante solo 80/443 y administración restringida. PostgreSQL y API no publican puertos. API necesita alcanzar SMTP institucional; no necesita salida general a Internet durante la ejecución.
+2. DNS institucional para el dominio; firewall entrante solo 80/443 y administración restringida. PostgreSQL y API no publican puertos. API necesita salida HTTPS a api.resend.com si MAIL_DRIVER=resend, o al SMTP institucional si MAIL_DRIVER=smtp.
 3. Certificado y cadena válidos para ese dominio. Guardar fullchain.pem y privkey.pem en deploy/certs, con acceso solo a TI. El directorio completo se monta como solo lectura para que las sustituciones de archivos se vean dentro del contenedor.
 4. Copiar la plantilla de variables y preparar los directorios:
 
@@ -28,7 +28,7 @@ openssl rand -base64 48
 
 Introducir los valores generados en POSTGRES_PASSWORD/DATABASE_URL y JWT_ACCESS_SECRET respectivamente. No guardarlos en tickets ni capturas. En la URL de BD usar db:5432, nunca el túnel de desarrollo. Si las contraseñas contienen caracteres especiales, codificarlos como componentes de URL; hexadecimal evita ese problema para PostgreSQL. SMTP_URL también debe llevar credenciales codificadas. Usar smtps con 465 o el esquema admitido por el servidor SMTP y comprobar su TLS.
 
-SERVER_NAME contiene solo el nombre DNS, sin esquema ni barras. APP_URL es el origen HTTPS público correspondiente, sin ruta. DATABASE_URL_TEST es una URL inerte obligatoria por el validador actual; no se crea esa BD y no se ejecutan tests contra producción. NODE_ENV, PORT, TRUST_PROXY y JOBS_ENABLED están fijados por Compose. No definir SEED_PASSWORD.
+SERVER_NAME contiene solo el nombre DNS, sin esquema ni barras. APP_URL es el origen HTTPS público correspondiente, sin ruta. DATABASE_URL_TEST no es necesaria en producción; omitirla y no ejecutar tests contra producción. NODE_ENV, HOST, PORT, TRUST_PROXY y JOBS_ENABLED están fijados por Compose. No definir SEED_PASSWORD.
 
 .env.prod no está cubierto por el .gitignore actual. Excluir localmente /.env.prod, /deploy/certs/ y /deploy/backups/ mediante .git/info/exclude, o mantener la instalación sin Git. Nunca versionar secretos, certificados privados ni backups. Los contextos Docker usan listas de inclusión y excluyen los archivos de entorno.
 
@@ -84,9 +84,15 @@ dc ps
 dc exec api node --input-type=module -e "const response = await fetch('http://127.0.0.1:3000/api/v1/health'); console.log(response.status); process.exit(response.ok ? 0 : 1);"
 ```
 
-Las migraciones son explícitas y fallan con código distinto de cero. No continuar si fallan. Ejecutar después el futuro comando de primer administrador revisado por el equipo de API. El paquete actual no permite completar ese paso de producción: no sustituirlo por el seed de demostración.
+Las migraciones son explícitas y fallan con código distinto de cero. No continuar si fallan. Crear el administrador antes de abrir tráfico:
 
-Después de resolver ese pendiente:
+```sh
+dc exec api node dist/db/create-admin.js --name "Administración" --email admin@universidad.example --cedula 001-1234567-8
+```
+
+La contraseña temporal se genera y muestra una sola vez después de confirmar la creación. Guardarla en un gestor de contraseñas. También admite ADMIN_NAME, ADMIN_EMAIL, ADMIN_CEDULA y ADMIN_PASSWORD mediante un entorno protegido; una contraseña proporcionada no se imprime. No pasar la contraseña por argumentos. Si el email ya existe no modifica la cuenta. El usuario queda admin con correo confirmado y must_change_password=true. El login devuelve user.mustChangePassword; hasta cambiarla, solo permite PATCH /api/v1/me/password y logout entre las operaciones de sesión. El cambio recibe currentPassword/newPassword y Bearer; el resto responde PASSWORD_CHANGE_REQUIRED. No se requiere seed ni tsx.
+
+Continuar:
 
 ```sh
 dc up -d --no-build --pull never web backup
@@ -170,15 +176,33 @@ Los logs Docker rotan a tres archivos de 10 MiB por servicio. No registrar token
 
 | Síntoma                                  | Comprobación                                                                                                                                                  |
 | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 502 con API healthy                      | Resolver el bind 127.0.0.1 del servidor API. Revisar DNS interno y puerto 3000.                                                                               |
-| API unhealthy                            | BD healthy, DATABASE_URL, migraciones, secretos de longitud válida y SMTP_URL obligatorio.                                                                    |
+| 502 con API healthy                      | Comprobar HOST=0.0.0.0 en API, DNS interno y puerto 3000.                                                                                                     |
+| API unhealthy                            | BD healthy, DATABASE_URL, migraciones, secretos de longitud válida y MAIL_DRIVER, MAIL_FROM y credenciales del proveedor.                                     |
 | nginx no arranca                         | Certificados montados con nombres correctos, clave legible, SERVER_NAME y nginx -t.                                                                           |
 | Sesión no persiste / 403 de origen       | Acceder por HTTPS, APP_URL idéntico al origen público, cookies Secure y proxy de un salto.                                                                    |
 | SSE tarda en entregar                    | Usar /api/v1/events, buffering/gzip desactivados y revisar proxies institucionales anteriores.                                                                |
 | Fuentes o estilos ausentes               | Autoalojar fuentes; revisar consola CSP y adaptar estilos inline en frontend.                                                                                 |
 | Upload falla                             | API limita archivo y JSON a 2 MiB; nginx permite 3 MiB para el sobre multipart. Revisar uid/gid de storage.                                                   |
-| Correo no llega                          | Ruta de salida a SMTP institucional, DNS, credenciales codificadas y TLS del servidor SMTP.                                                                   |
+| Correo no llega                          | MAIL_DRIVER, outbox en GET /system/jobs, credenciales, dominio verificado o salida SMTP y TLS.                                                                |
 | Backup no aparece                        | 02:00 UTC, permisos del bind BACKUP_DIR, disco libre, logs y bloqueos residuales.                                                                             |
 | Cambió la contraseña de BD y falla login | POSTGRES_PASSWORD solo inicializa un volumen vacío. Rotar el rol de forma controlada y actualizar DATABASE_URL; cambiar .env.prod no altera un rol existente. |
 
-Las redes database y proxy son internas. Solo web publica 80/443. API tiene red mail para salida SMTP y web tiene red public para entrada. TRUST_PROXY=1 supone exactamente un proxy nginx antes de Fastify: si TI añade otro proxy, revisar expresamente esta cadena y la sobrescritura de X-Forwarded-For.
+Las redes database y proxy son internas. Solo web publica 80/443. API tiene red mail para salida HTTPS a Resend o SMTP y web tiene red public para entrada. TRUST_PROXY=1 supone exactamente un proxy nginx antes de Fastify: si TI añade otro proxy, revisar expresamente esta cadena y la sobrescritura de X-Forwarded-For.
+
+## Correo: Resend y SMTP institucional
+
+Con MAIL_DRIVER=resend, añadir en el panel de Resend un dominio o subdominio institucional bajo control de TI. Copiar los registros SPF/DKIM generados por Resend en el DNS institucional y esperar a que el panel indique verificado. Usar exactamente los nombres, tipos y valores generados, sin sustituirlos por ejemplos. Definir MAIL_FROM con una dirección de ese dominio y RESEND_API_KEY con una clave de envío. Configurar MAIL_REPLY_TO si las respuestas deben ir a soporte. [Documentación oficial para verificar dominio y DNS](https://resend.com/docs/add-a-domain).
+
+Para pasar a correo institucional basta cambiar MAIL_DRIVER=smtp, quitar RESEND_API_KEY y definir SMTP_URL (por ejemplo smtps://usuario:clave@smtp.universidad.example:465, con usuario/clave codificados como URL). Mantener MAIL_FROM autorizado por ese servidor y MAIL_REPLY_TO si aplica. No desactivar la verificación de certificados TLS. Reiniciar/recrear la API para cargar las variables:
+
+```sh
+dc up -d --no-build --pull never --force-recreate api
+```
+
+No se usa log en producción: el arranque falla si falta un proveedor real o su configuración. En desarrollo log solo imprime destinatario, asunto y tipo, sin cuerpo ni enlaces. Los correos de confirmación, recuperación, invitación, firmas, aprobación/devolución, activación, vencimientos 30/15/7/1 y renovaciones se encolan dentro de sus transacciones. Las preferencias controlan avisos; los correos de seguridad siempre se encolan.
+
+Para probar envío real, iniciar sesión como admin tras cambiar la contraseña temporal y realizar POST /api/v1/system/mail/test con JSON {"to":"buzon-controlado@universidad.example"} y Authorization Bearer. Debe responder 202 con id. Esperar al siguiente minuto con JOBS_ENABLED=true o ejecutar POST /api/v1/system/jobs/email-dispatch/run con el mismo Bearer. Consultar GET /api/v1/system/jobs: email-dispatch incluye outbox.pending y outbox.failed; revisar summary y confirmar recepción de HTML y texto en el buzón controlado. No registrar JWT, claves o enlaces de seguridad en terminales compartidos.
+
+La outbox reintenta fallos temporales hasta 6 intentos con esperas exponenciales (1/2/4/8/16 minutos); 4xx permanentes marcan failed sin reintento. 429, 5xx, HTTP 408 y timeouts son temporales. Cada correo se bloquea al despacharse y el job usa advisory lock entre instancias. En Resend la clave de idempotencia es el id de outbox; [su ventana es de 24 horas](https://resend.com/docs/dashboard/emails/idempotency-keys). SMTP conserva Message-ID, pero una caída entre aceptación y commit puede repetir una entrega. Esta limitación requiere conciliación operativa, no reintentos manuales indiscriminados.
+
+Los enviados se limpian tras 30 días y se vacía su payload al entregarlos. Los payloads pendientes/fallidos pueden incluir tokens: proteger BD y backups. No hay reenvío automático de failed: corregir la configuración y solicitar un nuevo enlace/aviso o un correo de prueba. La respuesta de Resend/SMTP se sanea antes de guardar last_error.

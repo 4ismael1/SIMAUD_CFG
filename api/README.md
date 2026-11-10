@@ -18,25 +18,25 @@ npm run dev
 
 La API escucha en `http://127.0.0.1:3000` por defecto. `GET /api/v1/health` consulta PostgreSQL y responde `{"status":"ok","db":"ok"}`. `npm start` ejecuta el resultado compilado.
 
-Variables obligatorias: `DATABASE_URL`, `DATABASE_URL_TEST`, `JWT_ACCESS_SECRET` (mínimo 32 caracteres), `APP_URL`; `PORT` vale 3000 por defecto. `NODE_ENV` admite development, test y production. En producción se exige `SMTP_URL`; `MAIL_FROM` es opcional. La configuración se valida al arrancar y sus valores no aparecen en errores.
+Variables obligatorias: `DATABASE_URL`, `JWT_ACCESS_SECRET` (mínimo 32 caracteres), `APP_URL`; `PORT` vale 3000 por defecto. `NODE_ENV` admite development, test y production. `DATABASE_URL_TEST` solo es obligatoria en test. `HOST` vale `127.0.0.1` por defecto; Compose usa `0.0.0.0`. En producción `MAIL_DRIVER` debe ser `resend` o `smtp`, con `MAIL_FROM` obligatorio. La configuración se valida al arrancar y sus valores no aparecen en errores.
 
-En desarrollo, Nodemailer utiliza un transporte JSON que imprime el email y el enlace en consola. En producción utiliza SMTP y cookies Secure. El origen permitido por CORS y la comprobación de Origin de las mutaciones se derivan de `APP_URL`. No se confía en cabeceras de proxy: configura explícitamente un proxy de confianza antes de desplegar detrás de uno si necesitas la IP del cliente.
+En desarrollo/test `MAIL_DRIVER=log` registra solo destinatario, asunto y tipo; no imprime cuerpos ni enlaces con token. En producción se usan Resend o SMTP y cookies Secure. El origen permitido por CORS y la comprobación de Origin de las mutaciones se derivan de `APP_URL`. No se confía en cabeceras de proxy: configura explícitamente un proxy de confianza antes de desplegar detrás de uno si necesitas la IP del cliente.
 
 ## Scripts y base de datos
 
-| Script | Función |
-| --- | --- |
-| `dev` | Servidor con recarga mediante tsx |
-| `build` | Compila TypeScript a dist |
-| `start` | Ejecuta dist/server.js |
-| `typecheck` | Comprueba servidor, configuración y tests |
-| `test` | Vitest contra DATABASE_URL_TEST |
-| `db:generate` | Genera SQL y snapshots Drizzle en drizzle/ |
-| `db:migrate` | Aplica las migraciones pendientes |
-| `db:seed` | Crea usuarios, variables y plantilla de ejemplo |
-| `db:reset` | Elimina y recrea el esquema; prohibido en producción y fuera de simaud_dev/simaud_test |
+| Script        | Función                                                                                |
+| ------------- | -------------------------------------------------------------------------------------- |
+| `dev`         | Servidor con recarga mediante tsx                                                      |
+| `build`       | Compila TypeScript a dist                                                              |
+| `start`       | Ejecuta dist/server.js                                                                 |
+| `typecheck`   | Comprueba servidor, configuración y tests                                              |
+| `test`        | Vitest contra DATABASE_URL_TEST                                                        |
+| `db:generate` | Genera SQL y snapshots Drizzle en drizzle/                                             |
+| `db:migrate`  | Aplica las migraciones pendientes                                                      |
+| `db:seed`     | Crea usuarios, variables y plantilla de ejemplo                                        |
+| `db:reset`    | Elimina y recrea el esquema; prohibido en producción y fuera de simaud_dev/simaud_test |
 
-Desarrollo usa `DATABASE_URL`; con `NODE_ENV=test` los scripts usan `DATABASE_URL_TEST`. Las pruebas migran primero y truncan las tablas entre casos. Se niegan a ejecutarse contra una base que no se llame `simaud_test` o que coincida con la de desarrollo. No uses pruebas concurrentes externas sobre la misma base de tests.
+Desarrollo usa `DATABASE_URL`; con `NODE_ENV=test` los scripts usan `DATABASE_URL_TEST`. Las pruebas migran primero y truncan las tablas entre casos. Se niegan a ejecutarse contra una base cuyo nombre no empiece por `simaud_test` o cuyo nombre coincida con el de desarrollo, incluso con otro host/usuario. Por ejemplo, cada agente puede exportar `DATABASE_URL_TEST` para `simaud_test` o `simaud_test2`; dotenv no sobrescribe la variable exportada. No uses pruebas concurrentes externas sobre la misma base de tests.
 
 El seed crea admin@simaud.local, supervisor@simaud.local, gestor@simaud.local y usuario@simaud.local con el rol correspondiente y email confirmado. Utiliza `SEED_PASSWORD`; si falta y hay cuentas por crear, genera una contraseña para las cuentas nuevas y la imprime una vez, después de confirmar la transacción. No modifica las cuentas existentes. Las diez variables y el contenido de la plantilla provienen de Supabase; la plantilla tiene un UUID fijo para evitar duplicados.
 
@@ -45,7 +45,13 @@ El seed crea admin@simaud.local, supervisor@simaud.local, gestor@simaud.local y 
 Todos los endpoints llevan el prefijo `/api/v1`. Los cuerpos son JSON salvo la carga de avatar. Los errores tienen la forma:
 
 ```json
-{ "error": { "code": "CONFLICT", "message": "La cédula ya está registrada.", "details": { "field": "cedula" } } }
+{
+  "error": {
+    "code": "CONFLICT",
+    "message": "La cédula ya está registrada.",
+    "details": { "field": "cedula" }
+  }
+}
 ```
 
 Los listados devuelven `{data, meta:{page,pageSize,total}}`. Fechas y horas se serializan en ISO 8601; los nombres JSON usan camelCase. Los usuarios públicos contienen únicamente los campos de perfil y metadatos, nunca hashes, pendingEmail ni tokens internos.
@@ -54,18 +60,18 @@ Las rutas protegidas usan `Authorization: Bearer <accessToken>`. El JWT HS256 du
 
 ### Autenticación
 
-| Método y ruta | Cuerpo / consulta | Resultado |
-| --- | --- | --- |
-| POST /auth/register | email, password, name, phone, cedula | 201, {user,message}; descarta role y crea siempre user |
-| GET /auth/availability | ?email=&cedula= (al menos uno) | {emailAvailable,cedulaAvailable} |
-| POST /auth/confirm-email | token | Confirma email o aplica el cambio pendiente |
-| POST /auth/resend-confirmation | email | Respuesta genérica |
-| POST /auth/login | email, password | {accessToken,user} y cookie simaud_rt |
-| POST /auth/refresh | Cookie simaud_rt | {accessToken} y nueva cookie |
-| POST /auth/logout | Cookie simaud_rt | Revoca la cookie actual y la borra |
-| POST /auth/logout-all | Bearer | Revoca todos los refresh y borra cookie |
-| POST /auth/forgot-password | email | Respuesta genérica |
-| POST /auth/reset-password | token, password | Cambia contraseña y revoca refresh |
+| Método y ruta                  | Cuerpo / consulta                    | Resultado                                              |
+| ------------------------------ | ------------------------------------ | ------------------------------------------------------ |
+| POST /auth/register            | email, password, name, phone, cedula | 201, {user,message}; descarta role y crea siempre user |
+| GET /auth/availability         | ?email=&cedula= (al menos uno)       | {emailAvailable,cedulaAvailable}                       |
+| POST /auth/confirm-email       | token                                | Confirma email o aplica el cambio pendiente            |
+| POST /auth/resend-confirmation | email                                | Respuesta genérica                                     |
+| POST /auth/login               | email, password                      | {accessToken,user} y cookie simaud_rt                  |
+| POST /auth/refresh             | Cookie simaud_rt                     | {accessToken} y nueva cookie                           |
+| POST /auth/logout              | Cookie simaud_rt                     | Revoca la cookie actual y la borra                     |
+| POST /auth/logout-all          | Bearer                               | Revoca todos los refresh y borra cookie                |
+| POST /auth/forgot-password     | email                                | Respuesta genérica                                     |
+| POST /auth/reset-password      | token, password                      | Cambia contraseña y revoca refresh                     |
 
 Password: 8–128 caracteres con al menos una letra y un número. El email se recorta y normaliza a minúsculas. Las cédulas se recortan; una cédula vacía no participa en el índice único. Los duplicados se indican con 409 y details.field.
 
@@ -77,15 +83,15 @@ Revocar refresh impide obtener nuevos JWT; los access tokens ya emitidos duran h
 
 ### Perfil
 
-| Método y ruta | Cuerpo | Resultado |
-| --- | --- | --- |
-| GET /me | — | Usuario actual |
-| PATCH /me | name, phone, cedula (opcionales, al menos uno) | {user} |
-| PATCH /me/password | currentPassword, newPassword | Revoca las demás sesiones, conserva la identificada por sid |
-| PATCH /me/email | newEmail, password | Envía confirmación al nuevo correo; mantiene el anterior hasta confirmar |
-| PUT /me/avatar | multipart/form-data: un solo archivo | {user} |
-| DELETE /me/avatar | — | Elimina avatar y registro de archivo |
-| GET /files/avatars/:name | — | Imagen; ruta pública con nombre aleatorio |
+| Método y ruta            | Cuerpo                                         | Resultado                                                                |
+| ------------------------ | ---------------------------------------------- | ------------------------------------------------------------------------ |
+| GET /me                  | —                                              | Usuario actual                                                           |
+| PATCH /me                | name, phone, cedula (opcionales, al menos uno) | {user}                                                                   |
+| PATCH /me/password       | currentPassword, newPassword                   | Revoca las demás sesiones, conserva la identificada por sid              |
+| PATCH /me/email          | newEmail, password                             | Envía confirmación al nuevo correo; mantiene el anterior hasta confirmar |
+| PUT /me/avatar           | multipart/form-data: un solo archivo           | {user}                                                                   |
+| DELETE /me/avatar        | —                                              | Elimina avatar y registro de archivo                                     |
+| GET /files/avatars/:name | —                                              | Imagen; ruta pública con nombre aleatorio                                |
 
 Avatares: máximo 2 MiB, JPEG/PNG/WebP, con verificación de firma binaria y MIME. Se guardan en `storage/avatars/` con UUID aleatorio; no se usa el nombre recibido del cliente. La sustitución elimina el archivo anterior.
 
@@ -93,14 +99,14 @@ Avatares: máximo 2 MiB, JPEG/PNG/WebP, con verificación de firma binaria y MIM
 
 Solo admin, salvo lookup.
 
-| Método y ruta | Cuerpo / consulta | Resultado |
-| --- | --- | --- |
-| GET /users | ?q=&role=&page=&pageSize=&sort= | Lista paginada |
-| GET /users/:id | UUID | Usuario |
-| POST /users | email, name, phone, cedula, role, password? | 201, {user} |
-| PATCH /users/:id | name, phone, cedula, role, email, isActive | {user} |
-| DELETE /users/:id | UUID | Soft delete y revocación de sesiones |
-| GET /users/lookup | ?cedula= | Solo {id,name,email,phone,cedula}; admin/supervisor/gestor |
+| Método y ruta     | Cuerpo / consulta                           | Resultado                                                  |
+| ----------------- | ------------------------------------------- | ---------------------------------------------------------- |
+| GET /users        | ?q=&role=&page=&pageSize=&sort=             | Lista paginada                                             |
+| GET /users/:id    | UUID                                        | Usuario                                                    |
+| POST /users       | email, name, phone, cedula, role, password? | 201, {user}                                                |
+| PATCH /users/:id  | name, phone, cedula, role, email, isActive  | {user}                                                     |
+| DELETE /users/:id | UUID                                        | Soft delete y revocación de sesiones                       |
+| GET /users/lookup | ?cedula=                                    | Solo {id,name,email,phone,cedula}; admin/supervisor/gestor |
 
 page comienza en 1; pageSize vale 20 y admite 1–100. sort acepta name, email, createdAt y sus variantes con prefijo `-`; por defecto `-createdAt`. q busca en nombre, email y cédula.
 
@@ -110,25 +116,25 @@ La auditoría de usuarios produce eventos estructurados con actor, entidad y acc
 
 ## Esquema de contratos
 
-Las 17 tablas y los enums soportan T01, T02 y T03. `contracts.status` es el único estado: draft, pending_approval, rejected, pending_signatures, active, expiring_soon, expired, cancelled y renewed. El archivo se representa aparte con archived. Los endpoints de contratos se describen en el apartado T02.
+Las 18 tablas y los enums soportan T01, T02 y T03. `contracts.status` es el único estado: draft, pending_approval, rejected, pending_signatures, active, expiring_soon, expired, cancelled y renewed. El archivo se representa aparte con archived. Los endpoints de contratos se describen en el apartado T02.
 
 Las claves foráneas de usuarios en documentos conservan el documento y admiten SET NULL si se produce un borrado físico. Los hijos propios de contratos pueden borrarse en cascada; la auditoría conserva su entrada. Hay índices para estados, creadores, vencimientos, familias de sesión y notificaciones, e índices únicos parciales para cédulas, renovaciones pendientes y aprobaciones pendientes.
 
-El envío de correo ocurre después del commit: si SMTP falla se registra el evento sin datos sensibles y se mantiene una respuesta genérica. Puede solicitarse otro enlace; no hay una cola durable de correo en T01.
+El correo se encola en `email_outbox` dentro de la transacción de negocio. El job `email-dispatch` lo envía después; un fallo del proveedor no afecta al registro ni a los documentos.
 
 ## Contratos (T02)
 
 Las rutas usan Bearer y validan los permisos en el servidor. Admin y supervisor leen todos los contratos; gestor lista los propios. Los firmantes acceden a sus documentos mediante `/me/signatures` y al detalle de los contratos en los que participan. El rol user no puede crear ni consultar el listado general.
 
-| Recurso | Endpoints |
-| --- | --- |
-| Variables | GET/POST /variables; PATCH/DELETE /variables/:id |
+| Recurso    | Endpoints                                                                                                                                 |
+| ---------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| Variables  | GET/POST /variables; PATCH/DELETE /variables/:id                                                                                          |
 | Plantillas | GET/POST /templates; GET/PATCH/DELETE /templates/:id; POST /templates/:id/duplicate; PATCH /templates/:id/status; POST /templates/preview |
-| Contratos | GET/POST /contracts; GET /contracts/counts; GET/PATCH/DELETE /contracts/:id |
-| Flujo | POST /contracts/:id/submit, /approve, /reject, /cancel, /uncancel, /archive, /unarchive, /override-status, /remind, /sign, /decline |
-| Historial | GET /contracts/:id/versions, /versions/:n, /audit, /approvals |
-| Cola | GET /approvals?status=pending (también approved/rejected) |
-| Firmas | GET /me/signatures?status=pending (o signed); GET /files/signatures/:id |
+| Contratos  | GET/POST /contracts; GET /contracts/counts; GET/PATCH/DELETE /contracts/:id                                                               |
+| Flujo      | POST /contracts/:id/submit, /approve, /reject, /cancel, /uncancel, /archive, /unarchive, /override-status, /remind, /sign, /decline       |
+| Historial  | GET /contracts/:id/versions, /versions/:n, /audit, /approvals                                                                             |
+| Cola       | GET /approvals?status=pending (también approved/rejected)                                                                                 |
+| Firmas     | GET /me/signatures?status=pending (o signed); GET /files/signatures/:id                                                                   |
 
 Admin y supervisor gestionan plantillas y variables; gestor solo consulta plantillas activas y las variables que usan. `GET /templates` admite status, q y category y añade usageCount; el detalle añade resolvedVariables. Los catálogos y la cola devuelven arrays. Guardar una plantilla extrae los nombres de `{{variable}}` en el servidor y rechaza desconocidas con `details.unknown`. Variables select requieren options; borrar o renombrar una variable en uso devuelve 409 con `details.templates`. No se puede borrar una plantilla con contratos. Duplicar crea una copia inactive.
 
@@ -140,13 +146,13 @@ Crear un contrato recibe:
 {
   "templateId": "UUID",
   "title": "Servicios",
-  "variables": {"cliente_nombre": "Cliente"},
+  "variables": { "cliente_nombre": "Cliente" },
   "value": 25000,
   "startDate": "2026-11-01",
   "endDate": "2027-11-01",
   "notes": "Opcional",
   "signatories": [
-    {"name": "Cliente", "email": "cliente@example.com", "role": "client", "signingOrder": 1}
+    { "name": "Cliente", "email": "cliente@example.com", "role": "client", "signingOrder": 1 }
   ]
 }
 ```
@@ -161,7 +167,7 @@ El detalle añade signatories y `can: {edit,submit,approve,reject,sign,cancel,ar
 
 Rechazar recibe `{comment}` obligatorio; aprobar admite comment. Cancelar recibe `{reason,description}`, con reason breach, mutual_agreement, client_request, payment_default u other. Solo se cancela pending_signatures, active o expiring_soon. Uncancel es exclusivo de admin y restaura el estado previo. Archivar es independiente del estado. Override es exclusivo de admin, exige `{status,reason}` y solo admite aristas de la máquina de estados; genera las aprobaciones, notificaciones y auditoría correspondientes. Puede forzar la activación con motivo explícito; la auditoría distingue esa acción de una firma.
 
-DELETE de admin exige `{confirm:"CT-AAAA-NNNN"}`; gestor solo borra sus propios draft. El borrado es físico, elimina los archivos de firmas y conserva auditoría con entityId. Cada transición bloquea el contrato con FOR UPDATE dentro de una transacción. Las notificaciones se escriben con el cambio; signature_required y approval_result envían correo después del commit mediante el mailer de T01. Un fallo SMTP no revierte el contrato; no hay cola durable.
+DELETE de admin exige `{confirm:"CT-AAAA-NNNN"}`; gestor solo borra sus propios draft. El borrado es físico, elimina los archivos de firmas y conserva auditoría con entityId. Cada transición bloquea el contrato con FOR UPDATE dentro de una transacción. Las notificaciones y sus correos se escriben con el cambio dentro de la misma transacción. El job despacha firmas, resultados de aprobación, activaciones y otros avisos; un fallo del proveedor se reintenta desde la outbox.
 
 `GET /approvals` incluye contract, requester, ageSeconds, version y diff respecto a la última revisión anterior. El diff indica cambios de contenido, variables y datos/firmantes. Historial y auditoría respetan la autorización del documento. Audit usa paginación y devuelve `{data,meta}`.
 
@@ -177,7 +183,6 @@ Refresh simultáneo: un token rotado hace menos de 15 segundos responde 409 `REF
 
 Para actualizar desde T01 ejecuta db:migrate antes de arrancar y vuelve a ejecutar db:seed si quieres los ejemplos. No se requieren dependencias nuevas para T02. Los jobs y las renovaciones manuales se describen en T03; no se habilita renovación automática.
 
-
 ## Ciclo de vida (T03)
 
 Ejecuta npm run db:migrate antes de arrancar tras actualizar desde T02. Las migraciones añaden settings, job_runs, expiry_deliveries, preferencias JSONB, metadatos del PDF final e índices de deduplicación. No requieren reset. npm run format aplica Prettier y npm run format:check verifica el formato.
@@ -186,14 +191,14 @@ Todas las rutas siguientes llevan /api/v1 y requieren Bearer, salvo GET /events,
 
 ### Renovaciones
 
-| Método y ruta | Entrada / resultado |
-| --- | --- |
-| GET /renewals | status=pending/approved/rejected/cancelled, priority=urgent/high/medium/low, page, pageSize; data/meta con contrato, solicitante, daysToExpiry, currentValue, proposedValue y variationPercent |
-| GET /renewals/eligible | Array de contratos active/expiring_soon/expired accesibles para renovar; excluye pendientes e hijos aprobados todavía en curso |
-| POST /renewals | contractId, proposedStartDate, proposedEndDate, proposedValue, reason; 201 con solicitud |
-| POST /renewals/:id/approve | {response?}; crea un único hijo draft y devuelve newContractId |
-| POST /renewals/:id/reject | {response}, obligatorio y no vacío |
-| POST /renewals/:id/cancel | {}; solo el solicitante |
+| Método y ruta              | Entrada / resultado                                                                                                                                                                            |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET /renewals              | status=pending/approved/rejected/cancelled, priority=urgent/high/medium/low, page, pageSize; data/meta con contrato, solicitante, daysToExpiry, currentValue, proposedValue y variationPercent |
+| GET /renewals/eligible     | Array de contratos active/expiring_soon/expired accesibles para renovar; excluye pendientes e hijos aprobados todavía en curso                                                                 |
+| POST /renewals             | contractId, proposedStartDate, proposedEndDate, proposedValue, reason; 201 con solicitud                                                                                                       |
+| POST /renewals/:id/approve | {response?}; crea un único hijo draft y devuelve newContractId                                                                                                                                 |
+| POST /renewals/:id/reject  | {response}, obligatorio y no vacío                                                                                                                                                             |
+| POST /renewals/:id/cancel  | {}; solo el solicitante                                                                                                                                                                        |
 
 Admin/supervisor ven todas; gestor las de sus contratos y cada firmante las solicitadas por él. Creador, admin o supervisor procesan. Un firmante puede solicitar renovación de sus documentos. El inicio debe ser posterior al día anterior al vencimiento actual; el fin debe ser posterior al inicio. La prioridad usa días naturales en America/Santo_Domingo: urgent hasta 15, high hasta 30, medium hasta 60, low el resto. La variación sobre valor original cero es null.
 
@@ -201,42 +206,43 @@ Aprobar bloquea original y solicitud en una transacción; repetir devuelve 409. 
 
 ### Notificaciones y SSE
 
-| Método y ruta | Entrada / resultado |
-| --- | --- |
-| GET /notifications | unread=true/false, page, pageSize; data/meta, solo propias, cada entrada incluye link relativo |
-| GET /notifications/unread-count | {count} |
-| POST /notifications/:id/read | Marca una propia como leída |
-| POST /notifications/read-all | Marca todas las propias |
-| DELETE /notifications/:id | Borra una propia |
-| POST /events/ticket | Bearer; {ticket,expiresIn:30} |
-| GET /events?token=… | text/event-stream; consume el ticket de un solo uso |
-| GET /me/notification-preferences | emailOnSignatureRequired, emailOnApprovalResult, emailOnExpiry |
-| PATCH /me/notification-preferences | Uno o varios booleanos; conserva los demás |
+| Método y ruta                      | Entrada / resultado                                                                            |
+| ---------------------------------- | ---------------------------------------------------------------------------------------------- |
+| GET /notifications                 | unread=true/false, page, pageSize; data/meta, solo propias, cada entrada incluye link relativo |
+| GET /notifications/unread-count    | {count}                                                                                        |
+| POST /notifications/:id/read       | Marca una propia como leída                                                                    |
+| POST /notifications/read-all       | Marca todas las propias                                                                        |
+| DELETE /notifications/:id          | Borra una propia                                                                               |
+| POST /events/ticket                | Bearer; {ticket,expiresIn:30}                                                                  |
+| GET /events?token=…                | text/event-stream; consume el ticket de un solo uso                                            |
+| GET /me/notification-preferences   | emailOnSignatureRequired, emailOnApprovalResult, emailOnExpiry                                 |
+| PATCH /me/notification-preferences | Uno o varios booleanos; conserva los demás                                                     |
 
 Solicita el ticket con el JWT en Authorization y pasa únicamente el ticket a EventSource. Para reconectar solicita otro. El ticket se guarda hasheado, dura 30 s y se revalida actividad/rol al consumirlo. Eventos: notification (notificación con link), unread-count ({count}), role-changed ({role}) y ping cada 25 s. Tras role-changed el frontend debe recargar sesión. Leer/borrar también actualiza el contador. Enlaces: /contratos/:id, /aprobaciones, /renovaciones o /firmas.
 
 Los eventos se publican después del commit; un rollback no emite. El bus implementa una interfaz sobre EventEmitter; los tickets son locales a cada instancia. Con varias instancias se necesita afinidad de conexión o sustituir el adaptador por un transporte compartido como LISTEN/NOTIFY. El lock de jobs sí es compartido en PostgreSQL. SSE no ofrece replay: al reconectar consulta lista y contador.
 
-Las preferencias son true por defecto y solo controlan correo, incluidas firmas y aprobaciones de T02. Las notificaciones de aplicación se siguen guardando. El correo se envía después del commit, sin cola durable; un fallo SMTP no revierte el documento.
+Las preferencias son true por defecto y solo controlan correo, incluidas firmas y aprobaciones de T02. Las notificaciones de aplicación se siguen guardando. El correo se encola transaccionalmente y se entrega desde la outbox.
 
 ### Jobs y ajustes
 
 Variables nuevas: JOBS_ENABLED=false por defecto y EXPIRY_WARNING_DAYS=30. Para programar configura JOBS_ENABLED=true; el scheduler siempre queda deshabilitado en tests. Zona: America/Santo_Domingo.
 
-| Job | Programación y efecto |
-| --- | --- |
-| contract-status | 00:15 y al arrancar; active → expiring_soon hasta expiryWarningDays; active/expiring_soon → expired si endDate < hoy |
-| expiry-notifications | 08:00; umbrales 30, 15, 7 y 1 día; creador y firmantes; hasta 7 días también admin/supervisor |
-| cleanup | Domingo 03:00; elimina leídas >90 días y auth/refresh tokens vencidos hace >30 días |
+| Job                  | Programación y efecto                                                                                                |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| contract-status      | 00:15 y al arrancar; active → expiring_soon hasta expiryWarningDays; active/expiring_soon → expired si endDate < hoy |
+| expiry-notifications | 08:00; umbrales 30, 15, 7 y 1 día; creador y firmantes; hasta 7 días también admin/supervisor                        |
+| cleanup              | Domingo 03:00; elimina leídas >90 días, auth/refresh tokens vencidos hace >30 días y correos enviados hace >30 días  |
+| email-dispatch       | Cada minuto; hasta 100 correos vencidos, reintentos exponenciales hasta 6 intentos                                   |
 
 Cada job usa pg_try_advisory_lock en una conexión reservada hasta terminar, común a ejecuciones manuales y programadas. Si está ocupado responde skipped=true. job_runs guarda inicio, fin, ok, summary y error saneado. El actor de cambios automáticos es system (userId null). expiry_deliveries tiene índice único por contrato/usuario/umbral: borrar un aviso o ejecutar cleanup no permite reenviarlo. El cierre espera jobs en curso.
 
-| Método y ruta (solo admin) | Entrada / resultado |
-| --- | --- |
-| GET /system/jobs | Tres nombres con lastRun (null si nunca ejecutado) |
-| POST /system/jobs/:name/run | Ejecuta uno de los tres jobs aunque el scheduler esté deshabilitado |
-| GET /system/settings | expiryWarningDays, expiryNotificationDays, institution |
-| PATCH /system/settings | Uno o varios ajustes, persistidos en PostgreSQL |
+| Método y ruta (solo admin)  | Entrada / resultado                                                         |
+| --------------------------- | --------------------------------------------------------------------------- |
+| GET /system/jobs            | Cuatro nombres con lastRun; email-dispatch incluye outbox: {pending,failed} |
+| POST /system/jobs/:name/run | Ejecuta uno de los cuatro jobs aunque el scheduler esté deshabilitado       |
+| GET /system/settings        | expiryWarningDays, expiryNotificationDays, institution                      |
+| PATCH /system/settings      | Uno o varios ajustes, persistidos en PostgreSQL                             |
 
 institution contiene {name,rnc,address,logo?}. logo acepta PNG como data URI o null; no se descargan URLs externas. Los días admiten 1–365, sin umbrales duplicados. Un ajuste persistido prevalece sobre EXPIRY_WARNING_DAYS. PATCH institution recibe el objeto institucional completo.
 
@@ -246,12 +252,12 @@ GET /dashboard?months=6 (o 12) deriva el rol del JWT validado y rechaza role/use
 
 Supervisor recibe kpis, queue (hasta cinco), templateUsage y myRecentDecisions. Sus decisiones/tiempos son propios; la cola excluye contratos creados por él. Gestor recibe kpis, lanes {returned,drafts,awaitingSignatures} (hasta 20 por columna) y recent (hasta cinco), solo sus contratos, más institutionFirstTimeApprovalRate agregada. Las tasas de primera aprobación usan la primera revisión decidida por contrato. User recibe myTurn, waitingOthers y signed (hasta 50 por grupo) por firmantes. Agregaciones y límites se aplican en SQL.
 
-| Método y ruta | Filtros / permisos |
-| --- | --- |
-| GET /reports/contracts | from/to inclusivos por creación; groupBy=status/month/template/manager; templateId, managerId |
-| GET /reports/users | groupBy=role/activity; solo admin; agregados sin cédulas ni teléfonos |
-| GET /reports/approvals | from/to por decisión; templateId, managerId; rows/totals y byManager/bySupervisor con promedio en días y tasa de devolución |
-| GET /reports/:type/export | type=contracts/users/approvals; format=csv/xlsx/pdf; mismos filtros/permisos |
+| Método y ruta             | Filtros / permisos                                                                                                          |
+| ------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| GET /reports/contracts    | from/to inclusivos por creación; groupBy=status/month/template/manager; templateId, managerId                               |
+| GET /reports/users        | groupBy=role/activity; solo admin; agregados sin cédulas ni teléfonos                                                       |
+| GET /reports/approvals    | from/to por decisión; templateId, managerId; rows/totals y byManager/bySupervisor con promedio en días y tasa de devolución |
+| GET /reports/:type/export | type=contracts/users/approvals; format=csv/xlsx/pdf; mismos filtros/permisos                                                |
 
 Admin y supervisor consultan contratos/aprobaciones; gestor únicamente sus contratos, incluso al enviar managerId ajeno. Los reportes devuelven rows/totals. Exportaciones reales con Content-Disposition: attachment y caché privada: CSV UTF-8 con BOM, separador ; y escape de fórmulas; XLSX con cabeceras, anchos, DOP y fechas; PDF con tablas paginadas. Incluyen fila de totales.
 
@@ -262,3 +268,36 @@ GET /contracts/:id/pdf genera application/pdf con los mismos permisos de lectura
 La última firma genera el PDF en el flujo transaccional y guarda storage/contracts/<id>-v<n>.pdf, signedPdfPath y signedPdfSha256 (hash de bytes). GET /contracts/:id/pdf?final=true sirve esos bytes exactos tras verificar el hash. Sin final para la versión actual: 404; fallo de integridad: 409. La activación administrativa no representa firmas ni crea un PDF final firmado. El PDF final conserva la institución del momento de firma aunque cambien los ajustes.
 
 Se incluyen Roboto TTF de pdfmake en assets/fonts/ como alternativa a Source Serif 4/Geist, ausentes en los paquetes instalados. Conserva assets/ junto a dist/ al desplegar. Archivos y PostgreSQL no comparten commit: los errores manejados eliminan nueva firma/PDF; una caída abrupta puede dejar huérfanos que requieren limpieza. Los ejemplos seed firmados no contienen PNG ni PDF final legal.
+
+## Correo y primer administrador (T08)
+
+Sin dependencias adicionales: Resend usa fetch HTTP y SMTP usa Nodemailer.
+
+| Variable       | Uso                                                                                   |
+| -------------- | ------------------------------------------------------------------------------------- |
+| MAIL_DRIVER    | log por defecto en desarrollo/test; resend o smtp obligatorio en producción           |
+| MAIL_FROM      | Remitente obligatorio fuera de log; por ejemplo SIMAUD <no-reply@universidad.example> |
+| MAIL_REPLY_TO  | Dirección de respuesta opcional                                                       |
+| RESEND_API_KEY | Obligatoria para resend                                                               |
+| SMTP_URL       | Obligatoria para smtp; URL smtp/smtps con credenciales codificadas                    |
+| HOST           | IP o localhost; 127.0.0.1 por defecto                                                 |
+
+Los correos de seguridad (confirmación, recuperación e invitación) siempre se encolan. Los avisos de firma usan emailOnSignatureRequired; vencimientos, emailOnExpiry; aprobación, activación, renovación y demás avisos, emailOnApprovalResult. Los firmantes todavía sin cuenta reciben sus avisos por email. Las plantillas generan HTML escapado y texto; los enlaces de documentos usan /app/contratos/:id y los turnos /app/firmas.
+
+POST /api/v1/system/mail/test con {"to":"destino@example.com"}, solo admin, responde 202 e id de la outbox. GET /api/v1/system/jobs muestra pending/failed en email-dispatch. POST /api/v1/system/jobs/email-dispatch/run ejecuta el envío manualmente. Con JOBS_ENABLED=true se procesa cada minuto (scheduler deshabilitado durante tests).
+
+429, 5xx, HTTP 408, timeouts y errores de conexión son temporales; otros 4xx son permanentes. SMTP 4xx es temporal, 5xx permanente. Se reintenta tras 1, 2, 4, 8 y 16 minutos; al sexto intento se marca failed. Se conservan errores saneados de hasta 250 caracteres y provider_id. Un advisory lock coordina instancias del job y FOR UPDATE SKIP LOCKED protege cada correo. Resend recibe el UUID de outbox como clave de idempotencia. SMTP no puede garantizar entrega exactamente una vez si el proceso cae después de aceptar el mensaje y antes del commit; Message-ID estable ayuda a rastrearlo. Los payloads se borran al entregar y cleanup elimina enviados de más de 30 días. Pendientes/fallidos pueden contener tokens: restringir acceso a la BD y backups.
+
+Aplicar migración 0006_t08_mail_outbox antes de arrancar. Crear solo el administrador inicial (sin seed):
+
+```sh
+npx tsx src/db/create-admin.ts --name "Administración" --email admin@universidad.example --cedula 001-1234567-8
+# Compilado, también en el contenedor:
+node dist/db/create-admin.js --name "Administración" --email admin@universidad.example --cedula 001-1234567-8
+```
+
+También admite ADMIN_NAME, ADMIN_EMAIL y ADMIN_CEDULA. ADMIN_PASSWORD es opcional, mínimo 12 caracteres con mayúsculas, minúsculas y números; si se omite genera una contraseña aleatoria fuerte y la imprime una sola vez tras el commit. Si se proporciona, no se imprime. Si el email ya existe (normalizado a minúsculas), no cambia ningún dato ni genera otra contraseña. No pasar contraseñas por argumentos ni guardarlas en historial.
+
+El usuario queda admin, confirmado y con must_change_password=true. El login devuelve user.mustChangePassword. Hasta cambiarla, las rutas protegidas y refresh responden 403 PASSWORD_CHANGE_REQUIRED; se permiten PATCH /me/password y POST /auth/logout. Cambiar/restablecer contraseña borra el indicador. La pantalla de primer cambio debe enviar currentPassword/newPassword con el Bearer obtenido al iniciar sesión.
+
+Ver [guía de despliegue](../docs/DEPLOY.md) para verificar dominio/DNS y probar envío real.

@@ -116,22 +116,7 @@ export function formatRelative(value: DateValue, now: DateValue = new Date()) {
     (seconds < 0 ? "hace " : "en ") + days + (days === 1 ? " día" : " días")
   );
 }
-export function formatCedula(value: string) {
-  const digits = value.replace(/\D/g, "");
-  return digits.length === 11
-    ? digits.slice(0, 3) + "-" + digits.slice(3, 10) + "-" + digits.slice(10)
-    : value;
-}
-export function isValidCedula(value: string) {
-  if (!/^(?:\d{11}|\d{3}-\d{7}-\d)$/.test(value)) return false;
-  const digits = value.replace(/-/g, "");
-  if (/^(\d)\1{10}$/.test(digits)) return false;
-  const total = [...digits].reduce((sum, digit, index) => {
-    const weighted = Number(digit) * (index % 2 === 0 ? 1 : 2);
-    return sum + (weighted > 9 ? weighted - 9 : weighted);
-  }, 0);
-  return total % 10 === 0;
-}
+export { formatCedula, isValidCedula } from "./validation";
 export function formatPhone(value: string) {
   const digits = value.replace(/\D/g, "");
   const local =

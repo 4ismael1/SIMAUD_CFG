@@ -4,7 +4,6 @@ import { and, eq } from "drizzle-orm";
 import { db } from "../../db/client.js";
 import { users } from "../../db/schema.js";
 import { env } from "../../config/env.js";
-import type { Mailer } from "../../lib/mailer.js";
 import { authenticate } from "../../plugins/auth.js";
 import * as schema from "./schemas.js";
 import * as service from "./service.js";
@@ -19,7 +18,7 @@ const context = (r: FastifyRequest) => ({
   ip: r.ip,
   userAgent: r.headers["user-agent"],
 });
-export async function authRoutes(app: FastifyInstance, send: Mailer) {
+export async function authRoutes(app: FastifyInstance) {
   const a = app.withTypeProvider<ZodTypeProvider>();
   const generic = {
     message: "Si la cuenta corresponde, recibirás un email con las instrucciones.",
@@ -30,7 +29,7 @@ export async function authRoutes(app: FastifyInstance, send: Mailer) {
       schema: { body: schema.registerBody },
       config: { rateLimit: { max: 10, timeWindow: "1 minute" } },
     },
-    async (r, reply) => reply.code(201).send(await service.register(r.body, send)),
+    async (r, reply) => reply.code(201).send(await service.register(r.body)),
   );
   a.get(
     "/availability",
@@ -109,7 +108,7 @@ export async function authRoutes(app: FastifyInstance, send: Mailer) {
       config: { rateLimit: { max: 3, timeWindow: "1 minute" } },
     },
     async (r) => {
-      await service.requestToken(r.body.email, "email_confirmation", send);
+      await service.requestToken(r.body.email, "email_confirmation");
       return generic;
     },
   );
@@ -120,7 +119,7 @@ export async function authRoutes(app: FastifyInstance, send: Mailer) {
       config: { rateLimit: { max: 3, timeWindow: "1 minute" } },
     },
     async (r) => {
-      await service.requestToken(r.body.email, "password_reset", send);
+      await service.requestToken(r.body.email, "password_reset");
       return generic;
     },
   );

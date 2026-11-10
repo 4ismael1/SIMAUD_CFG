@@ -2,11 +2,10 @@ import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
 import { authenticate } from "../../plugins/auth.js";
-import type { Mailer } from "../../lib/mailer.js";
 import { email, password, profile } from "../users/schemas.js";
 import * as service from "./service.js";
 import { avatarName, deleteAvatar, getAvatar, uploadAvatar } from "./avatar.js";
-export async function meRoutes(app: FastifyInstance, send: Mailer) {
+export async function meRoutes(app: FastifyInstance) {
   const a = app.withTypeProvider<ZodTypeProvider>();
   a.get("/me", { preHandler: authenticate }, async (r) => r.user);
   a.patch(
@@ -55,7 +54,7 @@ export async function meRoutes(app: FastifyInstance, send: Mailer) {
       },
     },
     async (r) => {
-      await service.changeEmail(r.user.id, r.body.newEmail, r.body.password, send);
+      await service.changeEmail(r.user.id, r.body.newEmail, r.body.password);
       return { message: "Revisa tu nuevo email para confirmar el cambio." };
     },
   );

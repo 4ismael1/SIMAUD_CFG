@@ -1,3 +1,4 @@
+import { dispatchEmails } from "../src/jobs/email-dispatch.js";
 import { beforeAll, afterAll, beforeEach, afterEach, describe, it, expect } from "vitest";
 import { eq } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
@@ -29,7 +30,7 @@ const registration = {
   password: testPassword,
   name: "Nueva cuenta",
   phone: "8095551234",
-  cedula: "001-123",
+  cedula: "00113918205",
 };
 beforeAll(prepareDatabase);
 afterAll(() => pool.end());
@@ -46,14 +47,30 @@ beforeEach(async () => {
 afterEach(async () => {
   await app.close();
 });
-const post = (url: string, payload: unknown, headers: Record<string, string> = {}) =>
-  app.inject({
+const deliverMails = () =>
+  dispatchEmails(async (mail) => {
+    mails.push(mail);
+  });
+const post = async (url: string, payload: unknown, headers: Record<string, string> = {}) => {
+  const response = await app.inject({
     method: "POST",
     url: base + url,
     payload: payload as object,
     headers,
   });
+  await deliverMails();
+  return response;
+};
 describe("auth", () => {
+  it("registro rechaza cédula inválida con detalle por campo", async () => {
+    const response = await post("/auth/register", { ...registration, cedula: "00113918206" });
+    expect(response.statusCode).toBe(400);
+    expect(response.json().error.details).toContainEqual({
+      field: "cedula",
+      message: "La cédula no es válida: revisa el dígito verificador.",
+    });
+    expect(await db.select().from(users)).toHaveLength(0);
+  });
   it("health comprueba PostgreSQL", async () => {
     const r = await app.inject(base + "/health");
     expect(r.statusCode).toBe(200);
@@ -87,7 +104,7 @@ describe("auth", () => {
     const email = await post("/auth/register", {
       ...registration,
       email: " NEW@EXAMPLE.COM ",
-      cedula: "otra",
+      cedula: "40200700678",
     });
     expect(email.statusCode).toBe(409);
     expect(email.json().error.details.field).toBe("email");
@@ -98,7 +115,9 @@ describe("auth", () => {
     expect(cedula.statusCode).toBe(409);
     expect(cedula.json().error.details.field).toBe("cedula");
     expect(
-      (await app.inject(base + "/auth/availability?email=NEW%40example.com&cedula=001-123")).json(),
+      (
+        await app.inject(base + "/auth/availability?email=NEW%40example.com&cedula=00113918205")
+      ).json(),
     ).toEqual({ emailAvailable: false, cedulaAvailable: false });
   });
   it("refresh rota y la reutilización revoca toda la familia, sin afectar otra sesión", async () => {
@@ -252,7 +271,7 @@ describe("perfil", () => {
       method: "PATCH",
       url: base + "/me",
       headers: authorization(login.token),
-      payload: { name: "Nuevo nombre", phone: "123", cedula: "new-cedula" },
+      payload: { name: "Nuevo nombre", phone: "8295551234", cedula: "40200700678" },
     });
     expect(r.statusCode).toBe(200);
     expect(r.json().user.name).toBe("Nuevo nombre");
@@ -307,6 +326,7 @@ describe("perfil", () => {
         })
       ).json().email,
     ).toBe(u.email);
+    await deliverMails();
     expect(mails[0]!.to).toBe("changed@example.com");
     expect((await post("/auth/confirm-email", { token: mailToken(mails) })).statusCode).toBe(200);
     expect((await post("/auth/refresh", {}, { cookie: login.cookie })).statusCode).toBe(401);
@@ -370,7 +390,8 @@ describe("usuarios", () => {
         headers: authorization(login.token),
         ...(["POST", "PATCH"].includes(method)
           ? {
-              payload: method === "POST" ? { ...registration, role: "user" } : { name: "No" },
+              payload:
+                method === "POST" ? { ...registration, role: "user" } : { name: "No permitido" },
             }
           : {}),
       });
@@ -480,7 +501,7 @@ describe("usuarios", () => {
       method: "PATCH",
       url: base + "/users/" + user.id,
       headers: authorization(session.token),
-      payload: { name: "Editado" },
+      payload: { name: "Usuario Editado" },
     });
     expect(patch.statusCode).toBe(200);
     await db

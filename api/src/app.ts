@@ -66,20 +66,14 @@ export async function buildApp(
       throw new ApiError(403, "FORBIDDEN", "El origen de la solicitud no está permitido.");
   });
   installAuth(app);
-  const mailer: Mailer = async (mail) => {
-    try {
-      await (options.mailer ?? sendMail)(mail);
-    } catch {
-      app.log.error({ event: "mail.delivery_failed" }, "No se pudo enviar el email.");
-    }
-  };
+  const mailer = options.mailer ?? sendMail;
   await app.register(
     async (routes) => {
       routes.get("/health", async () => {
         await db.execute(sql`select 1`);
         return { status: "ok", db: "ok" };
       });
-      await routes.register(async (auth) => authRoutes(auth, mailer), {
+      await routes.register(async (auth) => authRoutes(auth), {
         prefix: "/auth",
       });
       await notificationRoutes(routes);
@@ -88,10 +82,10 @@ export async function buildApp(
       await dashboardRoutes(routes);
       await reportRoutes(routes);
       await pdfRoutes(routes);
-      await meRoutes(routes, mailer);
+      await meRoutes(routes);
       await catalogRoutes(routes);
-      await contractRoutes(routes, mailer);
-      await routes.register(async (users) => userRoutes(users, mailer), {
+      await contractRoutes(routes);
+      await routes.register(async (users) => userRoutes(users), {
         prefix: "/users",
       });
     },

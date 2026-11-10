@@ -45,13 +45,15 @@ describe("validación y JWT", () => {
     const input = registerBody.parse({
       email: " EXAMPLE@EXAMPLE.COM ",
       password: "Password123",
-      name: "Nombre",
-      phone: "",
-      cedula: "",
+      name: "Nombre Apellido",
+      phone: "+1 (809) 555-1234",
+      cedula: "001-1391820-5",
       role: "admin",
       isActive: true,
     });
     expect(input.email).toBe("example@example.com");
+    expect(input.phone).toBe("8095551234");
+    expect(input.cedula).toBe("00113918205");
     expect(input).not.toHaveProperty("role");
     expect(input).not.toHaveProperty("isActive");
   });
@@ -89,6 +91,6 @@ describe("validación y JWT", () => {
         JWT_ACCESS_SECRET: "a".repeat(32),
         NODE_ENV: "production",
       }),
-    ).toThrow("SMTP_URL");
+    ).toThrow("MAIL_DRIVER");
   });
 });

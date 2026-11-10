@@ -28,7 +28,11 @@ export async function cleanup(today: string) {
         returning id
       `,
     );
+    const emails = await tx.execute(
+      sql`delete from email_outbox where status = 'sent' and sent_at < ${today}::date - interval '30 days' returning id`,
+    );
     return {
+      emails: emails.rowCount,
       notifications: notifications.rowCount,
       refreshTokens: refresh.rowCount,
       authTokens: auth.rowCount,

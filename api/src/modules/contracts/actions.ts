@@ -10,7 +10,6 @@ import {
   users,
 } from "../../db/schema.js";
 import { ApiError } from "../../lib/errors.js";
-import type { Mail } from "../../lib/mailer.js";
 import { parse, actionInput, cancelInput } from "./schemas.js";
 import { transition, overrideTransition } from "./state-machine.js";
 import * as contractService from "./service.js";
@@ -31,7 +30,6 @@ interface ActionContext {
   contract: contractService.Contract;
   allSignatories: contractService.Signatory[];
   input: z.infer<typeof actionInput>;
-  mails: Mail[];
   id: string;
   action: ContractAction;
 }
@@ -58,7 +56,7 @@ async function archiveContract(context: ActionContext): Promise<ActionResult> {
 }
 
 async function remindSignatory(context: ActionContext): Promise<ActionResult> {
-  const { tx, req, contract, allSignatories, input, mails, id } = context;
+  const { tx, req, contract, allSignatories, input, id } = context;
   let next = contract.status;
   let changes: Partial<typeof contracts.$inferInsert> = {};
 
@@ -85,14 +83,13 @@ async function remindSignatory(context: ActionContext): Promise<ActionResult> {
     "signature_required",
     [target],
     "Recordatorio: tu firma es requerida.",
-    mails,
   );
 
   return { next, changes };
 }
 
 async function submitForApproval(context: ActionContext): Promise<ActionResult> {
-  const { tx, req, contract, allSignatories, mails, id } = context;
+  const { tx, req, contract, allSignatories, id } = context;
   const can = contractService.permissions(contract, req.user, allSignatories);
   let next = contract.status;
   let changes: Partial<typeof contracts.$inferInsert> = {};
@@ -131,14 +128,13 @@ async function submitForApproval(context: ActionContext): Promise<ActionResult> 
     "approval_needed",
     reviewers,
     "Contrato pendiente de aprobación.",
-    mails,
   );
 
   return { next, changes };
 }
 
 async function reviewApproval(context: ActionContext): Promise<ActionResult> {
-  const { tx, req, contract, input, mails, id, action } = context;
+  const { tx, req, contract, input, id, action } = context;
   const creator = [{ userId: contract.createdBy }];
   let next = contract.status;
   let changes: Partial<typeof contracts.$inferInsert> = {};
@@ -171,16 +167,17 @@ async function reviewApproval(context: ActionContext): Promise<ActionResult> {
     contract,
     "approval_result",
     creator,
-    action === "approve" ? "Contrato aprobado." : "Contrato rechazado: " + input.comment,
-    mails,
+    action === "approve"
+      ? "Contrato aprobado." + (input.comment ? " " + input.comment : "")
+      : "Contrato rechazado: " + input.comment,
   );
-  if (action === "approve") await contractService.nextSigners(tx, contract, mails);
+  if (action === "approve") await contractService.nextSigners(tx, contract);
 
   return { next, changes };
 }
 
 async function cancelContract(context: ActionContext): Promise<ActionResult> {
-  const { tx, req, contract, allSignatories, mails, id } = context;
+  const { tx, req, contract, allSignatories, id } = context;
   const creator = [{ userId: contract.createdBy }];
   let next = contract.status;
   let changes: Partial<typeof contracts.$inferInsert> = {};
@@ -204,27 +201,26 @@ async function cancelContract(context: ActionContext): Promise<ActionResult> {
     "contract_cancelled",
     [...creator, ...allSignatories],
     "Contrato cancelado: " + cancel.description,
-    mails,
   );
 
   return { next, changes };
 }
 
 async function restoreContract(context: ActionContext): Promise<ActionResult> {
-  const { tx, req, contract, mails } = context;
+  const { tx, req, contract } = context;
   let next = contract.status;
   let changes: Partial<typeof contracts.$inferInsert> = {};
 
   if (req.user.role !== "admin") throw contractService.forbidden();
   next = transition(contract.status, "uncancel", contract.previousStatus);
   changes = { previousStatus: null };
-  if (next === "pending_signatures") await contractService.nextSigners(tx, contract, mails);
+  if (next === "pending_signatures") await contractService.nextSigners(tx, contract);
 
   return { next, changes };
 }
 
 async function declineSignature(context: ActionContext): Promise<ActionResult> {
-  const { tx, req, contract, allSignatories, input, mails, id } = context;
+  const { tx, req, contract, allSignatories, input, id } = context;
   const creator = [{ userId: contract.createdBy }];
   let next = contract.status;
   let changes: Partial<typeof contracts.$inferInsert> = {};
@@ -242,14 +238,13 @@ async function declineSignature(context: ActionContext): Promise<ActionResult> {
     "approval_result",
     creator,
     "Firma rechazada: " + input.reason,
-    mails,
   );
 
   return { next, changes };
 }
 
 async function overrideContractStatus(context: ActionContext): Promise<ActionResult> {
-  const { tx, req, contract, allSignatories, input, mails, id } = context;
+  const { tx, req, contract, allSignatories, input, id } = context;
   const can = contractService.permissions(contract, req.user, allSignatories);
   const creator = [{ userId: contract.createdBy }];
   let next = contract.status;
@@ -285,7 +280,6 @@ async function overrideContractStatus(context: ActionContext): Promise<ActionRes
       "approval_needed",
       reviewers,
       "Aprobación solicitada por administrador.",
-      mails,
     );
   }
   if (
@@ -311,7 +305,6 @@ async function overrideContractStatus(context: ActionContext): Promise<ActionRes
       "approval_result",
       creator,
       "Decisión administrativa: " + input.reason,
-      mails,
     );
   }
   if (next === "rejected") {
@@ -323,10 +316,9 @@ async function overrideContractStatus(context: ActionContext): Promise<ActionRes
         "approval_result",
         creator,
         "Contrato rechazado: " + input.reason,
-        mails,
       );
   }
-  if (next === "pending_signatures") await contractService.nextSigners(tx, contract, mails);
+  if (next === "pending_signatures") await contractService.nextSigners(tx, contract);
   if (next === "active" && contract.status !== "cancelled")
     await contractService.notify(
       tx,
@@ -334,7 +326,6 @@ async function overrideContractStatus(context: ActionContext): Promise<ActionRes
       "contract_signed",
       [...creator, ...allSignatories],
       "Contrato activado por administrador: " + input.reason,
-      mails,
     );
   if (next === "cancelled") {
     changes.previousStatus = contract.status;
@@ -353,7 +344,6 @@ async function overrideContractStatus(context: ActionContext): Promise<ActionRes
       "contract_cancelled",
       [...creator, ...allSignatories],
       "Contrato cancelado: " + input.reason,
-      mails,
     );
   }
   if (contract.status === "cancelled") changes.previousStatus = null;

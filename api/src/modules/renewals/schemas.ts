@@ -1,3 +1,4 @@
+import { zIsoDate, zMoneyInput, zFreeText } from "../../lib/validation/zod.js";
 import { z } from "zod";
 import { renewalStatus, priority } from "../../db/schema.js";
 import { pageInput, uuid } from "../contracts/schemas.js";
@@ -10,17 +11,16 @@ export const renewalQuerySchema = pageInput.extend({
 export const renewalInputSchema = z
   .object({
     contractId: uuid,
-    proposedStartDate: z.iso.date(),
-    proposedEndDate: z.iso.date(),
-    proposedValue: z
-      .union([
-        z.string().regex(/^\d{1,13}(\.\d{1,2})?$/),
-        z.number().nonnegative().max(9999999999999.99),
-      ])
-      .transform(String),
-    reason: z.string().trim().min(1).max(5000),
+    proposedStartDate: zIsoDate,
+    proposedEndDate: zIsoDate,
+    proposedValue: zMoneyInput,
+    reason: zFreeText(1, 5000),
   })
-  .strict();
+  .strict()
+  .refine((input) => input.proposedEndDate > input.proposedStartDate, {
+    message: "La fecha final debe ser posterior al inicio.",
+    path: ["proposedEndDate"],
+  });
 export type RenewalQuery = z.infer<typeof renewalQuerySchema>;
 export type RenewalInput = z.infer<typeof renewalInputSchema>;
 export type RenewalAction = "approve" | "reject" | "cancel";

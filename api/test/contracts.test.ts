@@ -1,3 +1,4 @@
+import { dispatchEmails } from "../src/jobs/email-dispatch.js";
 import { beforeAll, afterAll, beforeEach, afterEach, it, expect } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { eq, sql } from "drizzle-orm";
@@ -224,7 +225,14 @@ it("aprobación concurrente, orden de firmas, archivos privados y última firma 
   expect(detail.signatures).toEqual({ signed: 2, total: 2 });
   const ns = await db.select().from(notifications);
   expect(ns.filter((n) => n.type === "contract_signed")).toHaveLength(3);
-  expect(mails.filter((m) => m.subject.includes(c.code))).toHaveLength(3);
+  await dispatchEmails(async (mail) => {
+    mails.push(mail);
+  });
+  expect(
+    mails.filter((mail) => ["signature_required", "approval_result"].includes(mail.template)),
+  ).toHaveLength(3);
+  expect(mails.filter((mail) => mail.template === "contract_signed")).toHaveLength(3);
+  expect(mails.every((mail) => mail.subject.includes(c.code))).toBe(true);
   const logs = (await request(gestor, "GET", "/contracts/" + c.id + "/audit")).json();
   expect(logs.meta.total).toBe(5);
   expect(logs.data.find((l: { action: string }) => l.action === "sign").ip).toBe("127.0.0.1");
@@ -421,4 +429,35 @@ it("vincula firmantes al primer acceso confirmado y persiste refresh grace", asy
     .set({ userId: null })
     .where(eq(contractSignatories.contractId, c.id));
   expect((await request(first, "GET", "/me/signatures")).json()[0].signatory.userId).toBe(first.id);
+});
+
+it("contrato rechaza teléfono inválido con detalle del firmante", async () => {
+  const body = input();
+  const response = await request(gestor, "POST", "/contracts", {
+    ...body,
+    signatories: body.signatories.map((signer) => ({ ...signer, phone: "2125551234" })),
+  });
+  expect(response.statusCode).toBe(400);
+  expect(response.json().error.details).toContainEqual({
+    field: "signatories.0.phone",
+    message: "El teléfono debe empezar por 809, 829 u 849.",
+  });
+  expect(await db.select().from(contracts)).toHaveLength(0);
+});
+
+it("editar título conserva datos históricos de firmantes sin exigir su corrección", async () => {
+  const contract = await create();
+  await db
+    .update(contractSignatories)
+    .set({ phone: "legado", cedula: "legado", name: "Legado" })
+    .where(eq(contractSignatories.id, contract.signatories[0].id));
+  const response = await request(gestor, "PATCH", "/contracts/" + contract.id, {
+    title: "Título actualizado",
+  });
+  expect(response.statusCode, response.body).toBe(200);
+  expect(
+    response
+      .json()
+      .signatories.find((signer: { id: string }) => signer.id === contract.signatories[0].id),
+  ).toMatchObject({ phone: "legado", cedula: "legado", name: "Legado" });
 });

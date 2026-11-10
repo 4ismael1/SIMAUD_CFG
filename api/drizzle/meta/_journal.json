@@ -43,6 +43,13 @@
       "when": 1794272700085,
       "tag": "0005_t03_expiry_deliveries",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1794275656464,
+      "tag": "0006_t08_mail_outbox",
+      "breakpoints": true
     }
   ]
 }

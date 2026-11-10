@@ -31,6 +31,17 @@ export async function authenticate(request: FastifyRequest) {
     user.role !== payload.role
   )
     throw unauthorized();
+  const path = request.routeOptions.url;
+  if (
+    user.mustChangePassword &&
+    !(request.method === "PATCH" && path === "/api/v1/me/password") &&
+    !(request.method === "POST" && path === "/api/v1/auth/logout")
+  )
+    throw new ApiError(
+      403,
+      "PASSWORD_CHANGE_REQUIRED",
+      "Debes cambiar tu contraseña temporal antes de continuar.",
+    );
   request.user = publicUser(user);
   request.sessionId = typeof payload.sid === "string" ? payload.sid : undefined;
 }

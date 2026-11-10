@@ -15,6 +15,7 @@ x-api: &api
     - ./.env.prod
   environment:
     NODE_ENV: production
+    HOST: "0.0.0.0"
     PORT: "3000"
     TRUST_PROXY: "1"
     JOBS_ENABLED: "true"

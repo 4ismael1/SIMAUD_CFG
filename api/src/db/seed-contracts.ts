@@ -50,7 +50,7 @@ export async function seedContracts(tx: Transaction) {
       cliente_nombre: signer.name,
       cliente_email: signer.email,
       cliente_telefono: "8095550100",
-      cliente_cedula: signer.cedula || "DEMO-001",
+      cliente_cedula: signer.cedula || "00100000041",
       fecha_inicio: "2026-01-01",
       fecha_fin:
         status === "expired"

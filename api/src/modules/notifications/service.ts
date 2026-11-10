@@ -1,3 +1,4 @@
+import { enqueueNotificationMail } from "../../lib/mail/notifications.js";
 import { notFound } from "../contracts/service.js";
 
 import { and, eq, isNull, sql } from "drizzle-orm";
@@ -49,7 +50,10 @@ export async function addNotification(tx: Transaction, input: typeof notificatio
     .values(input)
     .onConflictDoNothing()
     .returning();
-  if (notification) queueNotification(tx, notification);
+  if (notification) {
+    await enqueueNotificationMail(tx, notification);
+    queueNotification(tx, notification);
+  }
   return notification;
 }
 

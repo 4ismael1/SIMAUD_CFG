@@ -3,7 +3,6 @@ import { db } from "../../db/client.js";
 import { users } from "../../db/schema.js";
 import { ApiError, unauthorized } from "../../lib/errors.js";
 import { hashPassword, verifyPassword } from "../../lib/auth/password.js";
-import type { Mailer } from "../../lib/mailer.js";
 import { active, issueAuthToken, lockUser, revokeSessions } from "../auth/service.js";
 import { publicUser } from "../users/schemas.js";
 export async function updateProfile(
@@ -23,18 +22,20 @@ export async function changePassword(
   newPassword: string,
   sessionId?: string,
 ) {
+  if (currentPassword === newPassword)
+    throw new ApiError(400, "VALIDATION_ERROR", "Elige una contraseña distinta de la actual.");
   const passwordHash = await hashPassword(newPassword);
   await db.transaction(async (tx) => {
     const user = await lockUser(tx, id);
     if (!active(user)) throw unauthorized();
     if (!(await verifyPassword(user.passwordHash, currentPassword)))
       throw new ApiError(401, "INVALID_CREDENTIALS", "La contraseña actual no es correcta.");
-    await tx.update(users).set({ passwordHash }).where(eq(users.id, id));
+    await tx.update(users).set({ passwordHash, mustChangePassword: false }).where(eq(users.id, id));
     await revokeSessions(tx, id, sessionId);
   });
 }
-export async function changeEmail(id: string, newEmail: string, password: string, send: Mailer) {
-  const mail = await db.transaction(async (tx) => {
+export async function changeEmail(id: string, newEmail: string, password: string) {
+  await db.transaction(async (tx) => {
     const user = await lockUser(tx, id);
     if (!active(user)) throw unauthorized();
     if (!(await verifyPassword(user.passwordHash, password)))
@@ -47,5 +48,4 @@ export async function changeEmail(id: string, newEmail: string, password: string
     await tx.update(users).set({ pendingEmail: newEmail }).where(eq(users.id, id));
     return issueAuthToken(tx, user, "email_confirmation", newEmail);
   });
-  await send(mail);
 }

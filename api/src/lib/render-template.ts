@@ -1,3 +1,4 @@
+import { validateIsoDate } from "./validation/index.js";
 import { ApiError } from "./errors.js";
 export interface Variable {
   name: string;
@@ -27,7 +28,11 @@ export function renderTemplate(
       return "{{" + name + "}}";
     }
     let formatted: string;
-    if (def?.type === "number") {
+    if (def?.type === "money" || def?.name === "valor_contrato") {
+      const [integer, fraction = "00"] = String(value).split(".");
+      formatted =
+        "RD$ " + integer!.replace(/\B(?=(\d{3})+(?!\d))/g, ".") + "," + fraction.padEnd(2, "0");
+    } else if (def?.type === "number") {
       const n = Number(value);
       if (!Number.isFinite(n))
         throw new ApiError(400, "VALIDATION_ERROR", "Número inválido.", { field: name });
@@ -38,14 +43,12 @@ export function renderTemplate(
           maximumFractionDigits: 2,
         }).format(n);
     } else if (def?.type === "date") {
-      const s = String(value);
-      const date = new Date(s + "T00:00:00Z");
-      if (
-        !/^\d{4}-\d{2}-\d{2}$/.test(s) ||
-        !Number.isFinite(date.getTime()) ||
-        date.toISOString().slice(0, 10) !== s
-      )
-        throw new ApiError(400, "VALIDATION_ERROR", "Fecha inválida.", { field: name });
+      const result = validateIsoDate(String(value));
+      if (!result.ok)
+        throw new ApiError(400, "VALIDATION_ERROR", result.message, [
+          { field: name, message: result.message },
+        ]);
+      const date = new Date(result.value + "T00:00:00Z");
       formatted = new Intl.DateTimeFormat("es-DO", {
         day: "numeric",
         month: "long",

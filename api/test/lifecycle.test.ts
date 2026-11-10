@@ -1,3 +1,4 @@
+import { dispatchEmails } from "../src/jobs/email-dispatch.js";
 import { beforeAll, beforeEach, afterEach, afterAll, it, expect } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { createHash, randomUUID } from "node:crypto";
@@ -283,6 +284,9 @@ it("avisos deduplicados incluso tras borrar notificación; respeta emailOnExpiry
       now,
     ),
   ).toMatchObject({ summary: { sent: 4 } });
+  await dispatchEmails(async (mail) => {
+    mails.push(mail);
+  });
   expect(mails.map((mail) => mail.to)).not.toContain(signer.email);
   await db.delete(notifications);
   expect(await runJob("expiry-notifications", async () => {}, now)).toMatchObject({
@@ -302,7 +306,7 @@ it("lock de job impide ejecución y administra ajustes con permisos", async () =
     connection.release();
   }
   expect((await request(gestor, "GET", "/system/jobs")).statusCode).toBe(403);
-  expect((await request(admin, "GET", "/system/jobs")).json()).toHaveLength(3);
+  expect((await request(admin, "GET", "/system/jobs")).json()).toHaveLength(4);
   expect(
     (
       await request(admin, "PATCH", "/system/settings", {

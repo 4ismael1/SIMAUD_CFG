@@ -70,6 +70,7 @@ export const users = pgTable(
     id: id(),
     email: text("email").notNull(),
     passwordHash: text("password_hash").notNull(),
+    mustChangePassword: boolean("must_change_password").default(false).notNull(),
     name: text("name").notNull(),
     phone: text("phone").notNull().default(""),
     cedula: text("cedula").notNull().default(""),
@@ -456,5 +457,32 @@ export const expiryDeliveries = pgTable(
   },
   (table) => [
     uniqueIndex("expiry_deliveries_unique").on(table.contractId, table.userId, table.threshold),
+  ],
+);
+
+export const emailOutbox = pgTable(
+  "email_outbox",
+  {
+    id: id(),
+    to: text("to").notNull(),
+    subject: text("subject").notNull(),
+    template: text("template")
+      .$type<import("../lib/mail/templates/index.js").MailTemplate>()
+      .notNull(),
+    payload: jsonb("payload")
+      .$type<import("../lib/mail/templates/index.js").MailPayload>()
+      .notNull(),
+    status: text("status").$type<"pending" | "sent" | "failed">().default("pending").notNull(),
+    attempts: integer("attempts").default(0).notNull(),
+    nextAttemptAt: time("next_attempt_at").defaultNow().notNull(),
+    lastError: text("last_error"),
+    providerId: text("provider_id"),
+    createdAt: time("created_at").defaultNow().notNull(),
+    sentAt: time("sent_at"),
+  },
+  (table) => [
+    index("email_outbox_due_idx").on(table.status, table.nextAttemptAt),
+    check("email_outbox_status_check", sql`${table.status} in ('pending','sent','failed')`),
+    check("email_outbox_attempts_check", sql`${table.attempts} between 0 and 6`),
   ],
 );

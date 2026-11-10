@@ -6,7 +6,6 @@ import { db } from "../../db/client.js";
 import { users, authTokens } from "../../db/schema.js";
 import { ApiError, unauthorized } from "../../lib/errors.js";
 import { hashPassword } from "../../lib/auth/password.js";
-import type { Mailer } from "../../lib/mailer.js";
 import { active, issueAuthToken, lockUser, revokeSessions } from "../auth/service.js";
 import { publicUser, type listQuery, type createUserBody, type patchUserBody } from "./schemas.js";
 const notFound = () => new ApiError(404, "NOT_FOUND", "No se encontró el usuario.");
@@ -56,7 +55,7 @@ export async function listUsers(query: z.infer<typeof listQuery>) {
     { isolationLevel: "repeatable read", accessMode: "read only" },
   );
 }
-export async function createUser(input: z.infer<typeof createUserBody>, send: Mailer) {
+export async function createUser(input: z.infer<typeof createUserBody>) {
   const passwordHash = await hashPassword(input.password ?? randomBytes(48).toString("hex"));
   const result = await db.transaction(async (tx) => {
     const [user] = await tx
@@ -71,12 +70,9 @@ export async function createUser(input: z.infer<typeof createUserBody>, send: Ma
         emailConfirmedAt: new Date(),
       })
       .returning();
-    return {
-      user: publicUser(user!),
-      mail: input.password ? null : await issueAuthToken(tx, user!, "password_reset"),
-    };
+    if (!input.password) await issueAuthToken(tx, user!, "password_reset", user!.email, true);
+    return { user: publicUser(user!) };
   });
-  if (result.mail) await send(result.mail);
   return { user: result.user };
 }
 export async function changeUser(

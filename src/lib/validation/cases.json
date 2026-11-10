@@ -1,0 +1,92 @@
+{
+  "validateCedula": [
+    ["00113918205", "00113918205"],
+    ["001-1391820-5", "00113918205"],
+    [" 001 1391820 5 ", "00113918205"],
+    ["00113918206", null],
+    ["00000000000", null],
+    ["11111111111", null],
+    ["abc00113918205", null],
+    ["001--1391820-5", null]
+  ],
+  "validateRnc": [
+    ["101010632", "101010632"],
+    ["1-01-01063-2", "101010632"],
+    ["101010633", null],
+    ["123", null]
+  ],
+  "validatePhoneDo": [
+    ["+1 (809) 555-1234", "8095551234"],
+    ["18295551234", "8295551234"],
+    ["8495551234", "8495551234"],
+    ["2125551234", null],
+    ["80955", null],
+    ["abc8095551234", null],
+    ["+8095551234", null]
+  ],
+  "validateEmail": [
+    [" Persona@Ejemplo.COM ", "persona@ejemplo.com"],
+    ["a+b@sub.example.do", "a+b@sub.example.do"],
+    ["a@b.c", null],
+    ["a b@example.com", null],
+    ["a@-domain.com", null],
+    ["a..b@example.com", null],
+    ["a@b..com", null],
+    [
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@b.com",
+      null
+    ]
+  ],
+  "validatePersonName": [
+    ["  María   Núñez  ", "María Núñez"],
+    ["José O’Neill", "José O’Neill"],
+    ["Ana-María Pérez Jr.", "Ana-María Pérez Jr."],
+    ["Ana", null],
+    ["Ana 123", null],
+    ["--- ...", null],
+    [
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      null
+    ]
+  ],
+  "validatePassword": [
+    ["Fuerte2026!", "Fuerte2026!"],
+    ["12345678", null],
+    ["password1", null],
+    ["SIMAUD123", null],
+    ["abcdefgh", null],
+    ["abc1", null],
+    [
+      "A1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      null
+    ]
+  ],
+  "validateMoney": [
+    ["87500", "87500.00"],
+    ["87500.5", "87500.50"],
+    ["87,500.50", "87500.50"],
+    ["87.500,50", "87500.50"],
+    ["999999999999.99", "999999999999.99"],
+    ["0001.01", "1.01"],
+    ["0", null],
+    ["-1", null],
+    ["1000000000000", null],
+    ["12.3456", null],
+    ["1,23,456.78", null],
+    ["1e3", null]
+  ],
+  "validateIsoDate": [
+    ["2024-02-29", "2024-02-29"],
+    ["2026-02-29", null],
+    ["2026-02-30", null],
+    ["2026-13-01", null],
+    ["2026-11-09", "2026-11-09"],
+    ["2026-1-1", null],
+    ["0000-01-01", null]
+  ],
+  "validateFreeText": [
+    ["  Motivo  ", "Motivo"],
+    ["   ", null],
+    ["", null]
+  ]
+}

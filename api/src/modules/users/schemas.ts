@@ -1,16 +1,12 @@
 import { z } from "zod";
+import { zCedula, zPhoneDo, zEmail, zPersonName, zPassword } from "../../lib/validation/zod.js";
 import { users, userRole } from "../../db/schema.js";
-export const email = z.string().trim().toLowerCase().email().max(254);
-export const password = z
-  .string()
-  .min(8)
-  .max(128)
-  .regex(/[a-zA-Z]/)
-  .regex(/[0-9]/);
+export const email = zEmail;
+export const password = zPassword;
 export const profile = z.object({
-  name: z.string().trim().min(1).max(200),
-  phone: z.string().trim().max(40),
-  cedula: z.string().trim().max(40),
+  name: zPersonName,
+  phone: zPhoneDo,
+  cedula: zCedula,
 });
 export const idParams = z.object({ id: z.string().uuid() });
 export const role = z.enum(userRole.enumValues);
