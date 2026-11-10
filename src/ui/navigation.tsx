@@ -19,7 +19,7 @@ interface TabsProps<T extends string> {
 /** Underlined tabs that scroll horizontally on narrow screens. */
 export function Tabs<T extends string>({ items, value, onChange, label }: TabsProps<T>) {
   return (
-    <div role="tablist" aria-label={label} className="-mb-px flex gap-1 overflow-x-auto border-b border-slate-200">
+    <div role="tablist" aria-label={label} className="-mb-px flex gap-1 overflow-x-auto border-b border-slate-200 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       {items.map((item) => {
         const selected = item.value === value;
         return (

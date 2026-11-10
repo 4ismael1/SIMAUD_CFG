@@ -117,7 +117,8 @@ class ServerEventConnection {
         signal: controller.signal,
       });
       if (this.disposed || controller.signal.aborted) return;
-      this.source = new EventSource(apiUrl("/events", { ticket }), {
+      // The API reads the one-time ticket from the `token` query parameter.
+      this.source = new EventSource(apiUrl("/events", { token: ticket }), {
         withCredentials: true,
       });
       this.listen(this.source);

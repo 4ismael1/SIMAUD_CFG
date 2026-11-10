@@ -105,7 +105,7 @@ export function ContractsListPage() {
     }
   }
 
-  const columns: Column<Contract>[] = [
+  const allColumns: Column<Contract>[] = [
     {
       key: 'contract',
       header: 'Contrato',
@@ -154,7 +154,9 @@ export function ContractsListPage() {
         </div>
       ),
     },
-  ].filter((column) => !(isGestor && column.key === 'creator'));
+  ];
+  // A gestor only sees their own contracts, so the "Gestor" column would always repeat their name.
+  const columns = allColumns.filter((column) => !(isGestor && column.key === 'creator'));
 
   const hasFilters = Boolean(debouncedSearch) || tab !== 'all';
 

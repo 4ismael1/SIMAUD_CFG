@@ -4,8 +4,9 @@ import { ButtonLink, Card, CardHeader, Delta, DonutChart, EmptyState, Kpi, LineC
 import type { AdminDashboard } from '../../lib/api/dashboard-types';
 import type { ContractStatus } from '../../lib/api/types';
 import { contractStatus } from '../../lib/api/status';
-import { formatDate, formatMoney, formatMoneyShort } from '../../lib/format';
+import { daysUntil, formatDate, formatMoney, formatMoneyShort } from '../../lib/format';
 import { daysLabel } from '../contracts/components/ContractBits';
+import { ApprovalRows } from './ApprovalRows';
 import { absoluteChange, formatDecimal, monthLabel, percentChange, toNumber, trendOf, trendValues } from './metrics';
 
 const STATUS_COLORS: Partial<Record<ContractStatus, string>> = {
@@ -107,25 +108,7 @@ export function AdminDashboardView({ data }: { data: AdminDashboard }) {
           {data.pendingApprovals.length === 0 ? (
             <EmptyState icon={<CircleCheck />} title="Nada pendiente" description="No hay contratos esperando aprobación." />
           ) : (
-            <ul className="mt-3 divide-y divide-slate-100 border-t border-slate-100">
-              {data.pendingApprovals.map((item) => {
-                const days = Math.floor(item.ageSeconds / 86_400);
-                return (
-                  <li key={item.id}>
-                    <Link to={`/app/contratos/${item.contract.id}`} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-5 py-3 hover:bg-slate-50">
-                      <span className="min-w-0 flex-1">
-                        <span className="block font-semibold">{item.contract.title}</span>
-                        <span className="block font-mono text-xs text-slate-500">{item.contract.code} · {item.requester?.name ?? '—'}</span>
-                      </span>
-                      <span className={days >= 2 ? 'text-sm font-semibold text-red-600' : 'text-sm text-slate-500'}>
-                        {days === 0 ? 'hoy' : daysLabel(days)}
-                      </span>
-                      <span className="tabular w-36 text-right text-sm">{item.contract.contractValue ? formatMoney(item.contract.contractValue) : '—'}</span>
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
+            <ApprovalRows items={data.pendingApprovals} />
           )}
         </Card>
         <Card>
@@ -134,21 +117,25 @@ export function AdminDashboardView({ data }: { data: AdminDashboard }) {
             <EmptyState title="Sin vencimientos próximos" description="Ningún contrato vence en los próximos 30 días." />
           ) : (
             <ul className="mt-2 divide-y divide-slate-100 px-5 pb-2">
-              {data.upcomingExpirations.map((contract) => (
-                <li key={contract.id}>
-                  <Link to={`/app/contratos/${contract.id}`} className="flex items-center gap-3 py-3">
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate font-medium">{contract.title}</span>
-                      <span className="block text-xs text-slate-500">{contract.endDate ? formatDate(contract.endDate) : ''}</span>
-                    </span>
-                    {contract.daysToExpiry !== null && (
-                      <span className={contract.daysToExpiry <= 15 ? 'text-sm font-semibold text-red-600' : 'text-sm font-semibold text-amber-700'}>
-                        {daysLabel(contract.daysToExpiry)}
+              {data.upcomingExpirations.map((contract) => {
+                const days = daysUntil(contract.endDate);
+                return (
+                  <li key={contract.id}>
+                    <Link to={`/app/contratos/${contract.id}`} className="flex items-center gap-3 py-3">
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate font-medium">{contract.title}</span>
+                        <span className="block text-xs text-slate-500">
+                          {formatDate(contract.endDate)}
+                          {contract.value ? ` · ${formatMoney(contract.value)}` : ''}
+                        </span>
                       </span>
-                    )}
-                  </Link>
-                </li>
-              ))}
+                      <span className={days <= 15 ? 'text-sm font-semibold text-red-600' : 'text-sm font-semibold text-amber-700'}>
+                        {daysLabel(Math.max(0, days))}
+                      </span>
+                    </Link>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </Card>

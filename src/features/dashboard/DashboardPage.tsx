@@ -4,6 +4,7 @@ import { Alert, Button, ButtonLink, PageHeader, Segmented, Skeleton } from '../.
 import { useDashboard } from '../../lib/api/hooks/dashboard';
 import { useAuth } from '../../lib/auth';
 import { errorMessage } from '../../lib/errors';
+import type { AdminDashboard, GestorDashboard, SupervisorDashboard } from '../../lib/api/dashboard-types';
 import { AdminDashboardView } from './AdminDashboardView';
 import { SupervisorDashboardView } from './SupervisorDashboardView';
 import { GestorDashboardView } from './GestorDashboardView';
@@ -68,9 +69,10 @@ export function DashboardPage() {
           {errorMessage(dashboard.error)}
         </Alert>
       )}
-      {dashboard.data?.role === 'admin' && <AdminDashboardView data={dashboard.data} />}
-      {dashboard.data?.role === 'supervisor' && <SupervisorDashboardView data={dashboard.data} />}
-      {dashboard.data?.role === 'gestor' && <GestorDashboardView data={dashboard.data} />}
+      {/* GET /dashboard answers with the shape of the caller's role (taken from the token). */}
+      {dashboard.data && user.role === 'admin' && <AdminDashboardView data={dashboard.data as AdminDashboard} />}
+      {dashboard.data && user.role === 'supervisor' && <SupervisorDashboardView data={dashboard.data as SupervisorDashboard} />}
+      {dashboard.data && user.role === 'gestor' && <GestorDashboardView data={dashboard.data as GestorDashboard} />}
     </>
   );
 }

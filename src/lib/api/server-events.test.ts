@@ -49,7 +49,7 @@ it("pide ticket sin exponer el JWT, actualiza caché y recarga el rol", async ()
   const dispose = connectServerEvents(client);
   await Promise.resolve();
   const source = FakeEventSource.instances[0];
-  expect(source.url).toBe("/api/v1/events?ticket=one-use-ticket");
+  expect(source.url).toBe("/api/v1/events?token=one-use-ticket");
   expect(source.url).not.toContain("access-token");
   source.emit("notification", { id: "notice-1", readAt: null });
   source.emit("unread-count", { count: 4 });

@@ -1,10 +1,10 @@
 import { Link } from 'react-router-dom';
 import { CircleCheck, Clock, Undo2, X } from 'lucide-react';
-import { ButtonLink, Card, CardHeader, Delta, EmptyState, Kpi } from '../../ui';
+import { ButtonLink, Card, CardHeader, EmptyState, Kpi } from '../../ui';
 import type { SupervisorDashboard } from '../../lib/api/dashboard-types';
-import { formatMoney, formatRelative } from '../../lib/format';
-import { daysLabel } from '../contracts/components/ContractBits';
-import { absoluteChange, formatDecimal, formatPercent, toNumber, trendOf } from './metrics';
+import { formatRelative } from '../../lib/format';
+import { ApprovalRows } from './ApprovalRows';
+import { formatDecimal, formatPercent } from './metrics';
 
 export function SupervisorDashboardView({ data }: { data: SupervisorDashboard }) {
   const { kpis } = data;
@@ -13,25 +13,15 @@ export function SupervisorDashboardView({ data }: { data: SupervisorDashboard })
   return (
     <>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Kpi label="Por revisar" icon={<Clock />} value={formatDecimal(kpis.toReview.value, 0)} emphasis={toNumber(kpis.toReview.value) > 0 ? 'warning' : undefined} />
-        <Kpi
-          label="Aprobados este mes"
-          icon={<CircleCheck />}
-          value={formatDecimal(kpis.approvedThisMonth.value, 0)}
-          footer={<span><Delta tone={trendOf(kpis.approvedThisMonth)}>{absoluteChange(kpis.approvedThisMonth)}</Delta> vs. mes anterior</span>}
-        />
+        <Kpi label="Por revisar" icon={<Clock />} value={formatDecimal(kpis.toReview, 0)} emphasis={kpis.toReview > 0 ? 'warning' : undefined} />
+        <Kpi label="Aprobados este mes" icon={<CircleCheck />} value={formatDecimal(kpis.approvedThisMonth, 0)} />
         <Kpi
           label="Devueltos este mes"
           icon={<Undo2 />}
-          value={formatDecimal(kpis.returnedThisMonth.value, 0)}
-          footer={<span>{formatPercent(kpis.returnRate.value)} del total revisado</span>}
+          value={formatDecimal(kpis.returnedThisMonth, 0)}
+          footer={<span>{formatPercent(kpis.returnRate)} de lo revisado</span>}
         />
-        <Kpi
-          label="Tu tiempo de respuesta"
-          icon={<Clock />}
-          value={`${formatDecimal(kpis.myAvgResponseDays.value)} días`}
-          footer={<span><Delta tone={trendOf(kpis.myAvgResponseDays, true)}>{absoluteChange(kpis.myAvgResponseDays)}</Delta> vs. mes anterior</span>}
-        />
+        <Kpi label="Tu tiempo de respuesta" icon={<Clock />} value={`${formatDecimal(kpis.myAvgResponseDays)} días`} />
       </div>
 
       <Card className="overflow-hidden">
@@ -39,25 +29,7 @@ export function SupervisorDashboardView({ data }: { data: SupervisorDashboard })
         {data.queue.length === 0 ? (
           <EmptyState icon={<CircleCheck />} title="Estás al día" description="No hay contratos esperando tu revisión." />
         ) : (
-          <ul className="mt-3 divide-y divide-slate-100 border-t border-slate-100">
-            {data.queue.map((item) => {
-              const days = Math.floor(item.ageSeconds / 86_400);
-              return (
-                <li key={item.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3">
-                  <span className="min-w-0 flex-1">
-                    <span className="block font-semibold">{item.contract.title}</span>
-                    <span className="block font-mono text-xs text-slate-500">
-                      {item.contract.code} · {item.requester?.name ?? '—'} · v{item.versionNumber}
-                      {item.diff?.contentChanged ? ' · con cambios' : ''}
-                    </span>
-                  </span>
-                  <span className={days >= 2 ? 'text-sm font-semibold text-red-600' : 'text-sm text-slate-500'}>{days === 0 ? 'hoy' : daysLabel(days)}</span>
-                  <span className="tabular w-36 text-right text-sm">{item.contract.contractValue ? formatMoney(item.contract.contractValue) : '—'}</span>
-                  <ButtonLink to={`/app/aprobaciones?id=${item.id}`} variant="primary" size="sm">Revisar</ButtonLink>
-                </li>
-              );
-            })}
-          </ul>
+          <ApprovalRows items={data.queue} withReviewButton />
         )}
       </Card>
 
@@ -84,16 +56,15 @@ export function SupervisorDashboardView({ data }: { data: SupervisorDashboard })
               const approved = decision.status === 'approved';
               return (
                 <li key={decision.id}>
-                  <Link to={`/app/contratos/${decision.contract.id}`} className="flex items-center gap-3 py-3">
+                  <Link to={`/app/contratos/${decision.contractId}`} className="flex items-center gap-3 py-3">
                     <span className={`grid size-8 shrink-0 place-items-center rounded-lg ${approved ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>
-                      {approved ? <CircleCheck className="size-4" /> : <X className="size-4" />}
+                      {approved ? <CircleCheck className="size-4" aria-hidden="true" /> : <X className="size-4" aria-hidden="true" />}
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate font-medium">{decision.contract.title}</span>
+                      <span className="block truncate font-medium">{decision.title}</span>
                       <span className="block truncate text-xs text-slate-500">
                         {approved ? 'Aprobado' : 'Devuelto'}
-                        {decision.comments ? ` · «${decision.comments}»` : ''}
-                        {decision.reviewedAt ? ` · ${formatRelative(decision.reviewedAt)}` : ''}
+                        {decision.comments ? ` · «${decision.comments}»` : ''} · {formatRelative(decision.reviewedAt)}
                       </span>
                     </span>
                   </Link>

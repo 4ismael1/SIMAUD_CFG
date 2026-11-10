@@ -13,6 +13,8 @@ const ConfirmEmailPage = lazy(() => import('../features/auth/EmailPages').then((
 const ForgotPasswordPage = lazy(() => import('../features/auth/PasswordPages').then((m) => ({ default: m.ForgotPasswordPage })));
 const ResetPasswordPage = lazy(() => import('../features/auth/PasswordPages').then((m) => ({ default: m.ResetPasswordPage })));
 const DashboardPage = lazy(() => import('../features/dashboard/DashboardPage').then((m) => ({ default: m.DashboardPage })));
+const ContractsListPage = lazy(() => import('../features/contracts/ContractsListPage').then((m) => ({ default: m.ContractsListPage })));
+const ContractDetailPage = lazy(() => import('../features/contracts/ContractDetailPage').then((m) => ({ default: m.ContractDetailPage })));
 
 export const router = createBrowserRouter([
   { path: '/', element: <LandingPage />, errorElement: <RouteError /> },
@@ -45,9 +47,11 @@ export const router = createBrowserRouter([
         errorElement: <RouteError />,
         children: [
           { index: true, element: <StaffHome dashboard={<DashboardPage />} /> },
+          // Signers reach contracts through their inbox; the detail page itself is checked by the API.
+          { path: 'contratos/:id', element: <ContractDetailPage /> },
           {
             element: <RoleRoute roles={['admin', 'supervisor', 'gestor']} />,
-            children: [],
+            children: [{ path: 'contratos', element: <ContractsListPage /> }],
           },
           { path: '*', element: <NotFoundPage /> },
         ],
