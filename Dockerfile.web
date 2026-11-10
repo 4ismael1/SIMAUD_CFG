@@ -5,8 +5,7 @@ RUN npm ci --no-audit --no-fund
 COPY index.html vite.config.ts tsconfig*.json ./
 COPY src ./src
 COPY public ./public
-# El contexto excluye .env.local para no empaquetar el modo demo ni secretos.
-ENV VITE_UI_MOCK=0
+# El contexto excluye .env.local para no empaquetar secretos.
 RUN npm run build
 
 FROM nginx:alpine AS runtime
