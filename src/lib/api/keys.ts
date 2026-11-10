@@ -68,4 +68,5 @@ export const keys = {
   },
   settings: ["system", "settings"] as const,
   jobs: ["system", "jobs"] as const,
+  storage: ["system", "storage"] as const,
 };

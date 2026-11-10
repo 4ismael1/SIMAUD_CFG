@@ -5,3 +5,4 @@ export type * from "./dashboard-types";
 export type * from "./lifecycle-types";
 export type * from "./report-types";
 export type * from "./admin-types";
+export type * from "./storage-types";

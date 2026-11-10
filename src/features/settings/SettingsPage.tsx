@@ -6,12 +6,14 @@ import type { JobName, SystemSettings } from '../../lib/api/lifecycle-types';
 import { useAuth } from '../../lib/auth';
 import { errorMessage } from '../../lib/errors';
 import { formatDateTime } from '../../lib/format';
+import { StorageSection } from './StorageSection';
 import { validateEmail, validateRnc } from '../../lib/validation';
 
 const JOB_INFO: Record<JobName, { label: string; description: string }> = {
   'contract-status': { label: 'Estados de vigencia', description: 'Marca contratos por vencer y vencidos (diario, 00:15).' },
   'expiry-notifications': { label: 'Avisos de vencimiento', description: 'Envía los avisos 30, 15, 7 y 1 día antes (diario, 08:00).' },
   cleanup: { label: 'Limpieza', description: 'Borra avisos leídos antiguos, tokens caducados y la papelera (semanal).' },
+  'storage-migrate': { label: 'Migración de almacenamiento', description: 'Copia y verifica los archivos al cambiar de destino. Se inicia desde «Almacenamiento».' },
   'email-dispatch': { label: 'Envío de correos', description: 'Entrega la cola de correos con reintentos (cada minuto).' },
 };
 
@@ -30,6 +32,7 @@ export function SettingsPage() {
           <ExpirySection settings={settings.data} />
           <JobsSection />
           <MailSection />
+          <StorageSection />
         </div>
       ) : null}
     </>
