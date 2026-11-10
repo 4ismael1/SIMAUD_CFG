@@ -20,7 +20,8 @@ precreadas (el dueño gestiona las cuentas reales aparte).
   clave de sello de prueba generada con el script existente en un directorio ignorado. Nada de eso se imprime.
 - **Cuentas precreadas** por la siembra, con correo confirmado y contraseñas generadas guardadas solo en `e2e/.env.e2e`:
   admin, supervisor, gestor, dos firmantes y un testigo (rol usuario), con cédulas válidas sintéticas.
-- `@playwright/test` y Chromium ya están instalados en la raíz. No añadir otras dependencias sin justificarlo en el informe.
+- `@playwright/test` ya está instalado en la raíz. Usar el **Google Chrome instalado** en el equipo (`channel: 'chrome'`); el
+  Chromium propio de Playwright puede no estar descargado. No añadir otras dependencias sin justificarlo en el informe.
 - **No modificar `src/`** (la app). Usar selectores accesibles (rol, etiqueta, texto). Si algo no se puede automatizar o
   encuentras un fallo de la app, **documéntalo en el informe** con captura en vez de cambiar la app.
 
