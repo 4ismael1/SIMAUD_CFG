@@ -37,6 +37,7 @@ const app = {
   profile: page(() => import('../features/profile/ProfilePage'), (m) => m.ProfilePage),
   settings: page(() => import('../features/settings/SettingsPage'), (m) => m.SettingsPage),
   templates: page(() => import('../features/templates/TemplatesPage'), (m) => m.TemplatesPage),
+  variables: page(() => import('../features/templates/VariablesPage'), (m) => m.VariablesPage),
   templateEditor: page(() => import('../features/templates/TemplateEditorPage'), (m) => m.TemplateEditorPage),
   renewals: page(() => import('../features/renewals/RenewalsPage'), (m) => m.RenewalsPage),
   reports: page(() => import('../features/reports/ReportsPage'), (m) => m.ReportsPage),
@@ -86,6 +87,7 @@ export const router = createBrowserRouter([
               { path: 'aprobaciones', lazy: app.approvals },
               { path: 'plantillas/nueva', lazy: app.templateEditor },
               { path: 'plantillas/:id', lazy: app.templateEditor },
+              { path: 'variables', lazy: app.variables },
             ],
           },
           {

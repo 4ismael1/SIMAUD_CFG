@@ -1,4 +1,5 @@
 import {
+  Braces,
   ChartColumn,
   CircleCheck,
   FileText,
@@ -42,6 +43,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { to: '/app/aprobaciones', label: 'Aprobaciones', icon: CircleCheck, roles: ['admin', 'supervisor'], badge: 'pendingApprovals' },
       { to: '/app/renovaciones', label: 'Renovaciones', icon: RefreshCw, roles: STAFF, badge: 'urgentRenewals' },
       { to: '/app/plantillas', label: 'Plantillas', icon: Layers, roles: STAFF },
+      { to: '/app/variables', label: 'Variables', icon: Braces, roles: ['admin', 'supervisor'] },
     ],
   },
   {

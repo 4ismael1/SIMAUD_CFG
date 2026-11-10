@@ -232,7 +232,7 @@ function TemplateCard({ template, canManage }: { template: Template; canManage: 
   );
 }
 
-function VariablesTable({ canManage }: { canManage: boolean }) {
+export function VariablesTable({ canManage }: { canManage: boolean }) {
   const variables = useVariables();
   const [editing, setEditing] = useState<Variable | 'new' | null>(null);
   const { params, update } = useUrlParams();
