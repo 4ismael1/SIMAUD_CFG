@@ -6,7 +6,50 @@ Rama `feat/backend-propio-y-nueva-ui`. Commits de esta sesión: `aaba3ad` (fix /
 `66dcf50`…`34d2d86` (editor TipTap con formato), `ae1cab0` (módulo Variables), **`51a3e88` T10 + T12a (Codex)**,
 `dcdc549`/`a5f4fce`/`9d79f28` (docs: plan premium, rich-v2, T14), **`4036335` editor premium fase 1**.
 
-### ESTADO 10 nov ~13:45 (lo MÁS reciente)
+### ⚡⚡⚡ ESTADO 10 nov ~15:00 — LEER ESTO PRIMERO (cambio de cuenta)
+**Sin commitear en `api/`: trabajo de Codex T15 + T16 (NO descartar).** T15 terminó su código e informe
+(`docs/tasks/T15-plantillas-premium-pdf.REPORT.md`, ya en disco sin commitear). T16 estaba pasando su suite completa
+(60 casos OK, 0 fallos a las 14:53) sobre el árbol con T15+T16; su informe saldrá en `docs/tasks/T16-correcciones-auditoria.REPORT.md`.
+Al retomar:
+1. `tasklist | grep -c codex.exe` (2 = ninguno vivo) y `ls docs/tasks/T16*REPORT*`. Si T16 no tiene informe y no hay Codex vivo,
+   relanzarlo (BD `simaud_test3`) con «hay trabajo parcial tuyo sin commitear; complétalo sin rehacerlo, solo repite las pruebas y termina el informe».
+2. Leer informes T15 y T16. T15 avisó de 5 fallos que venían de T16 a medias (autoaprobación admin, importes como string, límites de correo):
+   comprobar que T16 los resolvió.
+3. En `api/` (Git Bash, NADA más corriendo, comprobar que no quedan `node … vitest` vivos): `npm run typecheck && npm run format:check && npm test`
+   (`npm audit` falla por TLS del registro en esta red; repetir más tarde). Si `simaud_test` da «cédula duplicada»: hay vitest zombi
+   o BD sucia → matar procesos y `NODE_ENV=test npm run db:reset` (solo afecta a simaud_test).
+4. Commit (T15 y T16 por separado si se puede) → SIMAUD_RUN: `git -C ../SIMAUD_RUN checkout --detach <commit>`, `npm run db:migrate`
+   (0013 T15, 0014 T16), reiniciar API (`MAIL_DRIVER=log npx tsx src/server.ts` en SIMAUD_RUN/api). Con eso: plantillas guardan `rich-v2`
+   (página, firmas), pestaña «PDF» del editor activa, PDF idéntico a pantalla.
+5. Prueba de punta a punta y AVISAR AL DUEÑO (lo pidió: «avísame cuando esté 100 % para probar»).
+6. Luego lanzar **T17 enmiendas** (`docs/tasks/T17-enmiendas.md`).
+
+**Instabox (BD de desarrollo y pruebas): plan GRATUITO** → se suspende tras **120 min seguidos** o 30 min sin uso, con enfriamiento
+(~10 min). Arrancó a las 13:37 → corte ~15:37. Al volver no hay que hacer nada (vuelve sola a `running`); el túnel se reconecta solo.
+Error «Ocurrió un error interno» al entrar = máquina suspendida (ver `GET /v1/machines/<id>` con la clave de `.env.ops`: `state`, `cooldownUntil`).
+La suite de la API tarda ~30 min y no hay que lanzar dos a la vez. Propuesto al dueño: Postgres local en Docker para tests (sin respuesta).
+
+**Datos de prueba creados en `simaud_dev`** (todas con la contraseña `SEED_PASSWORD` del `.env`, no imprimirla):
+admin Rosa Almonte Díaz 001-1234567-3 · supervisor Carlos Rodríguez Peña 001-2345678-2 · gestor María Fernández Lora 001-3456789-0 ·
+firmantes Laura Méndez Pérez `firmante.prueba@simaud.local` 402-2098765-1 y Pedro Gómez Santana `usuario@simaud.local` 031-4567890-4.
+Plantilla «Contrato de prestación de servicios profesionales» (id `dc847da6-…`, rich-v1) + variables `ciudad_firma`, `representante_nombre/cedula/cargo`.
+En dev los correos no salen (log) y los enlaces de invitación no se pueden abrir: para activar cuentas de prueba se fijó la contraseña en BD.
+
+**Front hecho hoy (todo commiteado, 141 tests, build OK; casi nada verificado con sesión por el dueño):**
+`ff38385` avisos arriba al centro + no «salir sin guardar» tras guardar · `fc1b410` abrir y salir sin cambios no pregunta (`sameDocument`) ·
+`c9d7b31` «contrato a medias» solo si hay contenido · `1654d26`/`764b4e3`/`d001791`/`e5a0c2f` asistente: fechas/valor/duración no se repiten,
+**los datos de las personas salen de los firmantes** (rol Cliente → `cliente_*`, rol «Por la institución» (API `contractor`) → `representante_*`),
+una tarjeta de firmante por persona que nombra la plantilla, la cédula rellena sola, solo se envían las variables que usa la plantilla
+(arreglo de «Variables desconocidas») · `e351c0e` pestaña «PDF» del editor (usa `/templates/preview-pdf` de T15) ·
+`9a2c535` **área del firmante**: Inicio, Mis contratos, Verificar; «volver» del contrato según rol.
+Lógica clave: `src/features/contracts/wizard/bound-variables.ts`, `src/lib/rich-doc/*`, `src/features/signer/*`.
+
+**Pendiente/propuesto al dueño:** campo «Cargo» en usuarios para que `representante_cargo` salga solo (recomendado; sin respuesta) ·
+10 avisos de lint antiguos (compilador de React) en `src/ui/{Dialog,Toast,charts}`, `ReassignDialog`, `ContractDialogs`, `StepSignatories`,
+`ApprovalsPage`, `lib/validation/contact.ts` · verificación con el dueño a 1440/768/375 · staging en Instabox · prueba con los 4 roles ·
+rotar claves Resend/Instabox/Brevo (recordárselo).
+
+### ESTADO 10 nov ~13:45
 - **T13 + T12b commiteados** en `e54e1ed` (suite completa 573/574 en verde, 1 omitido; `npm audit` online bloqueado por un problema TLS
   del registro npm en esta red: repetir cuando funcione). `simaud_test` se reinició con `NODE_ENV=test npm run db:reset`
   (quedó sucia por procesos de vitest que no murieron: al parar una suite, comprobar que no queden `node … vitest`).
