@@ -6,7 +6,16 @@ Rama `feat/backend-propio-y-nueva-ui`. Commits de esta sesión: `aaba3ad` (fix /
 `66dcf50`…`34d2d86` (editor TipTap con formato), `ae1cab0` (módulo Variables), **`51a3e88` T10 + T12a (Codex)**,
 `dcdc549`/`a5f4fce`/`9d79f28` (docs: plan premium, rich-v2, T14), **`4036335` editor premium fase 1**.
 
-### ⚡⚡⚡⚡ ESTADO 10 nov ~16:40 (sesión 5, otra cuenta) — LEER PRIMERO
+### ⚡⚡⚡⚡⚡ ESTADO 10 nov ~17:20 (sesión 5)
+- **T18 commiteada y desplegada** (`2de9681` API, `50e2e60` front Verificar v2 + ajustar firma). SIMAUD_RUN en `50e2e60`,
+  `npm ci` (pdf-lib) y migración 0015 aplicadas; API reiniciada. Suite 666/666 local.
+- Front de hoy además: `26a68b1` firma dibujada redibujada con grosor fijo (`signature-export.ts`) + vista previa en la casilla;
+  `114f15c` aviso en el editor si falta el bloque «Firmas». La plantilla de prueba se pasó a rich-v2 con bloque Firmas
+  (`SIMAUD_RUN/api/tmp/fix-template-signatures.ts`). **Contratos de `simaud_dev` borrados a petición del dueño** (numeración reiniciada).
+- **T17 lanzada** con «Pedir nueva firma» / «Reiniciar firmas» (antes de activar) + enmiendas (después). BD local `simaud_test2`.
+- Ojo para reiniciar la API de SIMAUD_RUN: hay que pararla antes de `npm ci` (Windows bloquea los .node).
+
+### ⚡⚡⚡⚡ ESTADO 10 nov ~16:40 (sesión 5, otra cuenta)
 - **T15 + T16 commiteados** (`dabb3e1` API, `954dbcc` front: importes exactos + `fetchAllPages` porque aprobaciones/versiones/
   elegibles ahora se paginan). Suite completa **642/642 en 5 min contra PostgreSQL LOCAL** (ver abajo). Arreglos míos: test de
   migración de almacenamiento determinista; el repartidor de correos usa el reloj de la BD (el de PG iba ~10 ms adelantado).
