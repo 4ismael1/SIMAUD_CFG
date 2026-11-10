@@ -1,48 +1,54 @@
 # HANDOFF — SIMAUD: estado del trabajo y cómo continuar
 
-## ⚡ ÚLTIMA ACTUALIZACIÓN (fin sesión 2, 9-10 nov 2026) — LEER PRIMERO
-Rama `feat/backend-propio-y-nueva-ui` (todo commiteado salvo el trabajo en curso de Codex en `api/`). `main` intacta.
-Lee también **`docs/PRINCIPIOS.md`** (obligatorio: lo firmado no se borra, auditoría, mínimo privilegio…) y **`docs/CODE_STANDARDS.md`** (sección «Interfaz: acciones y avisos»).
+## ⚡ ÚLTIMA ACTUALIZACIÓN (sesión 3, 10 nov 2026) — LEER PRIMERO
+Rama `feat/backend-propio-y-nueva-ui`. `main` intacta. Últimos commits: `cd3cb3f` (T11 + T09c), `1bf4a40` (sidebar, cuenta, Ctrl+K, aprobaciones), `f214b4c` (reportes), `5f62a82` (módulo avanzado de contratos). **Sin commitear: solo el trabajo en curso de Codex en `api/` (T10 y T12a).**
+Lee también **`docs/PRINCIPIOS.md`** (obligatorio) y **`docs/CODE_STANDARDS.md`** (sección «Interfaz: acciones y avisos»).
 
 ### Modo de trabajo
-- El dueño quiere: **Codex escribe la lógica; Claude revisa/comprueba y hace el front/diseño.** Ahorra cuota de Claude.
-- **Binario de Codex**: usar `/c/Users/ismae/AppData/Local/OpenAI/Codex/bin/f71a721e0e6193a9/codex.exe` (0.167). El `codex` del PATH (0.162) está roto (`setup refresh had errors`). Si la app de Codex se actualiza, buscar el `codex.exe` más nuevo en `AppData/Local/OpenAI/Codex/bin/*/` y probar con una tarea trivial. Escalonar ~30 s los lanzamientos paralelos. Flags: `exec -C . -s workspace-write -c sandbox_workspace_write.network_access=true -c model_reasoning_effort=high --skip-git-repo-check -o <scratch>/codex-TXX-last.md "Implementa docs/tasks/TXX…"`.
+- **Codex escribe la lógica y el backend; Claude revisa/comprueba y hace todo el front y el diseño.** Hablamos en español.
+- **Binario de Codex**: `/c/Users/ismae/AppData/Local/OpenAI/Codex/bin/f71a721e0e6193a9/codex.exe` (el `codex` del PATH está roto). Si la app se actualiza, buscar el `codex.exe` más nuevo en `AppData/Local/OpenAI/Codex/bin/*/`. Lanzar desde la raíz del repo, en segundo plano: `exec -C . -s workspace-write -c sandbox_workspace_write.network_access=true -c model_reasoning_effort=high --skip-git-repo-check -o <scratch>/codex-TXX-last.md "Implementa docs/tasks/TXX…" > <scratch>/codex-TXX.log 2>&1`. Escalonar ~30 s los lanzamientos paralelos.
 - Dos BD de pruebas en Instabox: `simaud_test` y `simaud_test2`. Para un segundo Codex en paralelo, exportar `DATABASE_URL_TEST` igual al de `api/.env` cambiando el nombre de BD a `simaud_test2` (sin imprimirla).
-- `api/vitest.config.ts` fuerza `MAIL_DRIVER=log` (los tests nunca envían correos reales).
+- **Los tests de `api/` se corren desde Git Bash, no PowerShell** (`t09b-backup.test.ts` necesita `sh`; en PowerShell falla con «sh: command not found», no es un defecto).
+- **No crear archivos con heredocs largos de Bash** (fallan con texto en español/comillas): usar siempre la herramienta Write.
+- Typecheck del front filtrado (el código viejo de `src/components` tiene errores previos que se ignoran): `npx tsc --noEmit -p tsconfig.app.json 2>&1 | grep "^src/\(app\|features\|ui\|lib\)"`.
 
 ### Codex: estado
-- Hecho y commiteado: T01–T03, T03b, T05 (despliegue), T06 (validaciones cédula JCE/RNC/teléfono/montos), T07 (auditoría), T08 (correo + outbox + primer admin), T09a (sesiones/SSE/límites/registro opaco/outbox cifrada), T09b (vínculo de firmantes, imágenes, variables históricas, DTOs de listas, papelera).
-- **EN CURSO al cortar** (pueden haber terminado: revisar `docs/tasks/*.REPORT.md` y `git status`):
-  - **T11 almacenamiento disco/S3** (`docs/tasks/T11-almacenamiento.md`, BD `simaud_test`, dep `aws4fetch@1.0.20`): archivos nuevos `api/src/lib/storage-*`, `api/src/modules/system/storage-*`, migración `0009_t11_storage`. Pedirá `SETTINGS_ENCRYPTION_KEY`: generarla en `api/.env` sin imprimirla (como `MAIL_PAYLOAD_KEY`).
-  - **T09c adaptar tests antiguos** (BD `simaud_test2`): ~35 tests antiguos fallaban por firmar JWT sin sesión.
-  - Al terminar: leer informes; en `api/`: `npm run typecheck && npm run format:check && npm test && npm audit`; commit.
-- **Siguiente: T10** (`docs/tasks/T10-firma-certificada.md`): evidencia + cadena de hashes, auditoría encadenada, PDF sellado + QR + verificación pública, API de firma escrita guardada (`/me/signature-style`) y `method/fontId` en la firma (ampliar límite multipart; luego el front los envía), **prohibir borrar contratos firmados (solo draft/rejected sin firmas)**, cifrado de firmas en disco (`FILE_ENCRYPTION_KEY`) sobre la interfaz `StorageDriver` de T11. Lanzar tras T11.
-- Después: segunda auditoría completa (Codex, solo lectura) y tests e2e Playwright (Codex).
+- Hecho y commiteado: T01–T09b, **T09c** (tests antiguos adaptados) y **T11** (almacenamiento disco/S3; migración `0009`; `SETTINGS_ENCRYPTION_KEY` ya generada en `api/.env`). Comprobado: typecheck, format:check, audit (0) y 437 tests en verde.
+- **EN CURSO al escribir esto** (revisar `docs/tasks/*.REPORT.md`, `git status` y los logs del scratch):
+  - **T10 firma certificada** (`docs/tasks/T10-firma-certificada.md` **con ADENDA al final, que manda**; BD `simaud_test`): migración `0010_t10_certified_signatures`, `api/src/lib/crypto/`, `modules/contracts/{evidence,pdf-attestation,signature-style}.ts`, `modules/verify/`.
+  - **T12a API de admin y reportes** (`docs/tasks/T12a-admin-reportes-api.md`; BD `simaud_test2`): `POST /contracts/:id/reassign`, `POST /contracts/bulk`, `GET /reports/overview`, `GET /reports/filters`, `GET /reports/overview/export`, campos nuevos (aditivos) en el dashboard de admin. Archivos: `modules/contracts/admin-{actions,routes}.ts`, `modules/reports/overview*.ts`, `modules/dashboard/rich-queries.ts`.
+  - Los dos tocan `contracts/routes.ts` y `service.ts`: **revisar el diff conjunto con cuidado** antes de commitear. Al terminar: leer informes; en `api/` (Git Bash): `npm run typecheck && npm run format:check && npm test && npm audit`; commit por tarea si se puede separar.
+- **Siguiente: T12b** (`docs/tasks/T12b-*.md`, ya escrita) tras T10. Después: segunda auditoría completa (Codex, solo lectura) y tests e2e Playwright (Codex).
+- Hallazgos de mi revisión de T11 para decidir con el dueño: el secreto S3 se guarda **cifrado en BD** (PRINCIPIOS §5 dice «secretos nunca en BD») → o se acepta la excepción y se documenta, o se pasa a variable de entorno.
 
 ### Entorno local (IMPORTANTE al retomar)
-- La API que corría en :3000 era **vieja (20:19, sin T06–T09)** y por eso «Por firmar» fallaba. Se pidió al dueño detenerla (Claude no puede matar procesos de otra sesión) con PowerShell: procesos `node` cuyo comando contenga `tsx` y `src/server.ts` y no `SIMAUD_RUN` → `Stop-Process`.
-- **Worktree limpio** en `C:\Users\ismae\Desktop\simaud\SIMAUD_RUN` (detached en el último commit revisado), con `npm ci` hecho en `api/` y `api/.env` copiado: sirve para correr la API sin el código a medias de Codex. Migraciones 0000–0008 ya aplicadas a `simaud_dev` (la 0007 cerró todas las sesiones). Arrancar en segundo plano desde `SIMAUD_RUN/api` con `MAIL_DRIVER=log npx tsx src/server.ts` (en desarrollo usar `log`: los usuarios seed tienen correos falsos `@simaud.local` y Brevo rebotaría). Cuando entren T11/T10: `git -C ../SIMAUD_RUN checkout --detach <commit>`, copiar `api/.env` si cambió, `npm run db:migrate` ahí.
-- Front: Vite del dueño en :5173 (la API solo acepta origen 5173; la preview de Claude va en :5174). Claude no puede leer `SEED_PASSWORD`: el dueño inicia sesión en su navegador o en el panel.
-- Correo en `api/.env`: Brevo SMTP (`SMTP_URL`, `MAIL_FROM=SIMAUD <simaud.notificaciones@gmail.com>`, `MAIL_DRIVER=smtp`, probado OK), `RESEND_API_KEY` (alternativa), `MAIL_PAYLOAD_KEY`. Gmail con contraseña de aplicación bloqueado por cuenta nueva (reintentar).
-- Instabox (staging autorizado; tocar SOLO la máquina `simaud` = `m_agq4fpcgma6kpfqey5ffoy2wui`): clave en `.env.ops` (ignorado por git). API `https://api.instabox.sh/v1`, cabecera `X-API-Key`; publicar puerto con `POST /v1/machines/<id>/ports` → `https://<puerto>-agq4fpcgma6kpfqey5ffoy2wui.<dominio>/` (HTTPS lo pone Instabox). Docker 29 + Compose v5, 4 CPU, 8 GB. Plan: override de compose para staging con nginx solo HTTP (p. ej. 8080), `TRUST_PROXY=2`, `APP_URL` pública.
+- La API vieja de :3000 ya se detuvo. La API corre desde el **worktree limpio** `C:\Users\ismae\Desktop\simaud\SIMAUD_RUN` (detached en `1bf4a40`; migraciones 0000–0009 aplicadas a `simaud_dev`), en segundo plano desde `SIMAUD_RUN/api` con `MAIL_DRIVER=log npx tsx src/server.ts` (los usuarios seed tienen correos falsos `@simaud.local`). **Como T12a aún no está ahí, Reportes, los filtros de plantilla/gestor de Contratos, «Reasignar gestor» y las acciones en lote darán error hasta actualizarlo.** Cuando se commiteen T10/T12a: `git -C ../SIMAUD_RUN checkout --detach <commit>`, `npm ci` si cambió el lock, copiar `api/.env` si cambió, `npm run db:migrate`, reiniciar.
+- El túnel SSH a la BD (puerto local 55432) debe estar abierto antes de arrancar la API.
+- Front: Vite del dueño en :5173 (la API solo acepta ese origen; la preview de Claude va en :5174, así que **Claude no puede ver pantallas con sesión**: el dueño inicia sesión y revisa, o comparte capturas). Claude no puede leer `SEED_PASSWORD`.
+- Correo en `api/.env`: Brevo SMTP, `RESEND_API_KEY` (alternativa), `MAIL_PAYLOAD_KEY`.
+- Instabox (staging autorizado; tocar SOLO la máquina `simaud` = `m_agq4fpcgma6kpfqey5ffoy2wui`): clave en `.env.ops` (ignorado por git). API `https://api.instabox.sh/v1`, cabecera `X-API-Key`; publicar puerto con `POST /v1/machines/<id>/ports`. Plan: override de compose para staging con nginx solo HTTP (p. ej. 8080), `TRUST_PROXY=2`, `APP_URL` pública.
 - Recordar al dueño **rotar** las claves de Resend, Instabox y Brevo (se pegaron en el chat).
 
-### Front hecho en la sesión 2
-Landing rediseñado (scroll-spy, perfiles interactivos, FAQ), acceso pulido, animación (CSS + `motion@14.6.0` vía `m.*` con `LazyMotion` estricto), **sistema de acciones** (`useAction`, `useConfirm`, toasts con «Deshacer» y «en curso», diálogos con salida animada), `cn()` con `tailwind-merge`, firma (pad suavizado, «Ampliar» a pantalla completa, **firma escrita con 8 fuentes manuscritas**), asistente de contrato (firmantes ilimitados, en orden/a la vez/por pasos, arrastrar), cambio de contraseña temporal, fuentes autoalojadas (sin Google), `scrollbar-gutter`, rutas con `lazy` del router. Pantallas: Por firmar, Aprobaciones, Usuarios, Perfil, Configuración, Plantillas + editor, Renovaciones, Reportes. **Ninguna verificada todavía con sesión iniciada.**
+### Front hecho en la sesión 3 (commiteado; typecheck filtrado limpio; **nada verificado aún con sesión**)
+- **Sidebar** plegable a iconos (recuerda estado), con jerarquía por secciones, y **menú de cuenta** (`AccountMenu`). **Paleta Ctrl+K** rediseñada (`CommandPalette`). **Aprobaciones** rediseñada.
+- **Reportes** rehechos: `src/features/reports/*` (filtros de período/estado/plantilla/gestor, 8 indicadores con comparación contra el período anterior, evolución, estados, plantillas, rangos de valor, tabla por gestor, mayores contratos, aprobaciones, usuarios; exportar PDF/Excel/CSV). Gráficos propios en `src/ui/bar-charts.tsx`; colores de estado en `src/lib/api/status-colors.ts`. Depende de T12a.
+- **Módulo avanzado de contratos** (`src/features/contracts/ContractsListPage.tsx`, `ContractListFilters.tsx`, `admin/*`): filtros por plantilla, gestor y orden (en la URL); menú por fila según rol y estado (ver, editar/corregir, PDF, reasignar gestor, forzar estado, reactivar, archivar/desarchivar con «Deshacer», cancelar con motivo, eliminar SOLO borradores); para admin, selección múltiple y barra flotante de lote (archivar, desarchivar, cancelar con motivo). Hooks en `src/lib/api/hooks/contract-admin.ts`. Reasignar y lote dependen de T12a. En móvil no hay selección ni menú por fila (se entra al detalle).
 
-### ❗ Críticas del dueño pendientes (diseño → Claude; en este orden)
-> **Énfasis del dueño (10 nov):** el panel de **admin está muy vacío**; faltan muchas opciones que **el sistema original ya tenía**. Antes de rediseñar, **inventariar el código viejo** (`src/components/**`, en especial `dashboards/admin`, `contracts/ContractManagement*`, modales de edición/borrado, y las funciones `supabase/functions/*`) y listar TODAS las capacidades del admin original; cada una debe existir en la versión nueva (si falta API → tarea para Codex). Los **reportes son muy malos** (rehacerlos completos). Además: **barrido y pulido general de TODA la interfaz** — los paneles (dashboards) de los 4 roles (admin, supervisor, gestor, firmante), listas, detalle de contrato, formularios y estados vacíos: nada de pantallas simples o pobres; todo con calidad premium coherente con el lienzo aprobado. El **sidebar** y la **barra de búsqueda global** (Ctrl+K) se ven **toscos**: rediseñarlos con calidad de producto premium.
-1. **Sidebar** «feo, plano»: más jerarquía visual, **plegable** (modo solo iconos, recordar estado en localStorage con try/catch), y el **bloque de usuario abajo** («admin / Administrador» con chevron) se ve pobre → menú de cuenta bien diseñado (perfil, configuración, cerrar sesión) con nombre real y avatar.
-2. **Aprobaciones** «confusa y rara»: rediseñar la vista dividida (cabecera con datos clave, resumen de cambios legible, acciones fijas visibles, mejor en móvil).
-3. **Admin «vacío» y sin «acceso a todo»**: el admin debe ver y operar todo. **Módulo avanzado de administración de contratos** en lista y detalle: editar lo permitido, forzar estado con motivo, reasignar gestor, cancelar/archivar (también en lote), eliminar SOLO borradores (PRINCIPIOS: lo firmado se cancela/archiva). Panel de admin más rico. Si falta API (p. ej. reasignar gestor, acciones en lote), escribir la tarea para Codex.
-4. **Reportes** «muy básicos y limitados»: filtros (estado, plantilla, gestor, fechas), gráficos (`LineChart`/`DonutChart` de `src/ui/charts`), comparativas con período anterior, KPIs, exportación. Si la API no da los datos, tarea para Codex.
-5. Verificar TODAS las pantallas con sesión (el dueño inicia sesión) a 1440/768/375 px y corregir.
-6. Pendientes previos: Configuración › Almacenamiento (tras T11), página pública `/verificar` (tras T10), stagger en paneles, borrar código viejo (`src/components`, Supabase; pedir OK para `supabase/`), staging en Instabox y prueba completa con los 4 roles.
+### Pendiente de front (en este orden)
+1. **Panel de admin rico**: accesos rápidos, usuarios por rol, mejores gestores, actividad reciente (campos aditivos de T12a; tolerar su ausencia), usar `CONTRACT_STATUS_COLORS` en `AdminDashboardView`.
+2. Usuarios: diálogo de edición; filtros en plantillas/variables; borrar notificaciones (`useDeleteNotification`).
+3. **Configuración › Almacenamiento** (API de T11: `GET/PUT /system/storage`, `POST /system/storage/test` → `{ok, latencyMs, steps[]}`, `POST /system/storage/migrate` → 202 `{jobId}`, `GET /system/jobs` incluye `storage-migrate`).
+4. **Página pública `/verificar`** y envío de `method/fontId` en la firma (tras T10); corregir el `confirm` del borrado de borrador en `ContractActions` según lo que deje T10.
+5. **Barrido y pulido** de los paneles de supervisor, gestor y firmante, detalle de contrato, formularios y estados vacíos, coherente con el lienzo aprobado.
+6. Verificar TODO con el dueño con sesión a 1440/768/375 px y corregir; `npm run build`.
+7. Borrar código viejo (`src/components`, Supabase; pedir OK para `supabase/`), staging en Instabox y prueba completa con los 4 roles.
 
 ### Preguntas abiertas al dueño
+- Secreto de S3 cifrado en BD: ¿se acepta como excepción a PRINCIPIOS §5 o se mueve a variable de entorno?
+- «Forzar estado» del admin: ¿puede ir a cualquier estado o solo a transiciones razonables?
 - Datos de la institución (nombre, RNC, dirección) para el PDF y la constancia.
 - Plazo legal de conservación de contratos firmados.
-- «Moverlo y editarlo en el lienzo»: ¿posicionar los recuadros de firma dentro del documento? (requiere API y PDF).
+- ¿Posicionar los recuadros de firma dentro del documento? (requiere API y PDF).
 - OK para borrar la carpeta `supabase/`.
 
 > Escrito por Claude el 9 nov 2026 para que otra sesión (otra cuenta) continúe **exactamente** donde se quedó.
