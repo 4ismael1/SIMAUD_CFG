@@ -1,3 +1,6 @@
+import { placeSignature, type SignaturePlacement } from "../signature-placement.js";
+import { formatCedula } from "../validation/format-cedula.js";
+import { resolvePage, PAPER_SIZES, mmToPt } from "./page.js";
 import type { Content, ContentStack } from "pdfmake/interfaces.js";
 import type { RichDoc, RichNode } from "./types.js";
 
@@ -7,6 +10,7 @@ export interface PdfSigner {
   cedula: string | null;
   signedAt: Date | null;
   image?: string;
+  placement?: SignaturePlacement | null;
 }
 
 export function withSignatureSlots(document: RichDoc, signerCount: number): RichDoc {
@@ -32,20 +36,39 @@ function signatureCell(
   fontSize: number,
   lineMetric: number,
 ): ContentStack {
-  const stack: Content[] = [{ text: "", margin: [0, 0, 0, 42] }];
-  if (signer?.image)
-    stack.unshift({
+  const anchor = {
+    id: `signature-slot-${number}`,
+    text: "\u200b",
+    fontSize: 0.001,
+    lineHeight: 0.001,
+    alignment: "left" as const,
+    relativePosition: { x: 0, y: 0 },
+  };
+  const stack: Content[] = [anchor, { text: "", margin: [0, 0, 0, 42] }];
+  if (signer?.image) {
+    const bytes = Buffer.from(signer.image.split(",")[1]!, "base64");
+    const placed = placeSignature(
+      bytes.readUInt32BE(16),
+      bytes.readUInt32BE(20),
+      width * 0.8,
+      42,
+      signer.placement ?? undefined,
+    );
+    stack.splice(1, 0, {
       image: signer.image,
-      fit: [width * 0.8, 42],
-      alignment: "center",
-      relativePosition: { x: 0, y: 0 },
+      width: placed.width,
+      height: placed.height,
+      relativePosition: { x: width * 0.1 + placed.left, y: placed.top },
+      alignment: "left",
     });
+  }
   stack.push({
     canvas: [{ type: "line", x1: width * 0.1, x2: width * 0.9, y1: 0, y2: 0, lineWidth: 0.6 }],
   });
   if (slot.attrs?.showName !== false)
     stack.push({ text: signer?.name ?? `[Firmante ${number}]`, margin: [0, 4.5, 0, 0] });
-  if (slot.attrs?.showId !== false) stack.push({ text: "C.I. " + (signer?.cedula ?? "[cédula]") });
+  if (slot.attrs?.showId !== false)
+    stack.push({ text: "C.I. " + (signer?.cedula ? formatCedula(signer.cedula) : "[cédula]") });
   if (signer?.signedAt)
     stack.push({
       text: new Intl.DateTimeFormat("es-DO", {
@@ -56,7 +79,12 @@ function signatureCell(
       fontSize: Math.min(fontSize * 0.9, 8),
     });
   if (slot.attrs?.label) stack.push({ text: slot.attrs.label, bold: true });
-  return { stack, alignment: "center", fontSize: fontSize * 0.9, lineHeight: 1.375 / lineMetric };
+  return {
+    stack,
+    alignment: "center",
+    fontSize: fontSize * 0.9,
+    lineHeight: 1.375 / lineMetric,
+  };
 }
 
 export function signatureContent(
@@ -84,4 +112,26 @@ export function signatureContent(
     });
   }
   return { stack: rows, unbreakable: true, margin: [0, 18, 0, 18] };
+}
+
+export function signatureSlotSizes(document: RichDoc, count: number) {
+  const source = withSignatureSlots(document, count);
+  const page = resolvePage(source.attrs?.page);
+  const paper = PAPER_SIZES[page.size];
+  const contentWidth = paper.width - mmToPt(page.margins.left + page.margins.right);
+  return source.content
+    .filter((node) => node.type === "signatures")
+    .flatMap((node) => {
+      const columns = node.attrs?.columns ?? 2;
+      const cellWidth = (contentWidth - (columns - 1) * 24) / columns;
+      return node.content!.map(() => ({ width: cellWidth * 0.8, height: 42, cellWidth, paper }));
+    });
+}
+export interface SignatureSlotGeometry {
+  page: number;
+  slotIndex: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
 }

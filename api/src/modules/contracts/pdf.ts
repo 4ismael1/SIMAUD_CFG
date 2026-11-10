@@ -1,20 +1,23 @@
+import { generateVerificationCode, normalizeVerificationCode } from "../verify/codes.js";
+import type { SignatureSlotGeometry } from "../../lib/rich-doc/signatures.js";
 import { storedDocument } from "../../lib/rich-doc/content.js";
 import { documentPdf, plainDocument } from "../../lib/rich-doc/document-pdf.js";
 import type { PdfSigner } from "../../lib/rich-doc/signatures.js";
 import { sanitizePng } from "../../lib/storage-png.js";
 import { storage } from "../../lib/storage.js";
-import { createHash, randomBytes } from "node:crypto";
+import { createHash } from "node:crypto";
 import { pdfAttestation } from "./pdf-attestation.js";
 import { contentDocumentHash } from "../../lib/rich-doc/content.js";
 import { sealPdf } from "../../lib/crypto/system-signing.js";
 import type { FastifyInstance } from "fastify";
 import { eq } from "drizzle-orm";
 import { db, type Transaction } from "../../db/client.js";
-import { contracts } from "../../db/schema.js";
+import { contracts, verificationCodes } from "../../db/schema.js";
 import { authenticate } from "../../plugins/auth.js";
 import { decodeRenderedText } from "../../lib/pdf.js";
 import { getSettings } from "../system/settings.js";
 import { parse, uuid } from "./schemas.js";
+import { z } from "zod";
 import * as service from "./service.js";
 
 export const contentHash = (text: string) =>
@@ -32,6 +35,7 @@ export async function removeFinalPdf(name: string) {
 export async function contractPdf(
   tx: Transaction | typeof db,
   contract: service.Contract,
+  onSignatureSlot?: (geometry: SignatureSlotGeometry) => void,
 ): Promise<Buffer> {
   const settings = await getSettings(tx);
   const signatories = await service.getSignatories(tx, contract.id);
@@ -53,6 +57,7 @@ export async function contractPdf(
       cedula: signer.cedula,
       signedAt: signer.signedAt,
       image,
+      placement: signer.placement,
     });
   }
   const logo = settings.institution.logo
@@ -64,6 +69,7 @@ export async function contractPdf(
   return documentPdf(document, contract.title, {
     signers,
     logo,
+    onSignatureSlot,
     appendix: [
       {
         stack: await pdfAttestation(tx, contract, signatories),
@@ -93,8 +99,10 @@ export async function saveFinalPdf(
       throw service.conflict("El PDF final no supera la verificación de integridad.");
     return;
   }
-  const code = randomBytes(10).toString("hex").toUpperCase();
-  const verificationCode = "SIM-" + code.match(/.{4}/g)!.join("-");
+  const verificationCode = generateVerificationCode();
+  await tx
+    .insert(verificationCodes)
+    .values({ code: normalizeVerificationCode(verificationCode)!, contractId: contract.id });
   const activatedAt = new Date();
   const documentSha256 = contentDocumentHash(
     contract.generatedContent ?? contract.content,
@@ -134,9 +142,10 @@ export async function pdfRoutes(app: FastifyInstance) {
     const contract = await service.getContract(db, id);
     const signatories = await service.getSignatories(db, id);
     if (!service.canRead(contract, req.user, signatories)) throw service.notFound();
-    const final = (req.query as { final?: string }).final;
-    if (final !== undefined && final !== "true" && final !== "false")
-      throw service.invalid("final inválido.");
+    const { final } = parse(
+      z.strictObject({ final: z.enum(["true", "false"]).optional() }),
+      req.query,
+    );
     let bytes: Buffer;
     if (final === "true" || contract.signedPdfPath) {
       if (!contract.signedPdfPath || contract.signedPdfPath !== finalPdfName(contract))

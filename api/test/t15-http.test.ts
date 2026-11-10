@@ -218,7 +218,7 @@ it("estampa, sella y conserva los bytes finales v2 y detecta cambios de maqueta"
   const download = await request("GET", `/contracts/${id}/pdf`);
   expect(download.rawPayload).toEqual(bytes);
   expect((await request("GET", `/verify/${sealed!.verificationCode}`)).json()).toMatchObject({
-    status: "valid",
+    status: "registered",
     systemSignatureValid: true,
   });
   await db
@@ -226,6 +226,6 @@ it("estampa, sella y conserva los bytes finales v2 y detecta cambios de maqueta"
     .set({ generatedContent: sealed!.generatedContent!.replace('"legal"', '"a4"') })
     .where(eq(contracts.id, id));
   expect((await request("GET", `/verify/${sealed!.verificationCode}`)).json().status).toBe(
-    "invalid",
+    "integrity_error",
   );
 });

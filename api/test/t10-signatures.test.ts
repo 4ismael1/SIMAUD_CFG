@@ -124,7 +124,7 @@ it("encadena firmas, conserva PNG saneado cifrado y publica solo evidencia míni
   expect(image.rawPayload).toEqual(validPng());
   const verified = await app.inject({ url: "/api/v1/verify/" + sealed!.verificationCode });
   expect(verified.json()).toMatchObject({
-    status: "valid",
+    status: "registered",
     signatoryCount: 2,
     auditChainValid: true,
     evidenceChainValid: true,
@@ -152,7 +152,7 @@ it("encadena firmas, conserva PNG saneado cifrado y publica solo evidencia míni
     matches: true,
     code: sealed!.verificationCode,
     systemSignatureValid: true,
-    status: "valid",
+    status: "registered",
   });
   const modified = Buffer.from(pdf);
   modified[modified.length - 1] = modified[modified.length - 1]! ^ 1;
@@ -164,7 +164,7 @@ it("encadena firmas, conserva PNG saneado cifrado y publica solo evidencia míni
   try {
     await writeFile(pdfPath, modified);
     const corrupted = await app.inject({ url: "/api/v1/verify/" + sealed!.verificationCode });
-    expect(corrupted.json()).toMatchObject({ status: "invalid", pdfIntegrityValid: false });
+    expect(corrupted.json()).toMatchObject({ status: "integrity_error", pdfIntegrityValid: false });
     expect(
       (
         await app.inject({
@@ -190,7 +190,7 @@ it("encadena firmas, conserva PNG saneado cifrado y publica solo evidencia míni
   });
   expect(cancel.statusCode, cancel.body).toBe(200);
   const revoked = await app.inject({ url: "/api/v1/verify/" + sealed!.verificationCode });
-  expect(revoked.json()).toMatchObject({ status: "revoked", revokedAt: expect.any(String) });
+  expect(revoked.json()).toMatchObject({ status: "cancelled", revokedAt: expect.any(String) });
   expect(revoked.body).not.toContain("Motivo privado");
   expect(
     (

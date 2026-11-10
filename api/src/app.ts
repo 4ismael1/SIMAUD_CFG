@@ -1,3 +1,4 @@
+import { normalizeClientIp, warnMissingTrustProxy } from "./lib/client-ip.js";
 import { notificationRoutes } from "./modules/notifications/routes.js";
 import { renewalRoutes } from "./modules/renewals/routes.js";
 import { systemRoutes } from "./modules/system/routes.js";
@@ -41,6 +42,13 @@ export async function buildApp(
     bodyLimit: 2 * 1024 * 1024,
     logController: new LogController({ disableRequestLogging: true }),
     routerOptions: { ignoreTrailingSlash: true, maxParamLength: 200 },
+  });
+  warnMissingTrustProxy(env.NODE_ENV, process.env.TRUST_PROXY, app.log);
+  app.addHook("onRequest", async (request) => {
+    Object.defineProperty(request, "ip", {
+      value: normalizeClientIp(request.ip),
+      configurable: true,
+    });
   });
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);

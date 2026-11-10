@@ -88,9 +88,11 @@ export async function pdfAttestation(
     ],
   ];
   for (const signer of signers) {
-    const row = evidence.find(
-      (row) => row.signatoryId === signer.id && row.contractVersion === contract.currentVersion,
-    );
+    const row = evidence
+      .sort((left, right) => right.sequence - left.sequence)
+      .find(
+        (row) => row.signatoryId === signer.id && row.contractVersion === contract.currentVersion,
+      );
     rows.push([
       {
         stack: [

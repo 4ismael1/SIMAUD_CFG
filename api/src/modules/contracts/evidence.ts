@@ -1,3 +1,4 @@
+import type { SignaturePlacement } from "../../lib/signature-placement.js";
 import { contentDocumentHash, matchesDocumentHash } from "../../lib/rich-doc/content.js";
 import { and, eq } from "drizzle-orm";
 import { db, type Transaction } from "../../db/client.js";
@@ -9,7 +10,14 @@ import { getContract, getSignatories, type Contract, type Signatory } from "./se
 export const signingDeclaration =
   "Declaro que he leído el documento completo, comprendo su contenido y acepto firmarlo electrónicamente con sellado del sistema.";
 export interface EvidencePayload {
-  format: "simaud-evidence-v1";
+  format: "simaud-evidence-v1" | "simaud-evidence-v2";
+  placement?: SignaturePlacement;
+  event?: "signed" | "resigned" | "placement_adjusted";
+  supersedesEvidenceHash?: string | null;
+  recordedAt?: string;
+  eventSessionId?: string;
+  eventIp?: string;
+  eventUserAgent?: string;
   contractId: string;
   contractVersion: number;
   sequence: number;
@@ -50,7 +58,7 @@ export async function recordEvidence(
   const current = await getContract(tx, contract.id, true);
   const evidence: EvidencePayload = {
     ...payload,
-    format: "simaud-evidence-v1",
+    format: payload.placement ? "simaud-evidence-v2" : "simaud-evidence-v1",
     contractId: contract.id,
     contractVersion: contract.currentVersion,
     sequence: current.evidenceCount + 1,
@@ -114,8 +122,10 @@ async function verifySigner(
   signer: Signatory | undefined,
   payload: EvidencePayload,
   currentVersion: number,
+  latest: boolean,
 ) {
   if (
+    latest &&
     payload.contractVersion === currentVersion &&
     (!signer ||
       signer.status !== "signed" ||
@@ -127,7 +137,9 @@ async function verifySigner(
       signer.acceptedDeclarationAt?.toISOString() !== payload.acceptedDeclarationAt ||
       signer.ip !== payload.ip ||
       (signer.userAgent ?? "") !== payload.userAgent ||
-      signer.signaturePath !== payload.signaturePath)
+      signer.signaturePath !== payload.signaturePath ||
+      (payload.format === "simaud-evidence-v2" &&
+        canonicalJson(signer.placement) !== canonicalJson(payload.placement)))
   )
     return false;
   try {
@@ -140,6 +152,44 @@ async function verifySigner(
   }
 }
 
+function originalSignature(payload: EvidencePayload) {
+  const {
+    placement: _placement,
+    event: _event,
+    supersedesEvidenceHash: _supersedes,
+    recordedAt: _recorded,
+    eventSessionId: _session,
+    eventIp: _ip,
+    eventUserAgent: _agent,
+    sequence: _sequence,
+    previousEvidenceHash: _previous,
+    format: _format,
+    ...unchanged
+  } = payload;
+  return canonicalJson(unchanged);
+}
+
+function validEvidenceSuccessor(
+  payload: EvidencePayload,
+  prior: typeof signatureEvidence.$inferSelect | undefined,
+) {
+  if (payload.format === "simaud-evidence-v1") return !prior;
+  if (
+    payload.format !== "simaud-evidence-v2" ||
+    !payload.placement ||
+    !payload.recordedAt ||
+    !payload.event ||
+    payload.supersedesEvidenceHash !== (prior?.evidenceHash ?? null) ||
+    (prior ? payload.event === "signed" : payload.event !== "signed")
+  )
+    return false;
+  if (payload.event === "placement_adjusted" && prior)
+    return (
+      !!payload.eventSessionId && originalSignature(payload) === originalSignature(prior.payload)
+    );
+  return true;
+}
+
 export async function verifyEvidenceChain(contractId: string, tx: Transaction | typeof db = db) {
   const contract = await getContract(tx, contractId);
   const rows = await tx
@@ -148,15 +198,22 @@ export async function verifyEvidenceChain(contractId: string, tx: Transaction | 
     .where(eq(signatureEvidence.contractId, contractId))
     .orderBy(signatureEvidence.sequence);
   const signers = await getSignatories(tx, contractId);
+  const latestBySigner = new Map<string, (typeof rows)[number]>();
+  for (const row of rows) latestBySigner.set(`${row.contractVersion}:${row.signatoryId}`, row);
   if (
     rows.length !== contract.evidenceCount ||
     signers.filter((signer) => signer.status === "signed").length !==
-      rows.filter((row) => row.contractVersion === contract.currentVersion).length
+      [...latestBySigner.values()].filter((row) => row.contractVersion === contract.currentVersion)
+        .length
   )
     return false;
+  const previousBySigner = new Map<string, (typeof rows)[number]>();
   let previous: string | null = null;
   for (const [index, row] of rows.entries()) {
     const payload = row.payload;
+    const key = `${row.contractVersion}:${row.signatoryId}`;
+    const prior = previousBySigner.get(key);
+    if (!validEvidenceSuccessor(payload, prior)) return false;
     if (
       row.sequence !== index + 1 ||
       row.previousEvidenceHash !== previous ||
@@ -171,10 +228,12 @@ export async function verifyEvidenceChain(contractId: string, tx: Transaction | 
         signers.find((signer) => signer.id === row.signatoryId),
         payload,
         contract.currentVersion,
+        latestBySigner.get(key)?.id === row.id,
       ))
     )
       return false;
     previous = row.evidenceHash;
+    previousBySigner.set(key, row);
   }
   return previous === contract.evidenceHead;
 }

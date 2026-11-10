@@ -4,6 +4,8 @@ import { parse } from "../modules/contracts/schemas.js";
 
 const empty = z.object({}).strict();
 const queriedRoutes = new Set([
+  "/templates",
+  "/contracts/:id/pdf",
   "/dashboard",
   "/contracts",
   "/contracts/counts",
@@ -28,6 +30,7 @@ const queriedRoutes = new Set([
   "/reports/approvals/export",
 ]);
 const emptyPostRoutes = new Set([
+  "/templates/:id/duplicate",
   "/auth/refresh",
   "/auth/logout",
   "/auth/logout-all",
@@ -43,8 +46,6 @@ const emptyPostRoutes = new Set([
 export function installStrictInputs(app: FastifyInstance) {
   app.addHook("onRoute", (route) => {
     const url = route.url.replace(/^\/api\/v1/, "");
-    // T15 owns the complete input contract of these routes.
-    if (/^\/(templates|variables)(\/|$)/.test(url) || url === "/contracts/:id/pdf") return;
     const params = Object.fromEntries(
       [...url.matchAll(/:([a-zA-Z][a-zA-Z0-9]*)/g)].map((match) => [
         match[1]!,

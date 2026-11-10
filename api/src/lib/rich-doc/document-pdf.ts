@@ -4,7 +4,12 @@ import { richDocPdf } from "./pdf.js";
 import { pageOptions, resolvePage, PAPER_SIZES, mmToPt } from "./page.js";
 import { paginateBlocks, measureBlocks } from "./pagination.js";
 import { ApiError } from "../errors.js";
-import { withSignatureSlots, type PdfSigner } from "./signatures.js";
+import {
+  withSignatureSlots,
+  type PdfSigner,
+  signatureSlotSizes,
+  type SignatureSlotGeometry,
+} from "./signatures.js";
 import type { RichDoc } from "./types.js";
 
 async function assertBandsFit(document: RichDoc, options: Partial<TDocumentDefinitions>) {
@@ -35,7 +40,12 @@ async function assertBandsFit(document: RichDoc, options: Partial<TDocumentDefin
 export async function documentPdf(
   document: RichDoc,
   title: string,
-  options: { signers?: PdfSigner[]; logo?: string | null; appendix?: Content[] } = {},
+  options: {
+    signers?: PdfSigner[];
+    logo?: string | null;
+    appendix?: Content[];
+    onSignatureSlot?: (geometry: SignatureSlotGeometry) => void;
+  } = {},
 ) {
   const source = withSignatureSlots(document, options.signers?.length ?? 0);
   const settings = pageOptions(
@@ -47,9 +57,25 @@ export async function documentPdf(
   const content = richDocPdf(source, { signers: options.signers, matchEditor: true });
   await assertBandsFit(source, settings);
   const paginated = await paginateBlocks(source, content, settings);
+  const slots = signatureSlotSizes(source, options.signers?.length ?? 0);
   return makePdf([...paginated.content, ...(options.appendix ?? [])], title, {
     ...settings,
-    pageBreakBefore: paginated.pageBreakBefore,
+    pageBreakBefore: (node, queries) => {
+      if (node.id?.startsWith("signature-slot-")) {
+        const index = Number(node.id.slice(15)) - 1;
+        const slot = slots[index];
+        if (slot)
+          options.onSignatureSlot?.({
+            page: node.startPosition.pageNumber,
+            slotIndex: index,
+            x: (node.startPosition.left + slot.cellWidth * 0.1) / slot.paper.width,
+            y: node.startPosition.top / slot.paper.height,
+            width: slot.width / slot.paper.width,
+            height: slot.height / slot.paper.height,
+          });
+      }
+      return paginated.pageBreakBefore?.(node, queries) ?? false;
+    },
   });
 }
 

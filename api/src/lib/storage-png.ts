@@ -184,3 +184,50 @@ export function sanitizePng(data: Buffer) {
     throw invalid();
   }
 }
+
+export function normalizeSignaturePng(data: Buffer) {
+  const sanitized = sanitizePng(data);
+  const chunks = readChunks(sanitized);
+  const width = chunks[0]!.data.readUInt32BE(0);
+  const height = chunks[0]!.data.readUInt32BE(4);
+  const compressed = Buffer.concat(
+    chunks.filter((chunk) => chunk.name === "IDAT").map((chunk) => chunk.data),
+  );
+  const pixels = unfilter(
+    inflateSync(compressed, { maxOutputLength: height * (width * 4 + 1) }),
+    width,
+    height,
+    4,
+  );
+  let left = width;
+  let top = height;
+  let right = -1;
+  let bottom = -1;
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      if (!pixels[(y * width + x) * 4 + 3]) continue;
+      left = Math.min(left, x);
+      top = Math.min(top, y);
+      right = Math.max(right, x);
+      bottom = Math.max(bottom, y);
+    }
+  }
+  if (right < 0) throw new ApiError(400, "VALIDATION_ERROR", "La firma está vacía.");
+  left = Math.max(0, left - 4);
+  top = Math.max(0, top - 4);
+  right = Math.min(width - 1, right + 4);
+  bottom = Math.min(height - 1, bottom + 4);
+  const croppedWidth = right - left + 1;
+  const croppedHeight = bottom - top + 1;
+  const ratio = Math.min(1, 1000 / croppedWidth, 500 / croppedHeight);
+  const outputWidth = Math.max(1, Math.round(croppedWidth * ratio));
+  const outputHeight = Math.max(1, Math.round(croppedHeight * ratio));
+  const output = Buffer.alloc(outputWidth * outputHeight * 4);
+  for (let y = 0; y < outputHeight; y++) {
+    for (let x = 0; x < outputWidth; x++) {
+      const source = ((top + Math.floor(y / ratio)) * width + left + Math.floor(x / ratio)) * 4;
+      output.set(pixels.subarray(source, source + 4), (y * outputWidth + x) * 4);
+    }
+  }
+  return encodeRgba(outputWidth, outputHeight, output);
+}

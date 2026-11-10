@@ -1,3 +1,4 @@
+import { formatCedula } from "./validation/format-cedula.js";
 import { validateIsoDate } from "./validation/index.js";
 import { ApiError } from "./errors.js";
 export interface Variable {
@@ -34,7 +35,9 @@ export function renderTemplate(
 
 export function formatVariable(value: unknown, def: Variable | undefined, name: string) {
   let formatted: string;
-  if (def?.type === "money" || def?.name === "valor_contrato") {
+  if (def?.type === "cedula" || name === "cliente_cedula") {
+    formatted = formatCedula(String(value));
+  } else if (def?.type === "money" || def?.name === "valor_contrato") {
     const [integer, fraction = "00"] = String(value).split(".");
     formatted =
       "RD$ " + integer!.replace(/\B(?=(\d{3})+(?!\d))/g, ".") + "," + fraction.padEnd(2, "0");

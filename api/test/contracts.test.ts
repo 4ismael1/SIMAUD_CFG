@@ -229,7 +229,7 @@ it("aprobación concurrente, orden de firmas, archivos privados y última firma 
   expect(inbox.data[0].myTurn).toBe(true);
   const r = await sign(first, c.id);
   expect(r.statusCode, r.body).toBe(200);
-  expect((await sign(first, c.id)).statusCode).toBe(409);
+  expect((await sign(first, c.id)).statusCode).toBe(200);
   inbox = (await request(second, "GET", "/me/signatures")).json();
   expect(inbox.data[0].myTurn).toBe(true);
   const [file] = await db.select().from(files);
@@ -237,6 +237,7 @@ it("aprobación concurrente, orden de firmas, archivos privados y última firma 
   expect((await request(other, "GET", "/files/signatures/" + file!.id)).statusCode).toBe(404);
   expect((await request(first, "GET", "/files/signatures/" + file!.id)).statusCode).toBe(200);
   expect((await sign(second, c.id)).statusCode).toBe(200);
+  expect((await sign(first, c.id)).statusCode).toBe(409);
   const detail = (await request(gestor, "GET", "/contracts/" + c.id)).json();
   expect(detail.status).toBe("active");
   expect(detail.signatures).toEqual({ signed: 2, total: 2 });

@@ -1,3 +1,5 @@
+import { escapeLike } from "../../lib/sql.js";
+import { storedDocument } from "../../lib/rich-doc/content.js";
 import { templatePreviewRoutes } from "./template-preview.js";
 import { auditCatalog } from "../audit/catalog.js";
 import { assertVariableNotReferenced } from "./variable-usage.js";
@@ -102,11 +104,13 @@ export async function catalogRoutes(app: FastifyInstance) {
   );
   app.get("/templates", read, async (req) => {
     const query = parse(
-      z.object({
-        status: z.enum(["active", "inactive"]).optional(),
-        q: z.string().optional(),
-        category: z.string().optional(),
-      }),
+      z
+        .object({
+          status: z.enum(["active", "inactive"]).optional(),
+          q: z.string().max(200).optional(),
+          category: z.string().max(1000).optional(),
+        })
+        .strict(),
       req.query,
     );
     const rows = await db
@@ -120,7 +124,7 @@ export async function catalogRoutes(app: FastifyInstance) {
               ? eq(templates.status, query.status)
               : undefined,
           query.category ? eq(templates.category, query.category) : undefined,
-          query.q ? sql`${templates.title} ilike ${"%" + query.q + "%"}` : undefined,
+          query.q ? sql`${templates.title} ilike ${"%" + escapeLike(query.q) + "%"}` : undefined,
         ),
       );
     const counts = await db
@@ -175,6 +179,9 @@ export async function catalogRoutes(app: FastifyInstance) {
     if (!template || (req.user.role === "gestor" && template.status !== "active")) throw missing();
     return {
       ...contentResponse(template),
+      hasSignatureBlock:
+        template.contentFormat !== "plain" &&
+        storedDocument(template.content).content.some((node) => node.type === "signatures"),
       resolvedVariables: (await resolveVariables(db, template.content, template.contentFormat))
         .defs,
     };

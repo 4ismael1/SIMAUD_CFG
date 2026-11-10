@@ -280,6 +280,8 @@ export const contractSignatories = pgTable(
     status: signatoryStatus("status").default("pending").notNull(),
     signingOrder: integer("signing_order").default(1).notNull(),
     signaturePath: text("signature_path"),
+    placement:
+      jsonb("placement").$type<import("../lib/signature-placement.js").SignaturePlacement>(),
     viewedAt: time("viewed_at"),
     acceptedDeclarationAt: time("accepted_declaration_at"),
     lastRemindedAt: time("last_reminded_at"),
@@ -385,7 +387,7 @@ export const signatureEvidence = pgTable(
   },
   (table) => [
     uniqueIndex("evidence_contract_sequence").on(table.contractId, table.sequence),
-    uniqueIndex("evidence_signatory_version").on(table.signatoryId, table.contractVersion),
+    index("evidence_signatory_version").on(table.signatoryId, table.contractVersion),
   ],
 );
 
@@ -639,4 +641,17 @@ export const authRequestBudgets = pgTable(
     expiresAt: time("expires_at").notNull(),
   },
   (table) => [index("auth_request_budgets_expiry_idx").on(table.expiresAt)],
+);
+
+export const verificationCodes = pgTable(
+  "verification_codes",
+  {
+    code: text("code").primaryKey(),
+    contractId: uuid("contract_id")
+      .notNull()
+      .references(() => contracts.id, { onDelete: "cascade" }),
+    legacy: boolean("legacy").default(false).notNull(),
+    revoked: boolean("revoked").default(false).notNull(),
+  },
+  (table) => [index("verification_codes_contract_idx").on(table.contractId)],
 );

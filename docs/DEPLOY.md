@@ -9,6 +9,29 @@ Guía para un host Linux con Docker Engine y Docker Compose v2. Ejecutar desde l
 - **No ejecutar db:seed en producción.** Crear solo el primer administrador con el comando descrito abajo.
 - Probar los flujos reales con la CSP estricta: firmas, gráficos, documentos y exportaciones. Los estilos inline de librerías o contenido de plantillas requieren adaptación del frontend si el navegador los bloquea. No añadir unsafe-inline para evitar esa revisión.
 
+## IP del cliente y evidencia de firma (T18)
+
+La API registra `req.ip`, normalizando las direcciones IPv4 mapeadas (`::ffff:a.b.c.d`) a IPv4.
+En el despliegue de `deploy/nginx/`, mantener `TRUST_PROXY=1`: nginx reemplaza
+`X-Forwarded-For` por `$remote_addr`, sin propagar la cabecera aportada por el cliente.
+La API debe ser accesible exclusivamente desde ese proxy; no publicar su puerto directamente.
+Una cabecera falsa enviada al nginx público no cambia la IP registrada.
+
+En staging Instabox, con dos proxies conocidos entre el navegador y la API, usar
+`TRUST_PROXY=2`. El proxy público debe reemplazar la cabecera del cliente y el segundo
+debe añadir la dirección del salto anterior. La API toma la dirección situada después
+de los dos saltos confiables, desde la derecha; ignora prefijos adicionales falsificados.
+Todos los caminos hasta la API deben tener esos dos saltos y la API debe quedar aislada
+de conexiones directas. No usar `TRUST_PROXY=true`, ni confiar en un número de saltos
+mayor al real. Si cambia la infraestructura, revisar esta configuración antes de arrancar.
+
+Sin proxy, usar `TRUST_PROXY=false`; las cabeceras reenviadas se ignoran. En desarrollo
+local es normal que la evidencia muestre `127.0.0.1`. Producción emite un aviso al
+arrancar si `TRUST_PROXY` está ausente, conservando el valor seguro predeterminado `false`.
+Las pruebas T18 con `inject` cubren conexión directa, uno/dos proxies y prefijos XFF
+falsificados. Para aceptar un despliegue real, comprobar además desde un cliente externo
+que una firma registra su IP de salida y repetir aportando una cabecera XFF inventada.
+
 ## Requisitos y preparación
 
 1. Host Linux con arquitectura igual a la de las imágenes preparadas (por ejemplo linux/amd64), Docker con plugin Compose v2 y espacio para BD, uploads y hasta once juegos de backup. Usar disco local fiable para PostgreSQL.

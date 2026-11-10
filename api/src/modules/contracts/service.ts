@@ -90,6 +90,12 @@ export function permissions(
       !!me &&
       me.status === "pending" &&
       signatories.every((item) => item.signingOrder >= me.signingOrder || item.status === "signed"),
+    adjustSignature:
+      contract.status === "pending_signatures" &&
+      !contract.activatedAt &&
+      !contract.signedPdfPath &&
+      !contract.systemSeal &&
+      me?.status === "signed",
     cancel:
       canManage(contract, actor) &&
       ["pending_signatures", "active", "expiring_soon"].includes(contract.status),

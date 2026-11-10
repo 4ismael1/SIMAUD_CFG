@@ -87,29 +87,60 @@ Todas las pruebas y comandos npm se ejecutaron desde Git Bash. La conexión here
 
 | Comprobación | Resultado |
 | --- | --- |
-| API `npm run typecheck`, última ejecución | Correcto. |
-| API `npm run format:check`, última ejecución | Correcto, todo src/test. |
-| API `npm run build`, última ejecución | Correcto. |
+| API `npm run typecheck` | Correcto al iniciar la última suite. La comprobación posterior a los cambios concurrentes de T18 falla en `src/lib/rich-doc/signatures.ts:67`, TS2353: `id` no pertenece a `ContentStack`. |
+| API `npm run format:check` | Correcto al iniciar la última suite. Tras las escrituras concurrentes de T18 señala 16 archivos; se enumeran debajo. |
+| API `npm run build` | Correcto antes de los cambios concurrentes de T18. La comprobación final falla por el mismo TS2353 de rich-doc. |
 | Regresión propia dirigida | **26/26 aprobadas**, siete archivos, 175,62 s. Incluye el backfill de 0014, seis casos de concurrencia, admisión HTTP saturada y sumas que terminan en .99. |
-| API suite completa final | En curso; se registra el resultado al cerrar la entrega. |
-| API `npm audit` | Correcto: 0 vulnerabilidades en la comprobacion mas reciente. |
+| API suite completa final | **558 aprobadas, 85 omitidas; 15 archivos fallidos y 38 aprobados**, 643 casos, 1714,20 s. Los hooks de esos 15 archivos fallan al aplicar la migración concurrente 0015 de T18: `index evidence_signatory_version does not exist`. No hay una suite completa final en verde. |
+| API `npm audit` | Correcto: **0 vulnerabilidades**, también después de la última suite. |
 | Web `npm run typecheck` | Correcto. |
 | Web `npm test` | **141/141 aprobadas**, 17 archivos, en la comprobación ejecutada. |
 | Web `npm run build` | Correcto; aviso de chunk mayor de 500 kB. |
 | Web `npm run format:check` | Señala **29 archivos fuera de los cambios propios**. No se reformatearon indiscriminadamente; los paths propios se formatearon por lista explícita. |
-| `git diff --check` | Correcto. |
+| `git diff --check` | Correcto antes de las últimas escrituras concurrentes. La comprobación posterior señala whitespace en `api/src/modules/verify/service.ts:25`, fuera de T16; no se editó ese archivo. |
 
 La suite propia contiene cinco pruebas de permisos, seis de concurrencia, tres de admisión, tres de identidad/correo/validación, dos de consultas, seis de reportes y una de migración. Usa barreras y relojes inyectados; no añade sleeps. En el front se añadieron tres regresiones para dinero, variaciones y tooltips exactos.
 
+Las cinco pruebas de permisos se repitieron después de la última extracción del helper de solicitud pendiente: **5/5 aprobadas**, 58,52 s. Las selecciones dirigidas y los resultados web de la tabla corresponden al árbol anterior a las modificaciones de T18; no certifican esos cambios posteriores.
+
 ### Incidencias de verificación
 
+**Bloqueo final por escrituras concurrentes de T18.** La suite arrancó a las 16:12, con typecheck/format correctos. Durante la ejecución apareció `0015_t18_verification_placement.sql` y su entrada en el journal (mtime 16:38:45, hora local de Windows). La migración intenta `DROP INDEX evidence_signatory_version` y falla en simaud_test3; los archivos ya ejecutados no habían tenido fallos. No se editó esa migración, no se retiró su entrada del journal y no se falsificó el historial de migraciones. La comprobación estática posterior registra además el TS2353 y los avisos de formato de la tabla. Se trasladó al usuario el error para coordinarlo con el dueño de T18. Queda pendiente repetir la suite completa sobre un árbol compartido estable, una vez corregida esa tarea.
+
+Los 16 archivos señalados por el último format:check de API son:
+
+```text
+src/app.ts
+src/db/schema.ts
+src/lib/render-template.ts
+src/lib/rich-doc/document-pdf.ts
+src/lib/rich-doc/signatures.ts
+src/lib/signature-placement.ts
+src/lib/storage-png.ts
+src/lib/validation/format-cedula.ts
+src/modules/contracts/evidence.ts
+src/modules/contracts/pdf-attestation.ts
+src/modules/contracts/pdf.ts
+src/modules/contracts/routes.ts
+src/modules/contracts/service.ts
+src/modules/contracts/signature-placement.ts
+src/modules/contracts/signatures.ts
+src/modules/verify/codes.ts
+```
+
 Una corrida anterior perdió el túnel de PostgreSQL y terminó con **430 aprobadas, 10 fallidas, 202 omitidas y un error de conexión**, 642 casos, 550,82 s. Antes de caer encontró el rechazo indebido del parámetro legítimo `dashboard?months=12`, que se corrigió. Los demás errores posteriores fueron `ECONNRESET`/`ECONNREFUSED`. No se cambió a simaud_test2 ni a otra URL; se esperó al restablecimiento de la conexión y se comprobó la base real antes de repetir.
+
+Otra corrida sufrió una nueva desconexión y terminó con **601 aprobadas, 4 fallidas, 38 omitidas y dos errores de conexión**, 643 casos, 2210,14 s. No sustituye al resultado de la comprobación final. No se modificó la configuración de energía: Windows rechazó ejecutar el script auxiliar para impedir la suspensión y se continuó directamente desde Git Bash.
+
+La desconexión dejó una sesión propia de la corrida anterior reteniendo el advisory lock exclusivo de configuración. Una repetición encontró tres rechazos por almacenamiento en migración y se detuvo. Se identificó y cerró únicamente esa sesión inactiva de simaud_test3, verificando PID, fechas de apertura/última consulta, consulta exacta y bloqueo, y se comprobó que el bloqueo quedara libre antes de reiniciar la suite. Su log parcial se conserva en `api/tmp/t16-stale-lock.log`.
+
+Tras corregir las expectativas heredadas y aislar con UUID nuevos el fixture de concurrencia, una ejecución dirigida de cinco archivos aprobó **21/21** casos. La selección unitaria de autenticación, contratos y períodos aprobó **203/203**. Estas cifras describen selecciones distintas de la suite, no casos adicionales a su total.
 
 Se actualizaron las expectativas heredadas que descartaban role en registro, invalidaban el enlace de confirmación durante el enfriamiento, recibían dinero XLSX como Number o permitían repetir intentos contra la misma cuenta desde otra IP. Se mantiene la imposición de role=user y se prueban los rechazos de campos desconocidos.
 
 T15 registró un timeout de la prueba nueva de bandeja en una corrida antigua. En la regresión final dirigida de T16 ese caso pasó en 5,21 s junto a las otras cinco pruebas de concurrencia, incluida la reserva de ancestros. Se distinguen las corridas antiguas sobre el árbol cambiante de los procesos nuevos comprobados.
 
-Los logs están en `api/tmp/t16-connection-outage.log`, `t16-full-suite.log`, `t16-typecheck.log`, `t16-format-check.log` y `t16-audit.log`, ignorados por git. No se reinició PostgreSQL, no se cerraron sesiones ajenas ni se alteraron credenciales o la URL de pruebas.
+Los logs conservados están en `api/tmp/t16-connection-outage.log`, `t16-stale-lock.log`, `t16-full-suite.log`, `t16-typecheck.log`, `t16-format-check.log`, `t16-final-{typecheck,format,build}.log` y `t16-audit.log`, ignorados por git. No se reinició PostgreSQL, no se cerraron sesiones ajenas ni se alteraron credenciales o la URL de pruebas. Una incidencia anterior de validación TLS del registro npm quedó resuelta en la ejecución posterior de audit, sin desactivar TLS ni cambiar la confianza o la configuración de npm.
 
 Con DATABASE_URL_TEST heredada, desde Git Bash, las comprobaciones se reproducen sin cargar api/.env así:
 
@@ -129,6 +160,40 @@ npm audit --fetch-retries=0 --fetch-timeout=30000 --logs-max=0
 ```
 
 No se asigna ni se imprime DATABASE_URL_TEST. Los valores alternativos son exclusivamente sintéticos para pruebas.
+
+### Web: paths pendientes de formato fuera de T16
+
+```text
+src/lib/api/admin-types.ts
+src/lib/api/catalog-types.ts
+src/lib/api/client.ts
+src/lib/api/contract-types.ts
+src/lib/api/core-types.ts
+src/lib/api/hooks/audit.ts
+src/lib/api/hooks/contract-admin.ts
+src/lib/api/hooks/me.ts
+src/lib/api/hooks/renewals.ts
+src/lib/api/hooks/signature-style.ts
+src/lib/api/hooks/signatures.ts
+src/lib/api/hooks/storage.ts
+src/lib/api/hooks/system.ts
+src/lib/api/hooks/templates.ts
+src/lib/api/hooks/users.ts
+src/lib/api/hooks/verify.ts
+src/lib/api/keys.ts
+src/lib/api/lifecycle-types.ts
+src/lib/api/status-colors.ts
+src/lib/api/storage-types.ts
+src/lib/api/types.ts
+src/lib/auth/AuthProvider.tsx
+src/lib/auth/useSessionState.ts
+src/features/contracts/wizard/bound-variables.test.ts
+src/features/contracts/wizard/wizard-state.test.ts
+src/features/signer/useMyContracts.test.ts
+src/features/templates/catalog-filters.test.ts
+src/lib/rich-doc/pagination.test.ts
+src/lib/rich-doc/rich-v2.test.ts
+```
 
 ## Límites y trabajo reservado
 

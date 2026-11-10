@@ -286,7 +286,7 @@ it("firma rich-v1, sella el PDF final y conserva el hash canónico en evidencia 
   );
   const verification = await request("GET", `/verify/${sealed!.verificationCode}`);
   expect(verification.json()).toMatchObject({
-    status: "valid",
+    status: "registered",
     documentSha256: expected,
     systemSignatureValid: true,
   });

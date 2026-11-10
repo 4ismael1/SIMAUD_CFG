@@ -1,3 +1,4 @@
+import { ownSignatureSlot } from "./signature-placement.js";
 import { listContracts, contractListQuery } from "./list-queries.js";
 import { listApprovals, approvalQuery, getPendingApprovalRequester } from "./approval-queries.js";
 import { contentInput, contentResponse, encodeContent } from "../../lib/rich-doc/content.js";
@@ -58,6 +59,7 @@ export async function contractRoutes(app: FastifyInstance) {
           ...item,
           signatureFileId: signatureFiles.find((f) => f.path === item.signaturePath)?.id ?? null,
         })),
+        signatureSlot: await ownSignatureSlot(tx, contract, allSignatories, req.user.id),
         can: {
           ...contractService.permissions(contract, req.user, allSignatories, requestedBy),
           reassign: canReassign(contract, req.user),
