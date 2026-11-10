@@ -33,13 +33,13 @@ export async function meRoutes(app: FastifyInstance) {
       },
     },
     async (r) => {
-      await service.changePassword(
+      const session = await service.changePassword(
         r.user.id,
         r.body.currentPassword,
         r.body.newPassword,
         r.sessionId,
       );
-      return { message: "Contraseña actualizada." };
+      return { message: "Contraseña actualizada.", ...session };
     },
   );
   a.patch(

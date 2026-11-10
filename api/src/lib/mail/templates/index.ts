@@ -14,6 +14,7 @@ export const mailTemplates = [
   "approval_needed",
   "contract_cancelled",
   "test",
+  "account_exists",
 ] as const;
 export type MailTemplate = (typeof mailTemplates)[number];
 export type MailPayload = { name?: string; message?: string; contractId?: string; token?: string };
@@ -31,6 +32,7 @@ const headings: Record<MailTemplate, string> = {
   approval_needed: "Contrato pendiente de aprobación",
   contract_cancelled: "Contrato cancelado",
   test: "Correo de prueba de SIMAUD",
+  account_exists: "Ya tienes cuenta en SIMAUD",
 };
 function mailLink(template: MailTemplate, payload: MailPayload) {
   const base = env.APP_URL.replace(/\/$/, "");
@@ -39,6 +41,7 @@ function mailLink(template: MailTemplate, payload: MailPayload) {
   if (template === "password_reset" || template === "invitation")
     return base + "/auth/restablecer?token=" + encodeURIComponent(payload.token ?? "");
   if (template === "signature_required") return base + "/app/firmas";
+  if (template === "account_exists") return base + "/auth/recuperar";
   return (
     base +
     (payload.contractId ? "/app/contratos/" + encodeURIComponent(payload.contractId) : "/app")

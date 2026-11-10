@@ -1,7 +1,7 @@
 import { normalizeTemplateValues } from "../../lib/validation/template-values.js";
 import { addNotification, notificationLink } from "../notifications/service.js";
 import type { FastifyRequest } from "fastify";
-import { and, eq, isNull, or, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db, type Transaction } from "../../db/client.js";
 import {
   contracts,
@@ -9,14 +9,19 @@ import {
   contractSignatories as signatories,
   contractVersions as versions,
   users,
-  notifications,
 } from "../../db/schema.js";
 import { ApiError } from "../../lib/errors.js";
 import { audit } from "../../lib/audit.js";
 import { enqueueMail } from "../../lib/mail/outbox.js";
 import type { MailTemplate } from "../../lib/mail/templates/index.js";
-import { renderTemplate } from "../../lib/render-template.js";
-import { resolveVariables } from "./catalog.js";
+import { renderTemplate, extractVariables } from "../../lib/render-template.js";
+import {
+  linkInvitations,
+  normalizeEmail,
+  resolveSignatoryUser,
+  duplicateSignatory,
+} from "./identities.js";
+import { captureDefinitions, type VariableDefinition } from "./variable-history.js";
 export type Contract = typeof contracts.$inferSelect;
 export type Signatory = typeof signatories.$inferSelect;
 export type Actor = FastifyRequest["user"];
@@ -81,27 +86,17 @@ export function permissions(contract: Contract, actor: Actor, signatories: Signa
   };
 }
 export async function linkSignatories(tx: Transaction, actor: Actor) {
-  // Only confirmed, authenticated identities reach this function. Never take an existing binding.
-  await tx
-    .update(signatories)
-    .set({ userId: actor.id })
-    .where(
-      and(
-        isNull(signatories.userId),
-        or(
-          eq(signatories.email, actor.email),
-          actor.cedula ? eq(signatories.cedula, actor.cedula) : undefined,
-        ),
-      ),
-    );
+  await linkInvitations(tx, actor);
 }
 export async function prepareContent(
   tx: Transaction,
   content: string,
   values: Record<string, unknown>,
   validateValues = true,
+  definitions?: VariableDefinition[],
 ) {
-  const { defs, names } = await resolveVariables(tx, content);
+  const defs = definitions ?? (await captureDefinitions(tx, content));
+  const names = extractVariables(content);
   const unknown = Object.keys(values).filter((versionNumber) => !names.includes(versionNumber));
   if (unknown.length) throw invalid("Variables desconocidas.", { unknown });
   const missing = defs
@@ -127,29 +122,19 @@ export async function reconcileSignatories(
     signingOrder: number;
   }[],
 ) {
+  if (new Set(input.map((item) => normalizeEmail(item.email))).size !== input.length)
+    throw duplicateSignatory();
   const old = await getSignatories(tx, contractId);
+  await tx.update(signatories).set({ userId: null }).where(eq(signatories.contractId, contractId));
   const kept = new Set<string>();
   const linked = new Set<string>();
   for (const item of input) {
-    const matches = await tx
-      .select()
-      .from(users)
-      .where(
-        and(
-          eq(users.isActive, true),
-          isNull(users.deletedAt),
-          or(eq(users.email, item.email), item.cedula ? eq(users.cedula, item.cedula) : undefined),
-        ),
-      );
-    if (matches.length > 1) throw invalid("Email y cédula pertenecen a usuarios distintos.");
+    const email = normalizeEmail(item.email);
     const prior = old.find(
-      (signatories) =>
-        !kept.has(signatories.id) &&
-        (signatories.email === item.email || (!!item.cedula && signatories.cedula === item.cedula)),
+      (signer) => !kept.has(signer.id) && normalizeEmail(signer.email) === email,
     );
-    const userId = prior?.userId ?? matches[0]?.id ?? null;
-    if (userId && linked.has(userId))
-      throw invalid("Un usuario no puede aparecer dos veces como firmante.");
+    const userId = await resolveSignatoryUser(tx, email, item.cedula);
+    if (userId && linked.has(userId)) throw duplicateSignatory();
     if (userId) linked.add(userId);
     if (prior) {
       kept.add(prior.id);
@@ -157,6 +142,7 @@ export async function reconcileSignatories(
         .update(signatories)
         .set({
           ...item,
+          email,
           userId,
           status: "pending",
           signedAt: null,
@@ -170,7 +156,7 @@ export async function reconcileSignatories(
     } else {
       const [added] = await tx
         .insert(signatories)
-        .values({ ...item, contractId: contractId, userId })
+        .values({ ...item, email, contractId: contractId, userId })
         .returning();
       kept.add(added!.id);
     }
@@ -178,7 +164,13 @@ export async function reconcileSignatories(
   for (const signer of old)
     if (!kept.has(signer.id)) await tx.delete(signatories).where(eq(signatories.id, signer.id));
 }
-export async function snapshot(tx: Transaction, contract: Contract, actor: Actor, summary: string) {
+export async function snapshot(
+  tx: Transaction,
+  contract: Contract,
+  actor: Actor,
+  summary: string,
+  definitions?: VariableDefinition[],
+) {
   const signer = await getSignatories(tx, contract.id);
   await tx.insert(versions).values({
     contractId: contract.id,
@@ -189,6 +181,7 @@ export async function snapshot(tx: Transaction, contract: Contract, actor: Actor
     createdBy: actor.id,
     changeSummary: summary,
     snapshot: {
+      variableDefinitions: definitions ?? (await captureDefinitions(tx, contract.content)),
       title: contract.title,
       value: contract.contractValue,
       startDate: contract.startDate,

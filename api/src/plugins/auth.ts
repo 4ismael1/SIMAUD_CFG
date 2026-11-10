@@ -1,7 +1,6 @@
 import type { FastifyInstance, FastifyRequest } from "fastify";
-import { eq } from "drizzle-orm";
-import { db } from "../db/client.js";
-import { users, type Role } from "../db/schema.js";
+import type { Role } from "../db/schema.js";
+import { sessionUser } from "../lib/auth/sessions.js";
 import { verifyAccessToken } from "../lib/auth/jwt.js";
 import { ApiError, unauthorized } from "../lib/errors.js";
 import { publicUser, type PublicUser } from "../modules/users/schemas.js";
@@ -9,6 +8,7 @@ declare module "fastify" {
   interface FastifyRequest {
     user: PublicUser;
     sessionId?: string;
+    credentialsVersion: number;
   }
 }
 export async function authenticate(request: FastifyRequest) {
@@ -20,17 +20,25 @@ export async function authenticate(request: FastifyRequest) {
   } catch {
     throw unauthorized();
   }
-  if (typeof payload.sub !== "string" || !/^[0-9a-f-]{36}$/i.test(payload.sub))
-    throw unauthorized();
-  const [user] = await db.select().from(users).where(eq(users.id, payload.sub));
+  const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   if (
-    !user ||
-    !user.isActive ||
-    user.deletedAt ||
-    !user.emailConfirmedAt ||
-    user.role !== payload.role
+    typeof payload.sub !== "string" ||
+    !uuid.test(payload.sub) ||
+    typeof payload.sid !== "string" ||
+    !uuid.test(payload.sid) ||
+    typeof payload.role !== "string" ||
+    typeof payload.cv !== "number" ||
+    !Number.isSafeInteger(payload.cv) ||
+    payload.cv < 0
   )
     throw unauthorized();
+  const user = await sessionUser({
+    userId: payload.sub,
+    sessionId: payload.sid,
+    role: payload.role,
+    credentialsVersion: payload.cv,
+  });
+  if (!user) throw unauthorized();
   const path = request.routeOptions.url;
   if (
     user.mustChangePassword &&
@@ -43,7 +51,8 @@ export async function authenticate(request: FastifyRequest) {
       "Debes cambiar tu contraseña temporal antes de continuar.",
     );
   request.user = publicUser(user);
-  request.sessionId = typeof payload.sid === "string" ? payload.sid : undefined;
+  request.sessionId = payload.sid;
+  request.credentialsVersion = payload.cv;
 }
 export const requireRole =
   (...roles: Role[]) =>
@@ -55,4 +64,5 @@ export const requireRole =
 export function installAuth(app: FastifyInstance) {
   app.decorateRequest("user");
   app.decorateRequest("sessionId");
+  app.decorateRequest("credentialsVersion");
 }

@@ -2,8 +2,11 @@ import { SignJWT, jwtVerify } from "jose";
 import { env } from "../../config/env.js";
 import type { Role } from "../../db/schema.js";
 const key = new TextEncoder().encode(env.JWT_ACCESS_SECRET);
-export const createAccessToken = (user: { id: string; role: Role }, sessionId?: string) =>
-  new SignJWT({ role: user.role, sid: sessionId })
+export const createAccessToken = (
+  user: { id: string; role: Role; credentialsVersion?: number },
+  sessionId?: string,
+) =>
+  new SignJWT({ role: user.role, sid: sessionId, cv: user.credentialsVersion ?? 0 })
     .setProtectedHeader({ alg: "HS256", typ: "JWT" })
     .setSubject(user.id)
     .setIssuedAt()

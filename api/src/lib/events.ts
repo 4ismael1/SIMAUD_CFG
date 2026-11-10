@@ -1,6 +1,8 @@
 import { EventEmitter } from "node:events";
 
-export type UserEvent = { type: "notification" | "unread-count" | "role-changed"; data: unknown };
+export type UserEvent =
+  | { type: "notification" | "unread-count" | "role-changed"; data: unknown }
+  | { type: "session-revoked"; data: { sessionId?: string; exceptId?: string } };
 export interface EventBus {
   publish(userId: string, event: UserEvent): void;
   subscribe(userId: string, listener: (event: UserEvent) => void): () => void;

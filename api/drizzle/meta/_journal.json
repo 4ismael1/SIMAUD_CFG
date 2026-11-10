@@ -50,6 +50,20 @@
       "when": 1794275656464,
       "tag": "0006_t08_mail_outbox",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1794275656465,
+      "tag": "0007_t09a_sessions_mail",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1794275656466,
+      "tag": "0008_t09b_contract_security",
+      "breakpoints": true
     }
   ]
 }

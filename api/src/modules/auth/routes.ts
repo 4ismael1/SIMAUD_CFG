@@ -1,12 +1,10 @@
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
-import { and, eq } from "drizzle-orm";
-import { db } from "../../db/client.js";
-import { users } from "../../db/schema.js";
 import { env } from "../../config/env.js";
 import { authenticate } from "../../plugins/auth.js";
 import * as schema from "./schemas.js";
 import * as service from "./service.js";
+import { aggregateIpLimit } from "./rate-limit.js";
 export const cookieName = "simaud_rt";
 export const cookieOptions = {
   httpOnly: true,
@@ -20,6 +18,8 @@ const context = (r: FastifyRequest) => ({
 });
 export async function authRoutes(app: FastifyInstance) {
   const a = app.withTypeProvider<ZodTypeProvider>();
+  const loginBudget = aggregateIpLimit(app, 20);
+  const publicBudget = aggregateIpLimit(app, 10);
   const generic = {
     message: "Si la cuenta corresponde, recibirás un email con las instrucciones.",
   };
@@ -27,29 +27,16 @@ export async function authRoutes(app: FastifyInstance) {
     "/register",
     {
       schema: { body: schema.registerBody },
+      onRequest: publicBudget,
       config: { rateLimit: { max: 10, timeWindow: "1 minute" } },
     },
-    async (r, reply) => reply.code(201).send(await service.register(r.body)),
-  );
-  a.get(
-    "/availability",
-    {
-      schema: { querystring: schema.availabilityQuery },
-      config: { rateLimit: { max: 20, timeWindow: "1 minute" } },
-    },
-    async (r) => {
-      const { email, cedula } = r.query;
-      const [e, c] = await Promise.all([
-        email ? db.select({ id: users.id }).from(users).where(eq(users.email, email)) : [],
-        cedula ? db.select({ id: users.id }).from(users).where(eq(users.cedula, cedula)) : [],
-      ]);
-      return { emailAvailable: !e.length, cedulaAvailable: !c.length };
-    },
+    async (r, reply) => reply.code(202).send(await service.register(r.body)),
   );
   a.post(
     "/login",
     {
       schema: { body: schema.loginBody },
+      onRequest: loginBudget,
       config: {
         rateLimit: {
           max: 5,
@@ -90,10 +77,7 @@ export async function authRoutes(app: FastifyInstance) {
     return { message: "Sesión cerrada." };
   });
   a.post("/logout-all", { preHandler: authenticate }, async (r, reply) => {
-    await db.transaction(async (tx) => {
-      await service.lockUser(tx, r.user.id);
-      await service.revokeSessions(tx, r.user.id);
-    });
+    await service.logoutAll(r.user.id);
     reply.clearCookie(cookieName, cookieOptions);
     return { message: "Sesiones cerradas." };
   });
@@ -105,6 +89,7 @@ export async function authRoutes(app: FastifyInstance) {
     "/resend-confirmation",
     {
       schema: { body: schema.emailBody },
+      onRequest: publicBudget,
       config: { rateLimit: { max: 3, timeWindow: "1 minute" } },
     },
     async (r) => {
@@ -116,6 +101,7 @@ export async function authRoutes(app: FastifyInstance) {
     "/forgot-password",
     {
       schema: { body: schema.emailBody },
+      onRequest: publicBudget,
       config: { rateLimit: { max: 3, timeWindow: "1 minute" } },
     },
     async (r) => {

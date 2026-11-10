@@ -46,6 +46,10 @@ const schema = z.object({
     )
     .default("127.0.0.1"),
   MAIL_DRIVER: z.enum(["resend", "smtp", "log"]).default("log"),
+  MAIL_PAYLOAD_KEY: z
+    .string()
+    .regex(/^[a-f0-9]{64}$/i, "Debe contener 32 bytes en hexadecimal")
+    .optional(),
   RESEND_API_KEY: z.string().min(1).optional(),
   MAIL_REPLY_TO: z.email().optional(),
   SMTP_URL: z
@@ -86,6 +90,8 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env) {
     throw new Error("RESEND_API_KEY es obligatoria con MAIL_DRIVER=resend");
   if (config.MAIL_DRIVER === "smtp" && !config.SMTP_URL)
     throw new Error("SMTP_URL es obligatorio con MAIL_DRIVER=smtp");
+  if (config.NODE_ENV !== "test" && !config.MAIL_PAYLOAD_KEY)
+    throw new Error("MAIL_PAYLOAD_KEY es obligatoria fuera de test");
   return parsed.data;
 }
 export const env = loadEnv();

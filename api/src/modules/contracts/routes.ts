@@ -1,3 +1,5 @@
+import { historicalDefinitions, lockVariableCatalog } from "./variable-history.js";
+import { validateInstitutionLogo } from "../../lib/storage-image-validation.js";
 import { applyContractAction } from "./actions.js";
 import { activateRenewalParent } from "../renewals/routes.js";
 import { removeFinalPdf } from "./pdf.js";
@@ -32,6 +34,7 @@ import { transition } from "./state-machine.js";
 import * as contractService from "./service.js";
 import { signatureRoutes, removeSignatureFiles } from "./signatures.js";
 export async function contractRoutes(app: FastifyInstance) {
+  app.addHook("preValidation", validateInstitutionLogo);
   const auth = { preHandler: authenticate };
   const staff = { preHandler: requireRole("admin", "supervisor", "gestor") };
   const idOf = (req: FastifyRequest) => parse(uuid, (req.params as { id: string }).id);
@@ -139,6 +142,7 @@ export async function contractRoutes(app: FastifyInstance) {
   app.post("/contracts", { preHandler: requireRole("admin", "gestor") }, async (req, reply) => {
     const input = parse(contractInput, req.body);
     const contract = await db.transaction(async (tx) => {
+      await lockVariableCatalog(tx);
       const [template] = await tx
         .select()
         .from(contractTemplates)
@@ -177,6 +181,7 @@ export async function contractRoutes(app: FastifyInstance) {
   app.patch("/contracts/:id", { preHandler: requireRole("admin", "gestor") }, async (req) => {
     const id = idOf(req);
     await db.transaction(async (tx) => {
+      await lockVariableCatalog(tx);
       const contract = await contractService.getContract(tx, id, true);
       const previousSignatories = await contractService.getSignatories(tx, id);
       if (!(
@@ -296,7 +301,13 @@ export async function contractRoutes(app: FastifyInstance) {
         if (next === "active" && contract.status !== "active")
           await activateRenewalParent(tx, updated!, req.user.id);
         if (action === "override-status" && next === "draft")
-          await contractService.snapshot(tx, updated!, req.user, "Reapertura administrativa");
+          await contractService.snapshot(
+            tx,
+            updated!,
+            req.user,
+            "Reapertura administrativa",
+            await historicalDefinitions(tx, contract),
+          );
         await contractService.record(tx, req, contract, action, contract, {
           ...updated,
           reason: input.reason,

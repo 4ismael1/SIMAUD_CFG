@@ -70,6 +70,7 @@ export const users = pgTable(
     id: id(),
     email: text("email").notNull(),
     passwordHash: text("password_hash").notNull(),
+    credentialsVersion: integer("credentials_version").default(0).notNull(),
     mustChangePassword: boolean("must_change_password").default(false).notNull(),
     name: text("name").notNull(),
     phone: text("phone").notNull().default(""),
@@ -120,7 +121,13 @@ export const refreshTokens = pgTable(
     ip: text("ip"),
     createdAt: time("created_at").defaultNow().notNull(),
   },
-  (t) => [index("refresh_user_idx").on(t.userId), index("refresh_family_idx").on(t.familyId)],
+  (t) => [
+    index("refresh_user_idx").on(t.userId),
+    index("refresh_family_idx").on(t.familyId),
+    index("refresh_active_family_idx")
+      .on(t.familyId, t.userId, t.expiresAt)
+      .where(sql`${t.revokedAt} IS NULL`),
+  ],
 );
 export const authTokens = pgTable(
   "auth_tokens",
@@ -472,6 +479,8 @@ export const emailOutbox = pgTable(
     payload: jsonb("payload")
       .$type<import("../lib/mail/templates/index.js").MailPayload>()
       .notNull(),
+    encryptedPayload: text("encrypted_payload"),
+    expiresAt: time("expires_at"),
     status: text("status").$type<"pending" | "sent" | "failed">().default("pending").notNull(),
     attempts: integer("attempts").default(0).notNull(),
     nextAttemptAt: time("next_attempt_at").defaultNow().notNull(),

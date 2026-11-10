@@ -1,7 +1,9 @@
+import { purgeTrash } from "../lib/storage.js";
 import { sql } from "drizzle-orm";
 import { db } from "../db/client.js";
 
 export async function cleanup(today: string) {
+  const trashDirectories = await purgeTrash(today);
   return db.transaction(async (tx) => {
     const notifications = await tx.execute(
       sql`
@@ -32,6 +34,7 @@ export async function cleanup(today: string) {
       sql`delete from email_outbox where status = 'sent' and sent_at < ${today}::date - interval '30 days' returning id`,
     );
     return {
+      trashDirectories,
       emails: emails.rowCount,
       notifications: notifications.rowCount,
       refreshTokens: refresh.rowCount,

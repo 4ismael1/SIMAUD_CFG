@@ -1,5 +1,7 @@
+import { sanitizePng } from "../../lib/storage-png.js";
+import { trashFile } from "../../lib/storage.js";
 import { createHash } from "node:crypto";
-import { mkdir, readFile, writeFile, unlink } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { FastifyInstance } from "fastify";
 import type { Content } from "pdfmake/interfaces.js";
@@ -22,9 +24,7 @@ export function finalPdfName(contract: service.Contract) {
 
 export async function removeFinalPdf(name: string) {
   if (!/^[0-9a-f-]{36}-v\d+\.pdf$/.test(name)) return;
-  await unlink(path.join(directory, name)).catch(() => {
-    // Cleanup must not mask the original transaction error if the file cannot be removed.
-  });
+  await trashFile(path.join(directory, name));
 }
 
 export async function contractPdf(
@@ -36,7 +36,15 @@ export async function contractPdf(
   const text = decodeRenderedText(contract.generatedContent ?? contract.content);
   const content: Content[] = [];
   if (settings.institution.logo)
-    content.push({ image: settings.institution.logo, fit: [90, 50], margin: [0, 0, 0, 12] });
+    content.push({
+      image:
+        "data:image/png;base64," +
+        sanitizePng(Buffer.from(settings.institution.logo.split(",")[1]!, "base64")).toString(
+          "base64",
+        ),
+      fit: [90, 50],
+      margin: [0, 0, 0, 12],
+    });
   content.push(
     { text: settings.institution.name, bold: true, fontSize: 16 },
     {
@@ -110,11 +118,16 @@ export async function contractPdf(
   return makePdf(content, contract.code);
 }
 
-export async function saveFinalPdf(tx: Transaction, contract: service.Contract) {
+export async function saveFinalPdf(
+  tx: Transaction,
+  contract: service.Contract,
+  onWritten?: () => void,
+) {
   const bytes = await contractPdf(tx, contract);
   const name = finalPdfName(contract);
   await mkdir(directory, { recursive: true });
-  await writeFile(path.join(directory, name), bytes);
+  await writeFile(path.join(directory, name), bytes, { flag: "wx" });
+  onWritten?.();
   await tx
     .update(contracts)
     .set({ signedPdfPath: name, signedPdfSha256: createHash("sha256").update(bytes).digest("hex") })

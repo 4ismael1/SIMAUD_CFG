@@ -133,13 +133,17 @@ dc run --rm --no-deps --pull never --entrypoint /bin/sh backup /opt/backup/backu
 dc logs --tail=100 backup
 ```
 
-El dump online es coherente para PostgreSQL; la copia de archivos posterior no es una instantánea conjunta con la BD mientras hay escrituras. Para una copia consistente de ambos recursos, detener web/api/backup y ejecutar el mismo comando, como en una actualización. Una modificación de uploads durante tar puede hacer fallar el juego; investigar y repetirlo en mantenimiento.
+Los borrados y reemplazos mueven los archivos a `storage/.trash/AAAA-MM-DD/`, conservando su subcarpeta y nombre. El job `cleanup` purga solo días con **más de ocho días** de antigüedad UTC. El tar incluye la papelera: una referencia del snapshot de BD puede apuntar a un objeto movido antes de capturarlo. Cada juego diario o semanal conserva su propia copia de esos bytes, independientemente de la purga posterior del volumen activo.
+
+La API, la purga y `backup.sh` comparten el advisory lock PostgreSQL **10409**. La copia lo mantiene en una conexión dedicada desde antes de `pg_dump` hasta finalizar `tar`; así ningún movimiento puede cambiar un archivo de carpeta mientras `tar` recorre el volumen. Los archivos tienen nombres inmutables y no se sobrescriben. No excluir `.trash` ni sustituir `capture.sh` por un tar sin ese bloqueo. Una interrupción de la conexión libera el lock; si falla la captura, el juego no se publica. No hace falta escritura en el montaje de storage del contenedor de backup. Si falla una copia por una carga nueva aún en escritura, investigar y repetirla; el juego parcial no se considera recuperable.
 
 TI debe monitorizar la existencia y edad del último juego, espacio libre y errores del contenedor; copiar juegos cifrados a otro servidor o medio. La rotación local no protege ante pérdida del host. Probar una restauración periódica en un entorno aislado. Las copias contienen datos personales y firmas; restringir su acceso. Si una caída brusca deja .backup-lock, comprobar que no haya un proceso activo antes de retirar ese directorio vacío; revisar también los .partial.
 
 ## Restaurar en volúmenes nuevos
 
 Solo restaurar juegos de confianza. No ejecutar contra la aplicación en servicio. El script exige RESTORE_CONFIRM igual al nombre de BD, verifica checksums y que storage esté vacío. Restaura la BD en una transacción, después los archivos con uid/gid conservados; si falla tar, mantener la aplicación parada y repetir sobre otro volumen vacío.
+
+Después de extraer, `check-references.sh` contrasta `files.path`, `users.avatar_path`, `contract_signatories.signature_path` y `contracts.signed_pdf_path` con storage. Recupera desde la papelera los objetos referenciados que falten en su ubicación original, conserva permisos y lista cada recuperación. Lista referencias faltantes o inválidas y termina con error si no puede resolverlas; mantener la aplicación parada hasta resolverlas. No cambia las filas restauradas. Esta verificación comprueba presencia de objetos; la descarga del PDF final conserva además su comprobación SHA-256.
 
 Conservar el proyecto original completo para volver atrás. En .env.prod fijar BACKUP_DIR a la ruta absoluta del directorio que contiene daily/weekly y comprobar que el servidor dispone de las imágenes de la versión respaldada. No cambiar credenciales ni nombre de BD durante la recuperación. Ejemplo de fecha y nombre de BD a sustituir:
 

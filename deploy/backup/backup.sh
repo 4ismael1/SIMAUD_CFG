@@ -46,8 +46,15 @@ fi
 partial_directory=$backup_root/daily/.$backup_name.partial
 mkdir "$partial_directory"
 # El juego es visible para restauración solo cuando ambos archivos están completos.
-pg_dump --format=custom --no-owner --no-acl --file="$partial_directory/database.dump"
-tar -czf "$partial_directory/storage.tar.gz" -C /storage .
+export CAPTURE_DIRECTORY=$partial_directory
+psql --no-psqlrc --set=ON_ERROR_STOP=1 <<'SQL'
+SELECT pg_advisory_lock(10409);
+\! /bin/sh /opt/backup/capture.sh
+\if :SHELL_ERROR
+SELECT 1 / 0;
+\endif
+SELECT pg_advisory_unlock(10409);
+SQL
 (
     cd "$partial_directory"
     sha256sum database.dump storage.tar.gz > SHA256SUMS

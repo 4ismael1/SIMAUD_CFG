@@ -1,16 +1,18 @@
+import { signatureInbox } from "./signature-inbox.js";
 import { activateRenewalParent } from "../renewals/routes.js";
 import { saveFinalPdf, finalPdfName, removeFinalPdf } from "./pdf.js";
+import { sanitizePng } from "../../lib/storage-png.js";
+import { trashFile } from "../../lib/storage.js";
 import { randomUUID } from "node:crypto";
-import { mkdir, readFile, writeFile, unlink } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { FastifyInstance } from "fastify";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "../../db/client.js";
 import { contracts, contractSignatories as signatories, files } from "../../db/schema.js";
 import { authenticate } from "../../plugins/auth.js";
-import { ApiError } from "../../lib/errors.js";
-import { parse, uuid } from "./schemas.js";
+import { parse, uuid, pageInput } from "./schemas.js";
 import { transition } from "./state-machine.js";
 import * as contractService from "./service.js";
 const directory = path.resolve("storage/signatures");
@@ -19,33 +21,16 @@ function safePath(name: string) {
   return path.join(directory, name);
 }
 export async function removeSignatureFiles(names: string[]) {
-  for (const name of names) await unlink(safePath(name)).catch(() => {});
+  for (const name of names) await trashFile(safePath(name));
 }
 export async function signatureRoutes(app: FastifyInstance) {
   const auth = { preHandler: authenticate };
   app.get("/me/signatures", auth, async (req) => {
     const query = parse(
-      z.object({ status: z.enum(["pending", "signed"]).default("pending") }),
+      pageInput.extend({ status: z.enum(["pending", "signed"]).default("pending") }),
       req.query,
     );
-    return db.transaction(async (tx) => {
-      await contractService.linkSignatories(tx, req.user);
-      const mine = await tx
-        .select()
-        .from(signatories)
-        .where(and(eq(signatories.userId, req.user.id), eq(signatories.status, query.status)));
-      return Promise.all(
-        mine.map(async (me) => {
-          const contract = await contractService.getContract(tx, me.contractId);
-          const allSignatories = await contractService.getSignatories(tx, contract.id);
-          return {
-            ...(await contractService.decorate(tx, contract)),
-            signatory: me,
-            myTurn: contractService.permissions(contract, req.user, allSignatories).sign,
-          };
-        }),
-      );
-    });
+    return signatureInbox(req.user, query);
   });
   app.post("/contracts/:id/sign", auth, async (req) => {
     const id = parse(uuid, (req.params as { id: string }).id);
@@ -65,15 +50,8 @@ export async function signatureRoutes(app: FastifyInstance) {
         viewedAt = String(part.value);
       else throw contractService.invalid("Campo multipart inválido.");
     }
-    if (
-      !buffer ||
-      buffer.length < 24 ||
-      !buffer.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])) ||
-      buffer.toString("ascii", 12, 16) !== "IHDR" ||
-      !buffer.readUInt32BE(16) ||
-      !buffer.readUInt32BE(20)
-    )
-      throw contractService.invalid("La firma no es un PNG válido.");
+    if (!buffer) throw contractService.invalid("Selecciona una firma PNG.");
+    buffer = sanitizePng(buffer);
     if (accepted !== "true") throw contractService.invalid("Debes aceptar la declaración.");
     const viewed = parse(z.iso.datetime({ offset: true }), viewedAt);
     if (Date.parse(viewed) > Date.now())
@@ -152,8 +130,9 @@ export async function signatureRoutes(app: FastifyInstance) {
           },
         );
         if (last) {
-          finalName = finalPdfName(contract);
-          await saveFinalPdf(tx, contract);
+          await saveFinalPdf(tx, contract, () => {
+            finalName = finalPdfName(contract);
+          });
         }
       });
     } catch (error) {

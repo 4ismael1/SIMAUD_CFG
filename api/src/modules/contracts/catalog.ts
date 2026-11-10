@@ -1,3 +1,4 @@
+import { assertVariableNotReferenced } from "./variable-usage.js";
 import { normalizeTemplateValues } from "../../lib/validation/template-values.js";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { and, eq, inArray, sql } from "drizzle-orm";
@@ -84,6 +85,7 @@ export async function catalogRoutes(app: FastifyInstance) {
         .from(templates)
         .where(sql`${variable.name}=ANY(${templates.variables})`);
       if (used.length) throw new ApiError(409, "CONFLICT", "Variable en uso.", { templates: used });
+      await assertVariableNotReferenced(tx, variable.name);
       await tx.delete(variables).where(eq(variables.id, id));
       return { message: "Variable eliminada." };
     }),

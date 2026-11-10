@@ -1,3 +1,4 @@
+import { historicalDefinitions } from "../contracts/variable-history.js";
 import { santoDomingoToday } from "../../lib/sql.js";
 import type { FastifyRequest } from "fastify";
 import { and, eq, sql } from "drizzle-orm";
@@ -204,7 +205,14 @@ async function createRenewalChild(
     valor_contrato: renewal.proposedValue,
   }))
     if (name in values) values[name] = value;
-  const generatedContent = await contractService.prepareContent(tx, contract.content, values);
+  const definitions = await historicalDefinitions(tx, contract);
+  const generatedContent = await contractService.prepareContent(
+    tx,
+    contract.content,
+    values,
+    true,
+    definitions,
+  );
   const [child] = await tx
     .insert(contracts)
     .values({
@@ -241,7 +249,7 @@ async function createRenewalChild(
         signingOrder: signer.signingOrder,
       })),
     );
-  await contractService.snapshot(tx, child!, req.user, "Renovación manual");
+  await contractService.snapshot(tx, child!, req.user, "Renovación manual", definitions);
   await contractService.record(tx, req, child!, "renewal-child", null, {
     parentContractId: contract.id,
   });

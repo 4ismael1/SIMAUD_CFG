@@ -1,3 +1,4 @@
+import { summaryColumns } from "../contracts/list-summary.js";
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "../../db/client.js";
 import { contracts, contractRenewals as renewals, users } from "../../db/schema.js";
@@ -22,7 +23,7 @@ function eligibleScope(actor: contractService.Actor) {
 
 export async function listEligibleRenewals(actor: contractService.Actor) {
   return db
-    .select()
+    .select(summaryColumns(actor))
     .from(contracts)
     .where(
       and(
@@ -68,7 +69,7 @@ export async function listRenewals(actor: contractService.Actor, query: RenewalQ
   const rows = await db
     .select({
       renewal: renewals,
-      contract: contracts,
+      contract: summaryColumns(actor),
       requester: { id: users.id, name: users.name, email: users.email },
       daysToExpiry: sql<number>`${contracts.endDate} - ${santoDomingoToday}`,
       variationPercent: sql<string>`

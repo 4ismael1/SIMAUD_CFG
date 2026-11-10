@@ -1,5 +1,7 @@
+import { sanitizePng } from "../../lib/storage-png.js";
+import { trashFile } from "../../lib/storage.js";
 import { randomUUID } from "node:crypto";
-import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { and, eq } from "drizzle-orm";
 import type { FastifyRequest } from "fastify";
@@ -9,38 +11,10 @@ import { ApiError, unauthorized } from "../../lib/errors.js";
 import { active, lockUser } from "../auth/service.js";
 import { publicUser } from "../users/schemas.js";
 export const avatarDirectory = fileURLToPath(new URL("../../../storage/avatars/", import.meta.url));
-const formats = {
-  jpeg: { ext: "jpg", mime: "image/jpeg" },
-  png: { ext: "png", mime: "image/png" },
-  webp: { ext: "webp", mime: "image/webp" },
-};
 export const avatarName =
   /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.(jpg|png|webp)$/;
-function format(data: Buffer) {
-  if (data.length >= 3 && data.subarray(0, 3).equals(Buffer.from([0xff, 0xd8, 0xff])))
-    return formats.jpeg;
-  if (
-    data.length >= 8 &&
-    data.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))
-  )
-    return formats.png;
-  if (
-    data.length >= 12 &&
-    data.toString("ascii", 0, 4) === "RIFF" &&
-    data.toString("ascii", 8, 12) === "WEBP"
-  )
-    return formats.webp;
-  throw new ApiError(
-    400,
-    "VALIDATION_ERROR",
-    "El archivo debe ser una imagen JPEG, PNG o WebP válida.",
-  );
-}
 async function removeFile(name: string | null) {
-  if (name && avatarName.test(name))
-    await unlink(avatarDirectory + name).catch((e) => {
-      if (e.code !== "ENOENT") throw e;
-    });
+  if (name && avatarName.test(name)) await trashFile(avatarDirectory + name);
 }
 export async function uploadAvatar(request: FastifyRequest) {
   let data: Buffer | undefined;
@@ -55,10 +29,10 @@ export async function uploadAvatar(request: FastifyRequest) {
       throw new ApiError(413, "VALIDATION_ERROR", "La imagen no puede superar 2 MB.");
   }
   if (!data) throw new ApiError(400, "VALIDATION_ERROR", "Selecciona una imagen.");
-  const type = format(data);
-  if (mime !== type.mime)
-    throw new ApiError(400, "VALIDATION_ERROR", "El contenido no coincide con el tipo de imagen.");
-  const name = randomUUID() + "." + type.ext;
+  if (mime !== "image/png")
+    throw new ApiError(400, "VALIDATION_ERROR", "Selecciona una imagen PNG válida.");
+  data = sanitizePng(data);
+  const name = randomUUID() + ".png";
   await mkdir(avatarDirectory, { recursive: true });
   await writeFile(avatarDirectory + name, data, { flag: "wx" });
   let previous: string | null = null;
@@ -72,7 +46,7 @@ export async function uploadAvatar(request: FastifyRequest) {
         ownerId: user.id,
         kind: "avatar",
         path: name,
-        mime: type.mime,
+        mime: "image/png",
         size: data.length,
       });
       const [next] = await tx

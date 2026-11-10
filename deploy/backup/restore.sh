@@ -30,4 +30,5 @@ tar -tzf storage.tar.gz > /dev/null
 # El dump restaura los objetos de aplicación y drizzle en una sola transacción.
 pg_restore --clean --if-exists --no-owner --no-acl --exit-on-error --single-transaction --dbname="$PGDATABASE" database.dump
 tar -xzpf storage.tar.gz -C /storage
+/bin/sh /opt/backup/check-references.sh
 echo "Restauración completada. Verifique uid/gid 1000 y salud antes de abrir acceso."

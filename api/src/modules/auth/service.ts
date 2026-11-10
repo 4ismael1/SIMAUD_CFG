@@ -1,5 +1,5 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
-import { and, eq, isNull, ne } from "drizzle-orm";
+import { and, eq, isNull, gt } from "drizzle-orm";
 import { db, type Transaction } from "../../db/client.js";
 import { authTokens, refreshTokens, users } from "../../db/schema.js";
 import { ApiError, invalidCredentials, unauthorized } from "../../lib/errors.js";
@@ -7,6 +7,13 @@ import { hashPassword, verifyPassword } from "../../lib/auth/password.js";
 import { createAccessToken } from "../../lib/auth/jwt.js";
 import { enqueueMail } from "../../lib/mail/outbox.js";
 import { publicUser } from "../users/schemas.js";
+import {
+  invalidatePasswordResets,
+  notifyRevocation,
+  revokeSessions,
+} from "../../lib/auth/sessions.js";
+export { revokeSessions } from "../../lib/auth/sessions.js";
+export { register } from "./registration.js";
 export const randomToken = () => randomBytes(32).toString("hex");
 export const tokenHash = (token: string) => createHash("sha256").update(token).digest("hex");
 export const active = (u: typeof users.$inferSelect | undefined): u is typeof users.$inferSelect =>
@@ -14,18 +21,6 @@ export const active = (u: typeof users.$inferSelect | undefined): u is typeof us
 export async function lockUser(tx: Transaction, id: string) {
   const [user] = await tx.select().from(users).where(eq(users.id, id)).for("update");
   return user;
-}
-export async function revokeSessions(tx: Transaction, userId: string, exceptId?: string) {
-  await tx
-    .update(refreshTokens)
-    .set({ revokedAt: new Date() })
-    .where(
-      and(
-        eq(refreshTokens.userId, userId),
-        isNull(refreshTokens.revokedAt),
-        exceptId ? ne(refreshTokens.id, exceptId) : undefined,
-      ),
-    );
 }
 export async function issueAuthToken(
   tx: Transaction,
@@ -42,12 +37,13 @@ export async function issueAuthToken(
       and(eq(authTokens.userId, user.id), eq(authTokens.type, type), isNull(authTokens.usedAt)),
     );
   const token = randomToken();
+  const expiresAt = new Date(Date.now() + (type === "email_confirmation" ? 24 : 1) * 3600000);
   await tx.insert(authTokens).values({
     userId: user.id,
     type,
     tokenHash: tokenHash(token),
     email: destination,
-    expiresAt: new Date(Date.now() + (type === "email_confirmation" ? 24 : 1) * 3600000),
+    expiresAt,
   });
   return enqueueMail(
     tx,
@@ -59,6 +55,7 @@ export async function issueAuthToken(
         : "Restablece tu contraseña de SIMAUD",
     invitation ? "invitation" : type,
     { name: user.name, token },
+    expiresAt,
   );
 }
 export async function newSession(
@@ -79,45 +76,25 @@ export async function newSession(
       userAgent: context.userAgent,
     })
     .returning();
-  return { token, id: row!.id };
-}
-export async function register(input: {
-  email: string;
-  password: string;
-  name: string;
-  phone: string;
-  cedula: string;
-}) {
-  const passwordHash = await hashPassword(input.password);
-  const result = await db.transaction(async (tx) => {
-    const [user] = await tx
-      .insert(users)
-      .values({
-        email: input.email,
-        passwordHash,
-        name: input.name,
-        phone: input.phone,
-        cedula: input.cedula,
-        role: "user",
-      })
-      .returning();
-    await issueAuthToken(tx, user!, "email_confirmation");
-    return { user: publicUser(user!) };
-  });
-  return {
-    user: result.user,
-    message: "Revisa tu email para confirmar la cuenta.",
-  };
+  return { token, id: row!.id, familyId };
 }
 // A dummy hash makes nonexistent users perform the same password work.
 let dummyHash: Promise<string> | undefined;
+function dummyPasswordHash() {
+  dummyHash ??= hashPassword(randomToken()).catch((error: unknown) => {
+    // Saturation is transient and must not poison all future unknown-user logins.
+    dummyHash = undefined;
+    throw error;
+  });
+  return dummyHash;
+}
 export async function login(
   email: string,
   password: string,
   context: { ip?: string; userAgent?: string },
 ) {
   const [candidate] = await db.select().from(users).where(eq(users.email, email));
-  const hash = candidate?.passwordHash ?? (await (dummyHash ??= hashPassword(randomToken())));
+  const hash = candidate?.passwordHash ?? (await dummyPasswordHash());
   const valid = await verifyPassword(hash, password);
   if (!candidate || !valid) throw invalidCredentials();
   return db.transaction(async (tx) => {
@@ -132,7 +109,7 @@ export async function login(
       .returning();
     const session = await newSession(tx, user.id, context);
     return {
-      accessToken: await createAccessToken(user, session.id),
+      accessToken: await createAccessToken(user, session.familyId),
       user: { ...publicUser(updated!), mustChangePassword: updated!.mustChangePassword },
       refreshToken: session.token,
     };
@@ -156,6 +133,18 @@ export async function refresh(
       .where(eq(refreshTokens.id, candidate.id))
       .for("update");
     if (!old) return null;
+    const [live] = await tx
+      .select({ id: refreshTokens.id })
+      .from(refreshTokens)
+      .where(
+        and(
+          eq(refreshTokens.familyId, old.familyId),
+          isNull(refreshTokens.revokedAt),
+          gt(refreshTokens.expiresAt, new Date()),
+        ),
+      )
+      .limit(1);
+    if (!live) return null;
     if (old.revokedAt) {
       if (old.replacedBy && Date.now() - old.revokedAt.getTime() < 15000)
         throw new ApiError(
@@ -164,10 +153,7 @@ export async function refresh(
           "Otra pestaña ha renovado la sesión. Reintenta con la cookie actual.",
         );
       // Return an error sentinel so the revocation is committed, never rolled back by throwing.
-      await tx
-        .update(refreshTokens)
-        .set({ revokedAt: new Date() })
-        .where(eq(refreshTokens.familyId, old.familyId));
+      await revokeSessions(tx, old.userId);
       return null;
     }
     if (!active(user) || !user.emailConfirmedAt || old.expiresAt <= new Date()) return null;
@@ -183,7 +169,7 @@ export async function refresh(
       .set({ revokedAt: new Date(), replacedBy: next.id })
       .where(eq(refreshTokens.id, old.id));
     return {
-      accessToken: await createAccessToken(user, next.id),
+      accessToken: await createAccessToken(user, next.familyId),
       refreshToken: next.token,
     };
   });
@@ -191,11 +177,26 @@ export async function refresh(
   return result;
 }
 export async function logout(raw: string | undefined) {
-  if (raw)
-    await db
+  if (!raw) return;
+  const [candidate] = await db
+    .select()
+    .from(refreshTokens)
+    .where(eq(refreshTokens.tokenHash, tokenHash(raw)));
+  if (!candidate) return;
+  await db.transaction(async (tx) => {
+    await lockUser(tx, candidate.userId);
+    await tx
       .update(refreshTokens)
       .set({ revokedAt: new Date() })
-      .where(eq(refreshTokens.tokenHash, tokenHash(raw)));
+      .where(eq(refreshTokens.familyId, candidate.familyId));
+    notifyRevocation(tx, candidate.userId, candidate.familyId);
+  });
+}
+export async function logoutAll(userId: string) {
+  await db.transaction(async (tx) => {
+    await lockUser(tx, userId);
+    await revokeSessions(tx, userId);
+  });
 }
 export async function requestToken(email: string, type: "email_confirmation" | "password_reset") {
   const [candidate] = await db.select().from(users).where(eq(users.email, email));
@@ -253,6 +254,7 @@ export async function consumeToken(
         .update(users)
         .set({ passwordHash, mustChangePassword: false })
         .where(eq(users.id, user.id));
+      await invalidatePasswordResets(tx, user.id);
     }
     await tx.update(authTokens).set({ usedAt: new Date() }).where(eq(authTokens.id, token.id));
     await revokeSessions(tx, user.id);
