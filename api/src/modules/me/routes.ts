@@ -5,6 +5,8 @@ import { authenticate } from "../../plugins/auth.js";
 import { email, password, profile } from "../users/schemas.js";
 import * as service from "./service.js";
 import { avatarName, deleteAvatar, getAvatar, uploadAvatar } from "./avatar.js";
+import { identityLimit } from "../auth/rate-limit.js";
+import { withRequestStorageMutation } from "../../lib/storage.js";
 export async function meRoutes(app: FastifyInstance) {
   const a = app.withTypeProvider<ZodTypeProvider>();
   a.get("/me", { preHandler: authenticate }, async (r) => r.user);
@@ -26,10 +28,12 @@ export async function meRoutes(app: FastifyInstance) {
     {
       preHandler: authenticate,
       schema: {
-        body: z.object({
-          currentPassword: z.string().min(1).max(128),
-          newPassword: password,
-        }),
+        body: z
+          .object({
+            currentPassword: z.string().min(1).max(128),
+            newPassword: password,
+          })
+          .strict(),
       },
     },
     async (r) => {
@@ -45,12 +49,22 @@ export async function meRoutes(app: FastifyInstance) {
   a.patch(
     "/me/email",
     {
-      preHandler: authenticate,
+      preHandler: [
+        authenticate,
+        identityLimit("change-email-account", 3, (request) => request.user.id),
+        identityLimit(
+          "mail-destination",
+          3,
+          (request) => (request.body as { newEmail: string }).newEmail,
+        ),
+      ],
       schema: {
-        body: z.object({
-          newEmail: email,
-          password: z.string().min(1).max(128),
-        }),
+        body: z
+          .object({
+            newEmail: email,
+            password: z.string().min(1).max(128),
+          })
+          .strict(),
       },
     },
     async (r) => {
@@ -58,11 +72,11 @@ export async function meRoutes(app: FastifyInstance) {
       return { message: "Revisa tu nuevo email para confirmar el cambio." };
     },
   );
-  a.put("/me/avatar", { preHandler: authenticate }, async (r) => ({
-    user: await uploadAvatar(r),
+  a.put("/me/avatar", { preHandler: authenticate }, async (r, reply) => ({
+    user: await uploadAvatar(r, reply),
   }));
-  a.delete("/me/avatar", { preHandler: authenticate }, async (r) => {
-    await deleteAvatar(r.user.id);
+  a.delete("/me/avatar", { preHandler: authenticate }, async (r, reply) => {
+    await withRequestStorageMutation(r, reply, () => deleteAvatar(r.user.id));
     return { message: "Avatar eliminado." };
   });
   a.get(

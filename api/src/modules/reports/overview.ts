@@ -1,3 +1,4 @@
+import { withReportRead } from "./limits.js";
 import { sql } from "drizzle-orm";
 import { db } from "../../db/client.js";
 import { type Actor, forbidden } from "../contracts/service.js";
@@ -15,34 +16,31 @@ export async function reportsOverview(actor: Actor, query: OverviewQuery, now = 
   if (!["admin", "supervisor", "gestor"].includes(actor.role)) throw forbidden();
   const { range, previousRange } = overviewRanges(query, now);
   const scope = overviewScope(actor, query);
-  return db.transaction(
-    async (tx) => {
-      const current = await overviewMetrics(tx, scope, range);
-      const previous = await overviewMetrics(tx, scope, previousRange);
-      const kpis = Object.fromEntries(
-        Object.entries(current).map(([key, value]) => [
-          key,
-          { value, previous: previous[key as keyof typeof previous] },
-        ]),
-      );
-      const currentTimeline = await overviewTimeline(tx, scope, range, query.granularity);
-      const previousTimeline = await overviewTimeline(tx, scope, previousRange, query.granularity);
-      const timeline = comparedTimeline(
-        range,
-        previousRange,
-        query.granularity,
-        currentTimeline,
-        previousTimeline,
-      );
-      const tables = await overviewTables(tx, scope, range);
-      const byManager = await overviewManagers(tx, scope, range);
-      const approvals = await overviewApprovals(tx, scope, range);
-      const result = { range, previousRange, kpis, timeline, ...tables, byManager, approvals };
-      if (actor.role !== "admin") return result;
-      return { ...result, users: await overviewUsers(tx, range, previousRange, query.granularity) };
-    },
-    { isolationLevel: "repeatable read", accessMode: "read only" },
-  );
+  return withReportRead(async (tx) => {
+    const current = await overviewMetrics(tx, scope, range);
+    const previous = await overviewMetrics(tx, scope, previousRange);
+    const kpis = Object.fromEntries(
+      Object.entries(current).map(([key, value]) => [
+        key,
+        { value, previous: previous[key as keyof typeof previous] },
+      ]),
+    );
+    const currentTimeline = await overviewTimeline(tx, scope, range, query.granularity);
+    const previousTimeline = await overviewTimeline(tx, scope, previousRange, query.granularity);
+    const timeline = comparedTimeline(
+      range,
+      previousRange,
+      query.granularity,
+      currentTimeline,
+      previousTimeline,
+    );
+    const tables = await overviewTables(tx, scope, range);
+    const byManager = await overviewManagers(tx, scope, range);
+    const approvals = await overviewApprovals(tx, scope, range);
+    const result = { range, previousRange, kpis, timeline, ...tables, byManager, approvals };
+    if (actor.role !== "admin") return result;
+    return { ...result, users: await overviewUsers(tx, range, previousRange, query.granularity) };
+  });
 }
 
 export async function reportFilters(actor: Actor) {

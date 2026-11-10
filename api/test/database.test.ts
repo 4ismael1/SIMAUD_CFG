@@ -14,7 +14,7 @@ import {
 beforeAll(prepareDatabase);
 beforeEach(cleanDatabase);
 afterAll(() => pool.end());
-it("migra las 24 tablas y define un único estado de contrato", async () => {
+it("migra las 25 tablas y define un único estado de contrato", async () => {
   const tables = await db.execute<{ table_name: string }>(
     sql`select table_name from information_schema.tables where table_schema='public' and table_type='BASE TABLE'`,
   );
@@ -23,6 +23,7 @@ it("migra las 24 tablas y define un único estado de contrato", async () => {
       "users",
       "refresh_tokens",
       "auth_tokens",
+      "auth_request_budgets",
       "template_variables",
       "contract_templates",
       "contracts",

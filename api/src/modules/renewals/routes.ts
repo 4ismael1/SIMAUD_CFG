@@ -2,7 +2,7 @@ import { listEligibleRenewals, listRenewals } from "./queries.js";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { authenticate } from "../../plugins/auth.js";
-import { parse, uuid } from "../contracts/schemas.js";
+import { parse, uuid, pageInput } from "../contracts/schemas.js";
 import { renewalQuerySchema, renewalInputSchema } from "./schemas.js";
 import { requestRenewal, processRenewal } from "./service.js";
 
@@ -11,7 +11,7 @@ export { renewalPriority, activateRenewalParent } from "./service.js";
 export async function renewalRoutes(app: FastifyInstance) {
   const auth = { preHandler: authenticate };
   app.get("/renewals/eligible", auth, async (req) => {
-    return listEligibleRenewals(req.user);
+    return listEligibleRenewals(req.user, parse(pageInput, req.query));
   });
   app.get("/renewals", auth, async (req) => {
     const query = parse(renewalQuerySchema, req.query);

@@ -27,6 +27,7 @@ export const signatureMethod = z
       .transform((value) => value ?? "unknown"),
     fontId: fontId.optional(),
   })
+  .strict()
   .superRefine((value, ctx) => {
     if ((value.fontId && value.method !== "typed") || (value.method === "typed" && !value.fontId))
       ctx.addIssue({

@@ -2,6 +2,7 @@ import { z } from "zod";
 import { ApiError } from "../errors.js";
 import { tableGrid } from "./table.js";
 import type { RichDoc, RichNode } from "./types.js";
+import { documentAttrs, compactBand, compactPage } from "./page-schema.js";
 
 const mark = z.strictObject({
   type: z.enum(["bold", "italic", "underline", "strike", "superscript", "subscript", "highlight"]),
@@ -31,7 +32,11 @@ const paragraph = z.strictObject({
 });
 const heading = z.strictObject({
   type: z.literal("heading"),
-  attrs: z.strictObject({ level: z.number().int().min(1).max(3), textAlign: alignment }),
+  attrs: z.strictObject({
+    level: z.number().int().min(1).max(3),
+    textAlign: alignment,
+    numbered: z.enum(["ordinal", "decimal"]).nullish(),
+  }),
   content: z.array(inline).optional(),
 });
 const bulletList = z.strictObject({
@@ -87,6 +92,7 @@ const table = z.strictObject({
 });
 const documentStructure = z.strictObject({
   type: z.literal("doc"),
+  attrs: documentAttrs,
   content: z
     .array(
       z.discriminatedUnion("type", [
@@ -103,6 +109,27 @@ const documentStructure = z.strictObject({
         z.strictObject({ type: z.literal("horizontalRule") }),
         z.strictObject({ type: z.literal("pageBreak") }),
         table,
+        z.strictObject({
+          type: z.literal("signatures"),
+          attrs: z
+            .strictObject({
+              columns: z.union([z.literal(1), z.literal(2), z.literal(3)]).nullish(),
+            })
+            .nullish(),
+          content: z
+            .array(
+              z.strictObject({
+                type: z.literal("signatureSlot"),
+                attrs: z.strictObject({
+                  label: z.string().max(60),
+                  showName: z.boolean().nullish(),
+                  showId: z.boolean().nullish(),
+                }),
+              }),
+            )
+            .min(1)
+            .max(12),
+        }),
       ]),
     )
     .min(1)
@@ -151,6 +178,11 @@ function normalizeNode(node: RichNode): RichNode {
   const result: RichNode = { type: node.type };
   if (node.attrs) {
     const attrs: NonNullable<RichNode["attrs"]> = {};
+    if (node.attrs.page) attrs.page = compactPage(node.attrs.page);
+    if (node.attrs.header) attrs.header = compactBand(node.attrs.header);
+    if (node.attrs.footer) attrs.footer = compactBand(node.attrs.footer);
+    for (const key of ["page", "header", "footer"] as const)
+      if (attrs[key] === undefined) delete attrs[key];
     if (node.attrs.level != null) attrs.level = node.attrs.level;
     if (node.attrs.textAlign && node.attrs.textAlign !== "left")
       attrs.textAlign = node.attrs.textAlign;
@@ -160,6 +192,11 @@ function normalizeNode(node: RichNode): RichNode {
     if (node.attrs.rowspan != null && node.attrs.rowspan !== 1) attrs.rowspan = node.attrs.rowspan;
     if (node.attrs.colwidth != null) attrs.colwidth = node.attrs.colwidth;
     if (node.attrs.name !== undefined) attrs.name = node.attrs.name;
+    if (node.attrs.numbered) attrs.numbered = node.attrs.numbered;
+    if (node.attrs.columns != null && node.attrs.columns !== 2) attrs.columns = node.attrs.columns;
+    if (node.attrs.label !== undefined) attrs.label = node.attrs.label;
+    if (node.attrs.showName === false) attrs.showName = false;
+    if (node.attrs.showId === false) attrs.showId = false;
     if (Object.keys(attrs).length) result.attrs = attrs;
   }
   if (node.text !== undefined) result.text = node.text;

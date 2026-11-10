@@ -13,6 +13,7 @@ import * as contractService from "../contracts/service.js";
 import { addNotification } from "../notifications/service.js";
 import { audit } from "../../lib/audit.js";
 import type { RenewalInput, RenewalAction } from "./schemas.js";
+import { publicRenewal } from "./queries.js";
 
 export function renewalPriority(days: number) {
   return days <= 15 ? "urgent" : days <= 30 ? "high" : days <= 60 ? "medium" : "low";
@@ -86,8 +87,8 @@ export async function activateRenewalParent(
 
 export async function requestRenewal(req: FastifyRequest, input: RenewalInput) {
   return db.transaction(async (tx) => {
-    await contractService.linkSignatories(tx, req.user);
     const contract = await contractService.getContract(tx, input.contractId, true);
+    await contractService.linkSignatories(tx, req.user, contract.id);
     const signatories = await contractService.getSignatories(tx, contract.id);
     if (!contractService.canRead(contract, req.user, signatories)) throw contractService.notFound();
     if (!["active", "expiring_soon", "expired"].includes(contract.status))
@@ -138,7 +139,7 @@ export async function requestRenewal(req: FastifyRequest, input: RenewalInput) {
       .returning();
     await notifyRenewal(tx, contract, req.user.id, "renewal_request", input.reason);
     await contractService.record(tx, req, contract, "renewal-request", null, created);
-    return created;
+    return publicRenewal(created!);
   });
 }
 
@@ -163,6 +164,12 @@ export async function processRenewal(
       throw contractService.forbidden();
     if (renewal.status !== "pending")
       throw contractService.conflict("La renovación ya fue procesada.");
+    if (
+      action !== "cancel" &&
+      req.user.role !== "admin" &&
+      renewal.originalRequestedBy === req.user.id
+    )
+      throw contractService.forbidden();
     let childId: string | null = null;
     if (action === "approve") {
       if (!["active", "expiring_soon", "expired"].includes(contract.status))
@@ -180,7 +187,11 @@ export async function processRenewal(
       })
       .where(eq(renewals.id, id))
       .returning();
-    await contractService.record(tx, req, contract, "renewal-" + action, renewal, updated);
+    const auditAction =
+      action === "approve" && renewal.originalRequestedBy === req.user.id
+        ? "renewal-approved_own"
+        : "renewal-" + action;
+    await contractService.record(tx, req, contract, auditAction, renewal, updated);
     await notifyRenewal(
       tx,
       contract,
@@ -188,7 +199,7 @@ export async function processRenewal(
       action === "approve" ? "renewal_approved" : "renewal_rejected",
       "Renovación: " + action + (input.response ? ". " + input.response : ""),
     );
-    return updated;
+    return publicRenewal(updated!);
   });
 }
 
@@ -230,6 +241,7 @@ async function createRenewalChild(
       parentContractId: contract.id,
       renewalType: "manual_renewal",
       createdBy: contract.createdBy,
+      originalCreatedBy: renewal.originalRequestedBy,
       clientName: contract.clientName,
       clientEmail: contract.clientEmail,
       clientPhone: contract.clientPhone,

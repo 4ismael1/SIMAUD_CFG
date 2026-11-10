@@ -1,10 +1,15 @@
 import { sanitizePng } from "../../lib/storage-png.js";
-import { storage, withStorageMutation, storageDirectory } from "../../lib/storage.js";
+import {
+  storage,
+  withStorageMutation,
+  withRequestStorageMutation,
+  storageDirectory,
+} from "../../lib/storage.js";
 import { StorageError } from "../../lib/storage-types.js";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { and, eq } from "drizzle-orm";
-import type { FastifyRequest } from "fastify";
+import type { FastifyRequest, FastifyReply } from "fastify";
 import { db } from "../../db/client.js";
 import { files, users } from "../../db/schema.js";
 import { ApiError, unauthorized } from "../../lib/errors.js";
@@ -16,23 +21,26 @@ export const avatarName =
 async function removeFile(name: string | null) {
   if (name && avatarName.test(name)) await storage.delete("avatars/" + name);
 }
-export async function uploadAvatar(request: FastifyRequest) {
-  let data: Buffer | undefined;
-  let mime: string | undefined;
-  for await (const part of request.parts({
-    limits: { fileSize: 2 * 1024 * 1024, files: 1, fields: 0, parts: 1 },
-  })) {
-    if (part.type !== "file") throw new ApiError(400, "VALIDATION_ERROR", "Selecciona una imagen.");
-    data = await part.toBuffer();
-    mime = part.mimetype;
-    if (part.file.truncated)
-      throw new ApiError(413, "VALIDATION_ERROR", "La imagen no puede superar 2 MB.");
-  }
-  if (!data) throw new ApiError(400, "VALIDATION_ERROR", "Selecciona una imagen.");
-  if (mime !== "image/png")
-    throw new ApiError(400, "VALIDATION_ERROR", "Selecciona una imagen PNG válida.");
-  const bytes = sanitizePng(data);
-  return withStorageMutation(() => storeAvatar(request, bytes));
+export async function uploadAvatar(request: FastifyRequest, reply: FastifyReply) {
+  return withRequestStorageMutation(request, reply, async () => {
+    let data: Buffer | undefined;
+    let mime: string | undefined;
+    for await (const part of request.parts({
+      limits: { fileSize: 2 * 1024 * 1024, files: 1, fields: 0, parts: 1 },
+    })) {
+      if (part.type !== "file")
+        throw new ApiError(400, "VALIDATION_ERROR", "Selecciona una imagen.");
+      data = await part.toBuffer();
+      mime = part.mimetype;
+      if (part.file.truncated)
+        throw new ApiError(413, "VALIDATION_ERROR", "La imagen no puede superar 2 MB.");
+    }
+    if (!data) throw new ApiError(400, "VALIDATION_ERROR", "Selecciona una imagen.");
+    if (mime !== "image/png")
+      throw new ApiError(400, "VALIDATION_ERROR", "Selecciona una imagen PNG válida.");
+    const bytes = sanitizePng(data);
+    return storeAvatar(request, bytes);
+  });
 }
 async function storeAvatar(request: FastifyRequest, data: Buffer) {
   const name = randomUUID() + ".png";

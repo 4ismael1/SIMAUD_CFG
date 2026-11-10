@@ -1,13 +1,13 @@
+import { listContracts, contractListQuery } from "./list-queries.js";
+import { listApprovals, approvalQuery, getPendingApprovalRequester } from "./approval-queries.js";
 import { contentInput, contentResponse, encodeContent } from "../../lib/rich-doc/content.js";
 import { historicalDefinitions, lockVariableCatalog } from "./variable-history.js";
-import { validateInstitutionLogo } from "../../lib/storage-image-validation.js";
 import { applyContractAction } from "./actions.js";
 import { adminContractRoutes } from "./admin-routes.js";
 import { canReassign } from "./admin-actions.js";
-import { statusList } from "../reports/overview-schema.js";
 import { activateRenewalParent } from "../renewals/routes.js";
 import { removeFinalPdf } from "./pdf.js";
-import { withStorageMutation } from "../../lib/storage.js";
+import { withRequestStorageMutation } from "../../lib/storage.js";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -18,7 +18,6 @@ import {
   contractApprovals as approvals,
   contractVersions as versions,
   contractAuditLogs as logs,
-  users,
   contractTemplates,
   contractStatus,
   files,
@@ -38,14 +37,13 @@ import { transition } from "./state-machine.js";
 import * as contractService from "./service.js";
 import { signatureRoutes, removeSignatureFiles } from "./signatures.js";
 export async function contractRoutes(app: FastifyInstance) {
-  app.addHook("preValidation", validateInstitutionLogo);
   const auth = { preHandler: authenticate };
   const staff = { preHandler: requireRole("admin", "supervisor", "gestor") };
   const idOf = (req: FastifyRequest) => parse(uuid, (req.params as { id: string }).id);
   async function detail(req: FastifyRequest, id: string) {
     return db.transaction(async (tx) => {
-      await contractService.linkSignatories(tx, req.user);
-      const contract = await contractService.getContract(tx, id);
+      const contract = await contractService.getContract(tx, id, true);
+      await contractService.linkSignatories(tx, req.user, id);
       const allSignatories = await contractService.getSignatories(tx, id);
       if (!contractService.canRead(contract, req.user, allSignatories))
         throw contractService.notFound();
@@ -53,6 +51,7 @@ export async function contractRoutes(app: FastifyInstance) {
         .select({ id: files.id, path: files.path })
         .from(files)
         .where(and(eq(files.contractId, id), eq(files.kind, "signature")));
+      const requestedBy = await getPendingApprovalRequester(tx, id);
       return {
         ...(await contractService.decorate(tx, contract)),
         signatories: allSignatories.map((item) => ({
@@ -60,88 +59,18 @@ export async function contractRoutes(app: FastifyInstance) {
           signatureFileId: signatureFiles.find((f) => f.path === item.signaturePath)?.id ?? null,
         })),
         can: {
-          ...contractService.permissions(contract, req.user, allSignatories),
+          ...contractService.permissions(contract, req.user, allSignatories, requestedBy),
           reassign: canReassign(contract, req.user),
         },
       };
     });
   }
-  const listSchema = pageInput.extend({
-    status: statusList.optional(),
-    q: z.string().optional(),
-    templateId: uuid.optional(),
-    createdBy: uuid.optional(),
-    expiresBefore: z.iso.date().optional(),
-    createdFrom: z.iso.date().optional(),
-    createdTo: z.iso.date().optional(),
-    archived: z.enum(["true", "false"]).default("false"),
-    sort: z
-      .enum([
-        "updatedAt",
-        "-updatedAt",
-        "createdAt",
-        "-createdAt",
-        "title",
-        "-title",
-        "endDate",
-        "-endDate",
-        "code",
-        "-code",
-      ])
-      .default("-updatedAt"),
-  });
-  app.get("/contracts", staff, async (req) => {
-    const query = parse(listSchema, req.query);
-    if (query.createdFrom && query.createdTo && query.createdFrom > query.createdTo)
-      throw contractService.invalid("Rango de fechas inválido.");
-    const search = query.q ? "%" + query.q.replace(/[\\%_]/g, "\\$&") + "%" : undefined;
-    const where = and(
-      req.user.role === "gestor" ? eq(contracts.createdBy, req.user.id) : undefined,
-      query.status ? inArray(contracts.status, query.status) : undefined,
-      query.templateId ? eq(contracts.templateId, query.templateId) : undefined,
-      query.createdBy ? eq(contracts.createdBy, query.createdBy) : undefined,
-      eq(contracts.archived, query.archived === "true"),
-      query.expiresBefore ? sql`${contracts.endDate}<${query.expiresBefore}` : undefined,
-      query.createdFrom
-        ? sql`${contracts.createdAt} >= ${query.createdFrom}::date::timestamp at time zone 'America/Santo_Domingo'`
-        : undefined,
-      query.createdTo
-        ? sql`${contracts.createdAt} < (${query.createdTo}::date + 1)::timestamp at time zone 'America/Santo_Domingo'`
-        : undefined,
-      search
-        ? sql`(${contracts.title} ilike ${search} OR ${contracts.code} ilike ${search}
-          OR ${contracts.clientName} ilike ${search}
-          OR exists (select 1 from users manager where manager.id = ${contracts.createdBy} and manager.name ilike ${search})
-          OR exists (select 1 from contract_signatories signer where signer.contract_id = ${contracts.id}
-            and (signer.name ilike ${search} or signer.cedula ilike ${search})))`
-        : undefined,
-    );
-    const column = {
-      updatedAt: contracts.updatedAt,
-      createdAt: contracts.createdAt,
-      title: contracts.title,
-      endDate: contracts.endDate,
-      code: contracts.code,
-    }[query.sort.replace("-", "")]!;
-    const rows = await db
-      .select()
-      .from(contracts)
-      .where(where)
-      .orderBy(sql`${column} ${sql.raw(query.sort.startsWith("-") ? "desc" : "asc")}`, contracts.id)
-      .limit(query.pageSize)
-      .offset((query.page - 1) * query.pageSize);
-    const [count] = await db
-      .select({ n: sql<number>`count(*)::int` })
-      .from(contracts)
-      .where(where);
-    return {
-      data: await Promise.all(rows.map((contract) => contractService.decorate(db, contract))),
-      meta: { page: query.page, pageSize: query.pageSize, total: count!.n },
-    };
-  });
+  app.get("/contracts", staff, async (req) =>
+    listContracts(req.user, parse(contractListQuery, req.query)),
+  );
   app.get("/contracts/counts", staff, async (req) => {
     const query = parse(
-      z.object({ archived: z.enum(["true", "false"]).default("false") }),
+      z.object({ archived: z.enum(["true", "false"]).default("false") }).strict(),
       req.query,
     );
     const rows = await db
@@ -257,7 +186,7 @@ export async function contractRoutes(app: FastifyInstance) {
         if (!template || (req.user.role === "gestor" && template.status !== "active"))
           throw contractService.invalid("Plantilla no disponible.");
         format = template.contentFormat;
-        if (contract.contentFormat === "rich-v1" && format === "plain")
+        if (contract.contentFormat !== "plain" && format === "plain")
           throw contractService.invalid(
             "Un contrato con formato no se puede convertir a texto plano.",
           );
@@ -315,12 +244,12 @@ export async function contractRoutes(app: FastifyInstance) {
       const id = idOf(req);
       await db.transaction(async (tx) => {
         const contract = await contractService.getContract(tx, id, true);
-        await contractService.linkSignatories(tx, req.user);
+        await contractService.linkSignatories(tx, req.user, id);
         const allSignatories = await contractService.getSignatories(tx, id);
         if (!contractService.canRead(contract, req.user, allSignatories))
           throw contractService.notFound();
         const input = parse(actionInput, req.body ?? {});
-        const { next, changes } = await applyContractAction({
+        const { next, changes, auditAction } = await applyContractAction({
           tx,
           req,
           contract,
@@ -345,7 +274,7 @@ export async function contractRoutes(app: FastifyInstance) {
             "Reapertura administrativa",
             await historicalDefinitions(tx, contract),
           );
-        await contractService.record(tx, req, contract, action, contract, {
+        await contractService.record(tx, req, contract, auditAction ?? action, contract, {
           ...updated,
           reason: input.reason,
           comment: input.comment,
@@ -354,8 +283,8 @@ export async function contractRoutes(app: FastifyInstance) {
       return detail(req, id);
     });
   }
-  app.delete("/contracts/:id", auth, async (req) =>
-    withStorageMutation(async () => {
+  app.delete("/contracts/:id", auth, async (req, reply) =>
+    withRequestStorageMutation(req, reply, async () => {
       const id = idOf(req);
       let paths: string[] = [];
       let pdfPath: string | null = null;
@@ -391,6 +320,7 @@ export async function contractRoutes(app: FastifyInstance) {
     app.get("/contracts/:id/" + kind, auth, async (req) => {
       const id = idOf(req);
       await detail(req, id);
+      const pagination = parse(pageInput, req.query);
       if (kind === "versions")
         return (
           await db
@@ -398,14 +328,19 @@ export async function contractRoutes(app: FastifyInstance) {
             .from(versions)
             .where(eq(versions.contractId, id))
             .orderBy(versions.versionNumber)
+            .limit(pagination.pageSize)
+            .offset((pagination.page - 1) * pagination.pageSize)
         ).map(contentResponse);
       if (kind === "approvals")
-        return db
-          .select()
-          .from(approvals)
-          .where(eq(approvals.contractId, id))
-          .orderBy(approvals.requestedAt);
-      const pagination = parse(pageInput, req.query);
+        return (
+          await db
+            .select()
+            .from(approvals)
+            .where(eq(approvals.contractId, id))
+            .orderBy(approvals.requestedAt, approvals.id)
+            .limit(pagination.pageSize)
+            .offset((pagination.page - 1) * pagination.pageSize)
+        ).map(({ originalRequestedBy: _origin, ...approval }) => approval);
       const data = await db
         .select()
         .from(logs)
@@ -421,12 +356,11 @@ export async function contractRoutes(app: FastifyInstance) {
     });
   }
   app.get("/contracts/:id/versions/:n", auth, async (req) => {
-    const id = idOf(req);
-    await detail(req, id);
-    const versionNumber = parse(
-      z.coerce.number().int().positive(),
-      (req.params as { n: string }).n,
+    const { id, n: versionNumber } = parse(
+      z.object({ id: uuid, n: z.coerce.number().int().min(1).max(2147483647) }).strict(),
+      req.params,
     );
+    await detail(req, id);
     const [variable] = await db
       .select()
       .from(versions)
@@ -434,70 +368,9 @@ export async function contractRoutes(app: FastifyInstance) {
     if (!variable) throw contractService.notFound();
     return contentResponse(variable);
   });
-  app.get("/approvals", { preHandler: requireRole("admin", "supervisor") }, async (req) => {
-    const query = parse(
-      z.object({ status: z.enum(["pending", "approved", "rejected"]).default("pending") }),
-      req.query,
-    );
-    const rows = await db
-      .select()
-      .from(approvals)
-      .where(eq(approvals.status, query.status))
-      .orderBy(approvals.requestedAt);
-    return Promise.all(
-      rows.map(async (approval) => {
-        const contract = await contractService.getContract(db, approval.contractId);
-        const [requester] = approval.requestedBy
-          ? await db
-              .select({ id: users.id, name: users.name })
-              .from(users)
-              .where(eq(users.id, approval.requestedBy))
-          : [];
-        const versionHistory = await db
-          .select()
-          .from(versions)
-          .where(eq(versions.contractId, contract.id))
-          .orderBy(sql`${versions.versionNumber} desc`);
-        const previousReviews = await db
-          .select()
-          .from(approvals)
-          .where(
-            and(
-              eq(approvals.contractId, contract.id),
-              sql`${approvals.status}<>'pending'`,
-              sql`${approvals.requestedAt}<${approval.requestedAt}`,
-            ),
-          )
-          .orderBy(sql`${approvals.requestedAt} desc`)
-          .limit(1);
-        const current = versionHistory.find(
-          (item) => item.versionNumber === approval.versionNumber,
-        );
-        const previousVersion = versionHistory.find(
-          (item) => item.versionNumber === previousReviews[0]?.versionNumber,
-        );
-        return {
-          ...approval,
-          contract: await contractService.decorate(db, contract),
-          requester: requester ?? null,
-          ageSeconds: Math.floor((Date.now() - approval.requestedAt.getTime()) / 1000),
-          version: current ? contentResponse(current) : null,
-          diff:
-            previousVersion && current
-              ? {
-                  previousVersion: previousVersion.versionNumber,
-                  contentChanged: previousVersion.content !== current.content,
-                  variablesChanged:
-                    JSON.stringify(previousVersion.variablesData) !==
-                    JSON.stringify(current.variablesData),
-                  detailsChanged:
-                    JSON.stringify(previousVersion.snapshot) !== JSON.stringify(current.snapshot),
-                }
-              : null,
-        };
-      }),
-    );
-  });
+  app.get("/approvals", { preHandler: requireRole("admin", "supervisor") }, async (req) =>
+    listApprovals(req.user, parse(approvalQuery, req.query)),
+  );
   await adminContractRoutes(app, detail);
   await signatureRoutes(app);
 }

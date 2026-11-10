@@ -73,7 +73,7 @@ export async function eventRoutes(app: FastifyInstance) {
     return { ticket: token, expiresIn: 30 };
   });
   app.get("/events", async (req, reply) => {
-    const { token } = parse(z.object({ token: z.string().min(40).max(100) }), req.query);
+    const { token } = parse(z.object({ token: z.string().min(40).max(100) }).strict(), req.query);
     const key = ticketHash(token);
     const ticket = tickets.get(key);
     tickets.delete(key);

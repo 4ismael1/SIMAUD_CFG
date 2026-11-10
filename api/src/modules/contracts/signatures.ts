@@ -5,7 +5,7 @@ import { sha256 } from "../../lib/crypto/canonical.js";
 import { activateRenewalParent } from "../renewals/routes.js";
 import { saveFinalPdf, finalPdfName, removeFinalPdf } from "./pdf.js";
 import { sanitizePng } from "../../lib/storage-png.js";
-import { storage, withStorageMutation } from "../../lib/storage.js";
+import { storage, withRequestStorageMutation } from "../../lib/storage.js";
 import { randomUUID } from "node:crypto";
 import type { FastifyInstance } from "fastify";
 import { and, eq } from "drizzle-orm";
@@ -32,45 +32,45 @@ export async function signatureRoutes(app: FastifyInstance) {
     );
     return signatureInbox(req.user, query);
   });
-  app.post("/contracts/:id/sign", auth, async (req) => {
-    const id = parse(uuid, (req.params as { id: string }).id);
-    let buffer: Buffer | undefined;
-    let accepted: string | undefined;
-    let viewedAt: string | undefined;
-    const methodFields: Record<string, string> = {};
-    for await (const part of req.parts({
-      limits: { fileSize: 500 * 1024, files: 1, fields: 4, parts: 5 },
-    })) {
-      if (part.type === "file") {
-        if (buffer || part.fieldname !== "signature" || part.mimetype !== "image/png")
-          throw contractService.invalid("La firma debe ser PNG.");
-        buffer = await part.toBuffer();
-      } else if (part.fieldname === "acceptedDeclaration" && accepted === undefined)
-        accepted = String(part.value);
-      else if (part.fieldname === "viewedAt" && viewedAt === undefined)
-        viewedAt = String(part.value);
-      else if (
-        ["method", "fontId"].includes(part.fieldname) &&
-        methodFields[part.fieldname] === undefined
-      )
-        methodFields[part.fieldname] = String(part.value);
-      else throw contractService.invalid("Campo multipart inválido.");
-    }
-    if (!buffer) throw contractService.invalid("Selecciona una firma PNG.");
-    buffer = sanitizePng(buffer);
-    const method = parse(signatureMethod, methodFields);
-    if (accepted !== "true") throw contractService.invalid("Debes aceptar la declaración.");
-    const viewed = parse(z.iso.datetime({ offset: true }), viewedAt);
-    if (Date.parse(viewed) > Date.now())
-      throw contractService.invalid("viewedAt no puede estar en el futuro.");
-    const name = randomUUID() + ".png";
-    return withStorageMutation(async () => {
+  app.post("/contracts/:id/sign", auth, async (req, reply) =>
+    withRequestStorageMutation(req, reply, async () => {
+      const id = parse(uuid, (req.params as { id: string }).id);
+      let buffer: Buffer | undefined;
+      let accepted: string | undefined;
+      let viewedAt: string | undefined;
+      const methodFields: Record<string, string> = {};
+      for await (const part of req.parts({
+        limits: { fileSize: 500 * 1024, files: 1, fields: 4, parts: 5 },
+      })) {
+        if (part.type === "file") {
+          if (buffer || part.fieldname !== "signature" || part.mimetype !== "image/png")
+            throw contractService.invalid("La firma debe ser PNG.");
+          buffer = await part.toBuffer();
+        } else if (part.fieldname === "acceptedDeclaration" && accepted === undefined)
+          accepted = String(part.value);
+        else if (part.fieldname === "viewedAt" && viewedAt === undefined)
+          viewedAt = String(part.value);
+        else if (
+          ["method", "fontId"].includes(part.fieldname) &&
+          methodFields[part.fieldname] === undefined
+        )
+          methodFields[part.fieldname] = String(part.value);
+        else throw contractService.invalid("Campo multipart inválido.");
+      }
+      if (!buffer) throw contractService.invalid("Selecciona una firma PNG.");
+      buffer = sanitizePng(buffer);
+      const method = parse(signatureMethod, methodFields);
+      if (accepted !== "true") throw contractService.invalid("Debes aceptar la declaración.");
+      const viewed = parse(z.iso.datetime({ offset: true }), viewedAt);
+      if (Date.parse(viewed) > Date.now())
+        throw contractService.invalid("viewedAt no puede estar en el futuro.");
+      const name = randomUUID() + ".png";
       let written = false;
       let finalName: string | undefined;
       try {
         await db.transaction(async (tx) => {
           const contract = await contractService.getContract(tx, id, true);
-          await contractService.linkSignatories(tx, req.user);
+          await contractService.linkSignatories(tx, req.user, id);
           const allSignatories = await contractService.getSignatories(tx, id);
           const me = allSignatories.find((item) => item.userId === req.user.id);
           if (!me) throw contractService.forbidden();
@@ -170,8 +170,8 @@ export async function signatureRoutes(app: FastifyInstance) {
         throw error;
       }
       return { message: "Firma registrada." };
-    });
-  });
+    }),
+  );
   app.get("/files/signatures/:id", auth, async (req, reply) => {
     const id = parse(uuid, (req.params as { id: string }).id);
     const [file] = await db

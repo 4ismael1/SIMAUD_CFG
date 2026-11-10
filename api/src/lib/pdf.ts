@@ -5,6 +5,18 @@ import type { Content, TDocumentDefinitions } from "pdfmake/interfaces.js";
 
 const fontsDirectory = fileURLToPath(new URL("../../assets/fonts/", import.meta.url));
 pdfmake.addFonts({
+  SourceSerif: {
+    normal: path.join(fontsDirectory, "SourceSerif4-Regular.ttf"),
+    bold: path.join(fontsDirectory, "SourceSerif4-Bold.ttf"),
+    italics: path.join(fontsDirectory, "SourceSerif4-Italic.ttf"),
+    bolditalics: path.join(fontsDirectory, "SourceSerif4-BoldItalic.ttf"),
+  },
+  Geist: {
+    normal: path.join(fontsDirectory, "Geist-Regular.ttf"),
+    bold: path.join(fontsDirectory, "Geist-Bold.ttf"),
+    italics: path.join(fontsDirectory, "Geist-Italic.ttf"),
+    bolditalics: path.join(fontsDirectory, "Geist-BoldItalic.ttf"),
+  },
   Roboto: {
     normal: path.join(fontsDirectory, "Roboto-Regular.ttf"),
     bold: path.join(fontsDirectory, "Roboto-Medium.ttf"),

@@ -1,3 +1,4 @@
+import { validateExportSize, withExportCapacity } from "./limits.js";
 import ExcelJS from "exceljs";
 import type { Content } from "pdfmake/interfaces.js";
 import { makePdf } from "../../lib/pdf.js";
@@ -54,11 +55,12 @@ function exportTableContent(title: string, report: Report): Content[] {
   ];
 }
 
-export async function exportReportTables(
+async function renderReportTables(
   tables: Record<string, Report>,
   format: "csv" | "xlsx" | "pdf",
   title: string,
 ) {
+  validateExportSize(tables, format);
   if (format === "csv") {
     const sections = Object.entries(tables).map(([name, report]) => {
       const { columns, rows } = tableData(report);
@@ -86,7 +88,8 @@ export async function exportReportTables(
   );
 }
 
-export async function exportReport(report: Report, format: "csv" | "xlsx" | "pdf", title: string) {
+async function renderReport(report: Report, format: "csv" | "xlsx" | "pdf", title: string) {
+  validateExportSize({ report }, format);
   const columns = [...new Set(report.rows.flatMap((row) => Object.keys(row)))];
   if (!columns.length) columns.push(...Object.keys(report.totals));
   const exportRows = [...report.rows, { ...report.totals, label: "TOTAL" }];
@@ -115,8 +118,6 @@ export async function exportReport(report: Report, format: "csv" | "xlsx" | "pdf
       for (const column of columns) {
         const value = values[column];
         if (value && /Date$/.test(column)) values[column] = new Date(String(value) + "T00:00:00Z");
-        if (value !== null && value !== undefined && column === "value")
-          values[column] = Number(value);
       }
       sheet.addRow(values);
     }
@@ -151,4 +152,15 @@ export async function exportReport(report: Report, format: "csv" | "xlsx" | "pdf
     title,
     { pageOrientation: columns.length > 6 ? "landscape" : "portrait" },
   );
+}
+
+export function exportReportTables(
+  tables: Record<string, Report>,
+  format: "csv" | "xlsx" | "pdf",
+  title: string,
+) {
+  return withExportCapacity(() => renderReportTables(tables, format, title));
+}
+export function exportReport(report: Report, format: "csv" | "xlsx" | "pdf", title: string) {
+  return withExportCapacity(() => renderReport(report, format, title));
 }

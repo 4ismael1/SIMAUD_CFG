@@ -3,23 +3,27 @@ import { zCedula, zPhoneDo, zEmail, zPersonName, zPassword } from "../../lib/val
 import { users, userRole } from "../../db/schema.js";
 export const email = zEmail;
 export const password = zPassword;
-export const profile = z.object({
-  name: zPersonName,
-  phone: zPhoneDo,
-  cedula: zCedula,
-});
-export const idParams = z.object({ id: z.string().uuid() });
+export const profile = z
+  .object({
+    name: zPersonName,
+    phone: zPhoneDo,
+    cedula: zCedula,
+  })
+  .strict();
+export const idParams = z.object({ id: z.string().uuid() }).strict();
 export const role = z.enum(userRole.enumValues);
-export const listQuery = z.object({
-  page: z.coerce.number().int().min(1).default(1),
-  pageSize: z.coerce.number().int().min(1).max(100).default(20),
-  q: z.string().trim().max(200).optional(),
-  role: role.optional(),
-  status: z.enum(["active", "inactive", "invited"]).optional(),
-  sort: z
-    .enum(["name", "-name", "email", "-email", "createdAt", "-createdAt"])
-    .default("-createdAt"),
-});
+export const listQuery = z
+  .object({
+    page: z.coerce.number().int().min(1).max(10000).default(1),
+    pageSize: z.coerce.number().int().min(1).max(100).default(20),
+    q: z.string().trim().max(200).optional(),
+    role: role.optional(),
+    status: z.enum(["active", "inactive", "invited"]).optional(),
+    sort: z
+      .enum(["name", "-name", "email", "-email", "createdAt", "-createdAt"])
+      .default("-createdAt"),
+  })
+  .strict();
 export const createUserBody = profile
   .extend({
     email,

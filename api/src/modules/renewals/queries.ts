@@ -1,3 +1,4 @@
+import { withReportRead } from "../reports/limits.js";
 import { summaryColumns } from "../contracts/list-summary.js";
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "../../db/client.js";
@@ -21,14 +22,18 @@ function eligibleScope(actor: contractService.Actor) {
   `;
 }
 
-export async function listEligibleRenewals(actor: contractService.Actor) {
-  return db
-    .select(summaryColumns(actor))
-    .from(contracts)
-    .where(
-      and(
-        eligibleScope(actor),
-        sql`
+export async function listEligibleRenewals(
+  actor: contractService.Actor,
+  query = { page: 1, pageSize: 20 },
+) {
+  return withReportRead(async (tx) =>
+    tx
+      .select(summaryColumns(actor))
+      .from(contracts)
+      .where(
+        and(
+          eligibleScope(actor),
+          sql`
           ${contracts.status} in ('active', 'expiring_soon', 'expired')
           and not exists (
             select 1
@@ -48,9 +53,12 @@ export async function listEligibleRenewals(actor: contractService.Actor) {
             )
           )
         `,
-      ),
-    )
-    .orderBy(contracts.endDate, contracts.id);
+        ),
+      )
+      .orderBy(contracts.endDate, contracts.id)
+      .limit(query.pageSize)
+      .offset((query.page - 1) * query.pageSize),
+  );
 }
 
 export async function listRenewals(actor: contractService.Actor, query: RenewalQuery) {
@@ -95,7 +103,7 @@ export async function listRenewals(actor: contractService.Actor, query: RenewalQ
     .where(filter);
   return {
     data: rows.map((row) => ({
-      ...row.renewal,
+      ...publicRenewal(row.renewal),
       contract: row.contract,
       requester: row.requester,
       daysToExpiry: row.daysToExpiry,
@@ -104,4 +112,11 @@ export async function listRenewals(actor: contractService.Actor, query: RenewalQ
     })),
     meta: { page: query.page, pageSize: query.pageSize, total: count!.total },
   };
+}
+
+export function publicRenewal({
+  originalRequestedBy: _origin,
+  ...renewal
+}: typeof renewals.$inferSelect) {
+  return renewal;
 }

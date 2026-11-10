@@ -11,7 +11,7 @@ export async function adminTotals() {
     'contracts', count(*),
     'newContractsThisMonth', count(*) filter (where created_at >= ${currentMonth} at time zone 'America/Santo_Domingo'
       and created_at < (${currentMonth} + interval '1 month') at time zone 'America/Santo_Domingo'),
-    'totalValue', coalesce(sum(contract_value),0), 'averageValue', avg(contract_value),
+    'totalValue', coalesce(sum(contract_value),0)::numeric(30,2)::text, 'averageValue', round(avg(contract_value),2)::text,
     'approvalRate', (select count(*) filter (where status = 'approved')::numeric / nullif(count(*),0)
       from contract_approvals where status <> 'pending')
   ) value from contracts`);
@@ -19,10 +19,10 @@ export async function adminTotals() {
 
 export async function topManagers() {
   return rows(sql`select u.id "managerId", u.name, count(*)::int count,
-    coalesce(sum(c.contract_value),0)::float8 value from contracts c join users u on u.id = c.created_by
+    coalesce(sum(c.contract_value),0)::text value from contracts c join users u on u.id = c.created_by
     where c.created_at >= (${santoDomingoToday} - 89)::timestamp at time zone 'America/Santo_Domingo'
     and c.created_at < (${santoDomingoToday} + 1)::timestamp at time zone 'America/Santo_Domingo'
-    group by u.id, u.name order by count desc, value desc, u.id limit 5`);
+    group by u.id, u.name order by count desc, sum(c.contract_value) desc, u.id limit 5`);
 }
 
 export async function usersByRole() {
@@ -76,7 +76,7 @@ export async function gestorMonthly(scope: SQL) {
       (select count(*)::int from signed s join contracts c on c.id = s.contract_id where ${scope}
         and s.signed_at >= m.month at time zone 'America/Santo_Domingo'
         and s.signed_at < (m.month + interval '1 month') at time zone 'America/Santo_Domingo') signed,
-      (select coalesce(sum(c.contract_value),0)::float8 from contracts c where ${scope}
+      (select coalesce(sum(c.contract_value),0)::text from contracts c where ${scope}
         and c.created_at >= m.month at time zone 'America/Santo_Domingo'
         and c.created_at < (m.month + interval '1 month') at time zone 'America/Santo_Domingo') value
     from months m order by m.month`);

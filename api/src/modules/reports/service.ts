@@ -1,5 +1,6 @@
+import { boundedReportRows, withReportRead } from "./limits.js";
+import { localDateRange } from "../../lib/sql.js";
 import { sql, type SQL } from "drizzle-orm";
-import { db } from "../../db/client.js";
 import { forbidden, invalid, type Actor } from "../contracts/service.js";
 import type { Query } from "./schemas.js";
 
@@ -12,20 +13,11 @@ export type Report = {
 };
 
 async function queryRows(query: SQL) {
-  return (await db.execute<ReportRow>(query)).rows;
+  return (await withReportRead((tx) => boundedReportRows<ReportRow>(tx, query))).rows;
 }
 
 function dateFilter(query: Query, column: SQL) {
-  return sql`
-    (
-      ${query.from ?? null}::date is null
-      or ${column} >= ${query.from ?? null}::date at time zone 'America/Santo_Domingo'
-    )
-    and (
-      ${query.to ?? null}::date is null
-      or ${column} <(${query.to ?? null}::date + 1) at time zone 'America/Santo_Domingo'
-    )
-  `;
+  return localDateRange(column, query.from, query.to);
 }
 
 export async function contractReport(actor: Actor, query: Query): Promise<Report> {
@@ -103,13 +95,13 @@ export async function userReport(actor: Actor, query: Query): Promise<Report> {
         ${group} label,
         count(*)::int count
       from users
-      where deleted_at is null
+      where deleted_at is null and ${dateFilter(query, sql`created_at`)}
       group by ${group}
       order by ${group}
     `,
   );
   const [totals] = await queryRows(
-    sql`select count(*)::int count from users where deleted_at is null`,
+    sql`select count(*)::int count from users where deleted_at is null and ${dateFilter(query, sql`created_at`)}`,
   );
   return { rows, totals: totals! };
 }

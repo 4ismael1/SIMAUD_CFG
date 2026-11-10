@@ -224,7 +224,7 @@ export async function getAdminMonthly(months: number) {
           where signed_at >= m.month at time zone 'America/Santo_Domingo'
           and signed_at <(m.month + interval '1 month') at time zone 'America/Santo_Domingo'
         )::int signed,
-        (select coalesce(sum(contract_value),0)::float8 from contracts
+        (select coalesce(sum(contract_value),0)::text from contracts
           where created_at >= m.month at time zone 'America/Santo_Domingo'
           and created_at < (m.month + interval '1 month') at time zone 'America/Santo_Domingo') value
       from months m

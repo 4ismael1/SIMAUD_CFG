@@ -1,18 +1,18 @@
 import { storedDocument } from "../../lib/rich-doc/content.js";
-import { richDocPdf } from "../../lib/rich-doc/pdf.js";
+import { documentPdf, plainDocument } from "../../lib/rich-doc/document-pdf.js";
+import type { PdfSigner } from "../../lib/rich-doc/signatures.js";
 import { sanitizePng } from "../../lib/storage-png.js";
 import { storage } from "../../lib/storage.js";
 import { createHash, randomBytes } from "node:crypto";
-import { pdfAttestation, maskCedula, formatSigningDate } from "./pdf-attestation.js";
+import { pdfAttestation } from "./pdf-attestation.js";
 import { contentDocumentHash } from "../../lib/rich-doc/content.js";
 import { sealPdf } from "../../lib/crypto/system-signing.js";
 import type { FastifyInstance } from "fastify";
-import type { Content } from "pdfmake/interfaces.js";
 import { eq } from "drizzle-orm";
 import { db, type Transaction } from "../../db/client.js";
 import { contracts } from "../../db/schema.js";
 import { authenticate } from "../../plugins/auth.js";
-import { makePdf, paragraphs, decodeRenderedText } from "../../lib/pdf.js";
+import { decodeRenderedText } from "../../lib/pdf.js";
 import { getSettings } from "../system/settings.js";
 import { parse, uuid } from "./schemas.js";
 import * as service from "./service.js";
@@ -36,53 +36,43 @@ export async function contractPdf(
   const settings = await getSettings(tx);
   const signatories = await service.getSignatories(tx, contract.id);
   const source = contract.generatedContent ?? contract.content;
-  const documentContent =
-    contract.contentFormat === "rich-v1"
-      ? richDocPdf(storedDocument(source))
-      : paragraphs(decodeRenderedText(source));
-  const content: Content[] = [];
-  if (settings.institution.logo)
-    content.push({
-      image:
-        "data:image/png;base64," +
-        sanitizePng(Buffer.from(settings.institution.logo.split(",")[1]!, "base64")).toString(
-          "base64",
-        ),
-      fit: [90, 50],
-      margin: [0, 0, 0, 12],
-    });
-  content.push(
-    { text: settings.institution.name, bold: true, fontSize: 16 },
-    {
-      text: [settings.institution.rnc, settings.institution.address].filter(Boolean).join(" | "),
-      fontSize: 9,
-      margin: [0, 4, 0, 20],
-    },
-    { text: contract.title, bold: true, fontSize: 18, margin: [0, 0, 0, 8] },
-    {
-      text: contract.code + " | Versión " + contract.currentVersion,
-      fontSize: 9,
-      color: "#555555",
-      margin: [0, 0, 0, 18],
-    },
-    ...documentContent,
-    { text: "Firmas", bold: true, fontSize: 14, margin: [0, 20, 0, 12] },
-  );
+  const document =
+    contract.contentFormat === "plain"
+      ? plainDocument(decodeRenderedText(source))
+      : storedDocument(source);
+  const signers: PdfSigner[] = [];
   for (const signer of signatories) {
-    const block: Content[] = [];
+    let image: string | undefined;
     if (signer.signaturePath && /^[0-9a-f-]{36}\.png$/.test(signer.signaturePath)) {
       const bytes = await storage.get("signatures/" + signer.signaturePath);
-      block.push({ image: "data:image/png;base64," + bytes.toString("base64"), fit: [150, 65] });
+      image = "data:image/png;base64," + bytes.toString("base64");
     }
-    block.push(
-      { text: signer.name, bold: true },
-      { text: signer.role + " | Cédula: " + maskCedula(signer.cedula) },
-      { text: formatSigningDate(signer.signedAt), fontSize: 9 },
-    );
-    content.push({ stack: block, unbreakable: true, margin: [0, 0, 0, 16] });
+    signers.push({
+      signingOrder: signer.signingOrder,
+      name: signer.name,
+      cedula: signer.cedula,
+      signedAt: signer.signedAt,
+      image,
+    });
   }
-  content.push(...(await pdfAttestation(tx, contract, signatories)));
-  return makePdf(content, contract.code);
+  const logo = settings.institution.logo
+    ? "data:image/png;base64," +
+      sanitizePng(Buffer.from(settings.institution.logo.split(",")[1]!, "base64")).toString(
+        "base64",
+      )
+    : null;
+  return documentPdf(document, contract.title, {
+    signers,
+    logo,
+    appendix: [
+      {
+        stack: await pdfAttestation(tx, contract, signatories),
+        font: "Roboto",
+        fontSize: 10,
+        lineHeight: 1.3,
+      },
+    ],
+  });
 }
 
 export async function saveFinalPdf(

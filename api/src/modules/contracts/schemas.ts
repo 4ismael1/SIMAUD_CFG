@@ -29,10 +29,9 @@ export function parse<T>(schema: z.ZodType<T>, value: unknown): T {
 }
 export const uuid = z.uuid();
 export const text = zFreeText();
-export const values = z.record(
-  z.string(),
-  z.union([z.string().max(20000), z.number().finite(), z.null()]),
-);
+export const values = z
+  .record(z.string().max(100), z.union([z.string().max(20000), z.number().finite(), z.null()]))
+  .refine((input) => Object.keys(input).length <= 5000);
 export const date = zIsoDate;
 export const signatory = z
   .object({
@@ -84,11 +83,14 @@ export const contractRelations = z
 export const contractInput = contractFields.superRefine(checkContractRelations);
 export const variableInput = z
   .object({
-    name: z.string().regex(/^[a-z][a-z0-9_]*$/),
+    name: z
+      .string()
+      .max(100)
+      .regex(/^[a-z][a-z0-9_]*$/),
     label: text,
     type: z.enum(variableType.enumValues),
     required: z.boolean().default(false),
-    options: z.array(text).nullable().optional(),
+    options: z.array(text).max(100).nullable().optional(),
     description: z.string().max(20000).nullable().optional(),
   })
   .strict();
@@ -114,7 +116,9 @@ export const actionInput = z
 export const cancelInput = z
   .object({ reason: z.enum(cancellationReason.enumValues), description: text })
   .strict();
-export const pageInput = z.object({
-  page: z.coerce.number().int().min(1).default(1),
-  pageSize: z.coerce.number().int().min(1).max(100).default(20),
-});
+export const pageInput = z
+  .object({
+    page: z.coerce.number().int().min(1).max(10000).default(1),
+    pageSize: z.coerce.number().int().min(1).max(100).default(20),
+  })
+  .strict();

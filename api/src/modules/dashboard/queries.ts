@@ -29,7 +29,9 @@ export async function approvalQueue(actor: Actor) {
       where a.status = 'pending'
       and (
         ${actor.role} = 'admin'
-        or c.created_by is distinct from ${actor.id}::uuid
+        or (c.original_created_by is distinct from ${actor.id}::uuid
+          and c.created_by is distinct from ${actor.id}::uuid
+          and a.original_requested_by is distinct from ${actor.id}::uuid)
       )
       order by a.requested_at,
       a.id

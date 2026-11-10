@@ -5,10 +5,12 @@ import { createDriver, readStorageState, sameStorageLocation } from "./storage-c
 import { DiskStorage, storageDirectory } from "./storage-disk.js";
 import { storageBusy, validateKey, type StorageDriver } from "./storage-types.js";
 import { ApiError } from "./errors.js";
+import { AdmissionQueue } from "./admission-queue.js";
+import type { FastifyReply, FastifyRequest } from "fastify";
 export { storageDirectory };
 export type { StorageDriver } from "./storage-types.js";
 const mutationDriver = new AsyncLocalStorage<StorageDriver>();
-let mutationTail: Promise<unknown> = Promise.resolve();
+const mutations = new AdmissionQueue(8);
 
 export async function withStorageLock<T>(operation: () => Promise<T>) {
   const client = await pool.connect();
@@ -33,12 +35,42 @@ export async function withStorageLock<T>(operation: () => Promise<T>) {
   }
 }
 
-export function withStorageMutation<T>(operation: () => Promise<T>): Promise<T> {
+export async function withStorageMutation<T>(
+  operation: () => Promise<T>,
+  signal?: AbortSignal,
+): Promise<T> {
   if (mutationDriver.getStore()) return operation();
   // Reserve pool capacity for the business transaction and the backup lock.
-  const execution = mutationTail.then(() => runStorageMutation(operation));
-  mutationTail = execution.catch(() => undefined);
-  return execution;
+  const release = await mutations.acquire(signal);
+  try {
+    return await runStorageMutation(async () => {
+      if (signal?.aborted) throw new ApiError(409, "CONFLICT", "La solicitud fue cancelada.");
+      return operation();
+    });
+  } finally {
+    release();
+  }
+}
+
+export async function withRequestStorageMutation<T>(
+  request: FastifyRequest,
+  reply: FastifyReply,
+  operation: () => Promise<T>,
+) {
+  const controller = new AbortController();
+  const abort = () => controller.abort();
+  const close = () => {
+    if (!reply.raw.writableFinished) abort();
+  };
+  request.raw.once("aborted", abort);
+  reply.raw.once("close", close);
+  if (request.raw.aborted) abort();
+  try {
+    return await withStorageMutation(operation, controller.signal);
+  } finally {
+    request.raw.removeListener("aborted", abort);
+    reply.raw.removeListener("close", close);
+  }
 }
 
 async function runStorageMutation<T>(operation: () => Promise<T>): Promise<T> {

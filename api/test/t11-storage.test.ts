@@ -48,6 +48,8 @@ const config: S3Config = {
 let objects: Map<string, Buffer>;
 let requests: Request[];
 let fail: (request: Request) => number;
+/** When set, the fake provider waits for it before answering (keeps a migration running on fast databases). */
+let hold: Promise<void> | undefined;
 let app: FastifyInstance | undefined;
 let fetchMock: ReturnType<typeof vi.fn<typeof fetch>>;
 let writeIds: Map<string, string>;
@@ -58,6 +60,7 @@ beforeEach(async () => {
   writeIds = new Map();
   requests = [];
   fail = () => 0;
+  hold = undefined;
   fetchMock = vi.fn<typeof fetch>(async (input) => {
     const request = input as Request;
     requests.push(request);
@@ -70,6 +73,7 @@ beforeEach(async () => {
     expect(request.headers.get("x-amz-date")).toMatch(/^\d{8}T\d{6}Z$/);
     expect(request.headers.has("x-amz-acl")).toBe(false);
     expect(request.redirect).toBe("error");
+    if (hold) await hold;
     const status = fail(request);
     if (status) return new Response("provider-body-" + config.secretAccessKey, { status });
     const url = new URL(request.url);
@@ -333,8 +337,12 @@ it("migra referencias históricas, verifica SHA/tamaño y reanuda sin borrar ori
   expect((await readStorageState()).active.driver).toBe("disk");
   expect((await readStorageState()).pending?.driver).toBe("s3");
   fail = (request) => (request.method === "GET" && request.url.endsWith(name) ? 503 : 0);
+  let release!: () => void;
+  hold = new Promise((resolve) => (release = resolve));
   const { jobId } = await startStorageMigration({ userId: actor.id });
   await expect(withStorageMutation(async () => undefined)).rejects.toThrow("migración");
+  hold = undefined;
+  release();
   await waitStorageMigrations();
   expect((await db.select().from(jobRuns).where(eq(jobRuns.id, jobId)))[0]).toMatchObject({
     ok: false,

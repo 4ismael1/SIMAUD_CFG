@@ -518,7 +518,7 @@ it("exporta CSV BOM y XLSX reabribles, PDF real y descarga protegida", async () 
   expect(xlsx.statusCode, xlsx.body).toBe(200);
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.load(xlsx.rawPayload as never);
-  expect(workbook.worksheets[0]!.getRow(2).getCell(4).value).toBe(1250.25);
+  expect(workbook.worksheets[0]!.getRow(2).getCell(4).value).toBe("1250.25");
   expect(workbook.worksheets[0]!.getColumn(4).numFmt).toContain("RD$");
   const pdf = await request(admin, "GET", "/reports/contracts/export?format=pdf");
   expect(pdf.statusCode, pdf.body).toBe(200);

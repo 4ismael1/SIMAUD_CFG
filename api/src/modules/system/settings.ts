@@ -4,6 +4,7 @@ import { db, type Transaction } from "../../db/client.js";
 import { settings } from "../../db/schema.js";
 import { env } from "../../config/env.js";
 import { auditAdmin, type AuditActor } from "../audit/service.js";
+import { sanitizeInstitutionLogo } from "../../lib/storage-image-validation.js";
 
 export const settingsSchema = z
   .object({
@@ -47,6 +48,14 @@ export async function getSettings(connection: Transaction | typeof db = db): Pro
 }
 
 export async function updateSettings(patch: Partial<Settings>, actor?: AuditActor) {
+  if (patch.institution?.logo)
+    patch = {
+      ...patch,
+      institution: {
+        ...patch.institution,
+        logo: await sanitizeInstitutionLogo(patch.institution.logo),
+      },
+    };
   await db.transaction(async (tx) => {
     for (const [key, value] of Object.entries(patch))
       await tx

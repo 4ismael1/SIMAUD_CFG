@@ -4,9 +4,9 @@ import { documentHash, sha256 } from "../crypto/canonical.js";
 import { extractVariables, renderTemplate, type Variable } from "../render-template.js";
 import { canonicalRichDoc, parseRichDoc, richDocSchema } from "./schema.js";
 import { extractVariables as richVariables, renderRichDoc } from "./render.js";
-import type { ContentFormat } from "./types.js";
+import type { ContentFormat, RichNode } from "./types.js";
 
-export const contentFormatSchema = z.enum(["plain", "rich-v1"]);
+export const contentFormatSchema = z.enum(["plain", "rich-v1", "rich-v2"]);
 function contentSchema(minLength: number) {
   return z.unknown().transform((value, context) => {
     const schema =
@@ -25,8 +25,30 @@ function contentSchema(minLength: number) {
 export const contentInput = contentSchema(1);
 export const previewContentInput = contentSchema(0);
 
+function assertFormatFeatures(node: RichNode, format: ContentFormat) {
+  if (format !== "rich-v1") return;
+  if (
+    node.attrs?.page ||
+    node.attrs?.header ||
+    node.attrs?.footer ||
+    node.attrs?.numbered ||
+    node.type === "signatures"
+  )
+    throw new ApiError(
+      400,
+      "VALIDATION_ERROR",
+      "Guarda este documento como rich-v2 para conservar la maqueta y las firmas.",
+      [{ field: "contentFormat", message: "Este documento utiliza funciones de rich-v2." }],
+    );
+  node.content?.forEach((child) => assertFormatFeatures(child, format));
+}
+
 export function encodeContent(content: unknown, format: ContentFormat): string {
-  if (format === "rich-v1") return canonicalRichDoc(content);
+  if (format !== "plain") {
+    const document = parseRichDoc(content);
+    assertFormatFeatures(document, format);
+    return JSON.stringify(document);
+  }
   const parsed = z.string().min(1).max(200000).safeParse(content);
   if (!parsed.success)
     throw new ApiError(
@@ -43,7 +65,7 @@ export function storedDocument(content: string) {
 }
 
 export function contentVariables(content: string, format: ContentFormat = "plain") {
-  return format === "rich-v1" ? richVariables(storedDocument(content)) : extractVariables(content);
+  return format !== "plain" ? richVariables(storedDocument(content)) : extractVariables(content);
 }
 
 export function renderContent(
@@ -72,11 +94,11 @@ export function contentResponse<
 >(record: T) {
   return {
     ...record,
-    content: record.contentFormat === "rich-v1" ? storedDocument(record.content) : record.content,
+    content: record.contentFormat !== "plain" ? storedDocument(record.content) : record.content,
     ...(record.generatedContent !== undefined
       ? {
           generatedContent:
-            record.contentFormat === "rich-v1" && record.generatedContent !== null
+            record.contentFormat !== "plain" && record.generatedContent !== null
               ? storedDocument(record.generatedContent)
               : record.generatedContent,
         }
@@ -85,7 +107,7 @@ export function contentResponse<
 }
 
 export function contentDocumentHash(content: string, format: ContentFormat = "plain") {
-  return format === "rich-v1"
+  return format !== "plain"
     ? sha256(canonicalRichDoc(storedDocument(content)))
     : documentHash(content);
 }

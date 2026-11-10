@@ -24,7 +24,7 @@ export async function cleanDatabase() {
   guardTestDatabase();
   await db.execute(
     sql.raw(
-      "TRUNCATE email_outbox, settings, job_runs, expiry_deliveries, users, refresh_tokens, auth_tokens, template_variables, contract_templates, contracts, contract_signatories, contract_versions, contract_approvals, contract_audit_logs, contract_renewals, contract_cancellations, notifications, files CASCADE",
+      "TRUNCATE auth_request_budgets, email_outbox, settings, job_runs, expiry_deliveries, users, refresh_tokens, auth_tokens, template_variables, contract_templates, contracts, contract_signatories, contract_versions, contract_approvals, contract_audit_logs, contract_renewals, contract_cancellations, notifications, files CASCADE",
     ),
   );
 }

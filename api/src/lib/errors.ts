@@ -33,7 +33,9 @@ export function installErrors(app: FastifyInstance) {
     }),
   );
   app.setErrorHandler((error, request, reply) => {
-    if (error instanceof ApiError)
+    if (error instanceof ApiError) {
+      if (error.statusCode === 503 && !reply.hasHeader("Retry-After"))
+        reply.header("Retry-After", 1);
       return reply.code(error.statusCode).send({
         error: {
           code: error.code,
@@ -41,6 +43,7 @@ export function installErrors(app: FastifyInstance) {
           ...(error.details === undefined ? {} : { details: error.details }),
         },
       });
+    }
     const http =
       error && typeof error === "object"
         ? (error as { statusCode?: number; validation?: unknown; name?: string })
@@ -76,6 +79,17 @@ export function installErrors(app: FastifyInstance) {
         constraint?: string;
         cause?: unknown;
       };
+      if (pg.code === "57014")
+        return reply
+          .header("Retry-After", 1)
+          .code(503)
+          .send({
+            error: {
+              code: "RATE_LIMITED",
+              message:
+                "La consulta superó el tiempo permitido. Acota los filtros e inténtalo de nuevo.",
+            },
+          });
       if (pg.code === "23505") {
         const field = pg.constraint?.includes("template_variables")
           ? "name"

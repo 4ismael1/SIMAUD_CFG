@@ -28,7 +28,26 @@ export async function issueAuthToken(
   type: "email_confirmation" | "password_reset",
   destination = user.email,
   invitation = false,
+  coalesce = false,
+  now = new Date(),
 ) {
+  if (coalesce) {
+    const [recent] = await tx
+      .select({ id: authTokens.id })
+      .from(authTokens)
+      .where(
+        and(
+          eq(authTokens.userId, user.id),
+          eq(authTokens.type, type),
+          eq(authTokens.email, destination),
+          isNull(authTokens.usedAt),
+          gt(authTokens.expiresAt, now),
+          gt(authTokens.createdAt, new Date(now.getTime() - 60000)),
+        ),
+      )
+      .limit(1);
+    if (recent) return;
+  }
   // Invalidate older tokens of the same purpose. Caller holds the user lock.
   await tx
     .update(authTokens)
@@ -204,7 +223,7 @@ export async function requestToken(email: string, type: "email_confirmation" | "
   await db.transaction(async (tx) => {
     const user = await lockUser(tx, candidate.id);
     if (!active(user) || (type === "email_confirmation" && user.emailConfirmedAt)) return null;
-    return issueAuthToken(tx, user, type);
+    return issueAuthToken(tx, user, type, user.email, false, true);
   });
 }
 export async function consumeToken(

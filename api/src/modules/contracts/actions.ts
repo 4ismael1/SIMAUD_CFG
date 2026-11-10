@@ -13,6 +13,8 @@ import { ApiError } from "../../lib/errors.js";
 import { parse, actionInput, cancelInput } from "./schemas.js";
 import { transition, overrideTransition } from "./state-machine.js";
 import * as contractService from "./service.js";
+import { canReview, isOwnReview } from "./review-permissions.js";
+import { getPendingApprovalRequester } from "./approval-queries.js";
 export type ContractAction =
   | "submit"
   | "approve"
@@ -36,6 +38,7 @@ interface ActionContext {
 interface ActionResult {
   next: contractService.Contract["status"];
   changes: Partial<typeof contracts.$inferInsert>;
+  auditAction?: string;
 }
 
 async function archiveContract(context: ActionContext): Promise<ActionResult> {
@@ -139,11 +142,8 @@ async function reviewApproval(context: ActionContext): Promise<ActionResult> {
   let next = contract.status;
   let changes: Partial<typeof contracts.$inferInsert> = {};
 
-  if (!(
-    req.user.role === "admin" ||
-    (req.user.role === "supervisor" && contract.createdBy !== req.user.id)
-  ))
-    throw contractService.forbidden();
+  const requestedBy = await getPendingApprovalRequester(tx, id);
+  if (!canReview(contract, req.user, requestedBy)) throw contractService.forbidden();
   next = transition(contract.status, action);
   if (action === "reject" && !input.comment)
     throw contractService.invalid("El comentario es obligatorio.");
@@ -172,8 +172,13 @@ async function reviewApproval(context: ActionContext): Promise<ActionResult> {
       : "Contrato rechazado: " + input.comment,
   );
   if (action === "approve") await contractService.nextSigners(tx, contract);
-
-  return { next, changes };
+  const auditAction =
+    action === "approve" &&
+    req.user.role === "admin" &&
+    isOwnReview(contract, req.user, requestedBy)
+      ? "approved_own"
+      : action;
+  return { next, changes, auditAction };
 }
 
 async function cancelContract(context: ActionContext): Promise<ActionResult> {

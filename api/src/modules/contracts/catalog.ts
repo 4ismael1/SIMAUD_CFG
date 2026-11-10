@@ -1,10 +1,11 @@
+import { templatePreviewRoutes } from "./template-preview.js";
 import { auditCatalog } from "../audit/catalog.js";
 import { assertVariableNotReferenced } from "./variable-usage.js";
 import { normalizeTemplateValues } from "../../lib/validation/template-values.js";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
-import { db, type Transaction } from "../../db/client.js";
+import { db } from "../../db/client.js";
 import {
   contractTemplates as templates,
   templateVariables as variables,
@@ -13,33 +14,18 @@ import {
 import { requireRole } from "../../plugins/auth.js";
 import { ApiError } from "../../lib/errors.js";
 import {
-  contentVariables,
   contentResponse,
   encodeContent,
   renderContent,
   previewContentInput,
   contentFormatSchema,
 } from "../../lib/rich-doc/content.js";
-import type { ContentFormat } from "../../lib/rich-doc/types.js";
+import { resolveVariables } from "./catalog-variables.js";
+export { resolveVariables } from "./catalog-variables.js";
 import { parse, uuid, templateInput, variableInput, values } from "./schemas.js";
 const missing = () => new ApiError(404, "NOT_FOUND", "No se encontró el recurso.");
-export async function resolveVariables(
-  tx: Transaction | typeof db,
-  content: string,
-  format: ContentFormat = "plain",
-) {
-  const names = contentVariables(content, format);
-  const defs = names.length
-    ? await tx.select().from(variables).where(inArray(variables.name, names))
-    : [];
-  const unknown = names.filter(
-    (versionNumber) => !defs.some((variable) => variable.name === versionNumber),
-  );
-  if (unknown.length)
-    throw new ApiError(400, "VALIDATION_ERROR", "Variables desconocidas.", { unknown });
-  return { names, defs };
-}
 export async function catalogRoutes(app: FastifyInstance) {
+  await templatePreviewRoutes(app);
   const read = { preHandler: requireRole("admin", "supervisor", "gestor") };
   const write = { preHandler: requireRole("admin", "supervisor") };
   app.get("/variables", read, async (req) => {
@@ -256,7 +242,7 @@ export async function catalogRoutes(app: FastifyInstance) {
               );
         const format =
           "contentFormat" in patch ? (patch.contentFormat ?? old.contentFormat) : old.contentFormat;
-        if (old.contentFormat === "rich-v1" && format === "plain")
+        if (old.contentFormat !== "plain" && format === "plain")
           throw new ApiError(
             400,
             "VALIDATION_ERROR",

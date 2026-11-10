@@ -1,3 +1,4 @@
+import { santoDomingoDate } from "../../lib/dates.js";
 import { invalid } from "../contracts/service.js";
 import type { DateRange, OverviewQuery } from "./overview-schema.js";
 
@@ -21,23 +22,12 @@ export const dateOf = (date: string) => new Date(date + "T00:00:00Z");
 export const shiftDays = (date: string, days: number) =>
   dateKey(new Date(dateOf(date).getTime() + days * dayMilliseconds));
 
-function localToday(now: Date) {
-  const parts = new Intl.DateTimeFormat("en", {
-    timeZone: "America/Santo_Domingo",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(now);
-  return ["year", "month", "day"]
-    .map((type) => parts.find((part) => part.type === type)!.value)
-    .join("-");
-}
-
 export function overviewRanges(query: Pick<OverviewQuery, "from" | "to">, now = new Date()) {
-  const today = localToday(now);
+  const today = santoDomingoDate(now);
   const range = { from: query.from ?? shiftDays(query.to ?? today, -89), to: query.to ?? today };
   if (range.from > range.to) throw invalid("Rango de fechas inválido.");
   const days = (dateOf(range.to).getTime() - dateOf(range.from).getTime()) / dayMilliseconds + 1;
+  if (days > 3660) throw invalid("El rango máximo es de 3660 días. Acota las fechas.");
   const previousRange = { from: shiftDays(range.from, -days), to: shiftDays(range.from, -1) };
   if (previousRange.from.length !== 10)
     throw invalid("Rango de fechas fuera de los límites admitidos.");
@@ -74,6 +64,8 @@ export function periodInfo(day: string, granularity: OverviewQuery["granularity"
 export function periods(range: DateRange, granularity: OverviewQuery["granularity"]) {
   const result: Array<DateRange & { period: string; label: string }> = [];
   let from = range.from;
+  if ((dateOf(range.to).getTime() - dateOf(range.from).getTime()) / dayMilliseconds > 3659)
+    throw invalid("El rango máximo es de 3660 días.");
   while (from <= range.to) {
     const info = periodInfo(from, granularity);
     const next = dateOf(from);
@@ -92,7 +84,7 @@ export function periods(range: DateRange, granularity: OverviewQuery["granularit
   return result;
 }
 
-type TimelineTotals = { day: string; created: number; activated: number; value: number };
+type TimelineTotals = { day: string; created: number; activated: number; value: string };
 
 export function comparedTimeline(
   range: DateRange,
@@ -117,9 +109,9 @@ export function comparedTimeline(
       label,
       created: point?.created ?? 0,
       activated: point?.activated ?? 0,
-      value: point?.value ?? 0,
+      value: point?.value ?? "0.00",
       previousCreated: previousPeriod ? (prior?.created ?? 0) : null,
-      previousValue: previousPeriod ? (prior?.value ?? 0) : null,
+      previousValue: previousPeriod ? (prior?.value ?? "0.00") : null,
     };
   });
 }

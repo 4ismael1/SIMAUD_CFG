@@ -1,21 +1,18 @@
-import type { FastifyRequest } from "fastify";
-import { z } from "zod";
+import { setImmediate } from "node:timers/promises";
+import { ApiError } from "./errors.js";
 import { sanitizePng } from "./storage-png.js";
+let processingLogo = false;
 
-const logoPatch = z
-  .object({
-    institution: z
-      .object({ logo: z.string().max(500000).startsWith("data:image/png;base64,") })
-      .passthrough(),
-  })
-  .passthrough();
-
-// The shared routes scope lets file validation protect the existing settings endpoint too.
-export async function validateInstitutionLogo(request: FastifyRequest) {
-  if (request.method !== "PATCH" || !request.routeOptions.url?.endsWith("/system/settings")) return;
-  const patch = logoPatch.safeParse(request.body);
-  if (!patch.success) return;
-  const data = Buffer.from(patch.data.institution.logo.split(",")[1]!, "base64");
-  patch.data.institution.logo = "data:image/png;base64," + sanitizePng(data).toString("base64");
-  request.body = patch.data;
+export async function sanitizeInstitutionLogo(logo: string) {
+  if (processingLogo)
+    throw new ApiError(503, "RATE_LIMITED", "Hay una imagen en proceso. Inténtalo de nuevo.");
+  processingLogo = true;
+  try {
+    // Admit one decoded image without retaining a queue of compressed inputs.
+    await setImmediate();
+    const bytes = Buffer.from(logo.slice("data:image/png;base64,".length), "base64");
+    return "data:image/png;base64," + sanitizePng(bytes).toString("base64");
+  } finally {
+    processingLogo = false;
+  }
 }

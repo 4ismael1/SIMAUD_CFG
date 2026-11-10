@@ -5,7 +5,6 @@ import { eq } from "drizzle-orm";
 import { db, type Transaction } from "../../db/client.js";
 import {
   contracts,
-  contractTemplates,
   contractSignatories as signatories,
   contractVersions as versions,
   users,
@@ -14,7 +13,7 @@ import { ApiError } from "../../lib/errors.js";
 import { audit } from "../../lib/audit.js";
 import { enqueueMail } from "../../lib/mail/outbox.js";
 import type { MailTemplate } from "../../lib/mail/templates/index.js";
-import { generatedContent, contentVariables, contentResponse } from "../../lib/rich-doc/content.js";
+import { generatedContent, contentVariables } from "../../lib/rich-doc/content.js";
 import type { ContentFormat } from "../../lib/rich-doc/types.js";
 import {
   linkInvitations,
@@ -23,6 +22,8 @@ import {
   duplicateSignatory,
 } from "./identities.js";
 import { captureDefinitions, type VariableDefinition } from "./variable-history.js";
+import { canReview } from "./review-permissions.js";
+import { lockContractRows } from "./contract-locks.js";
 export type Contract = typeof contracts.$inferSelect;
 export type Signatory = typeof signatories.$inferSelect;
 export type Actor = FastifyRequest["user"];
@@ -34,8 +35,10 @@ export const conflict = (message = "La operación no está permitida en el estad
 export const invalid = (message: string, details?: unknown) =>
   new ApiError(400, "VALIDATION_ERROR", message, details);
 export async function getContract(tx: Transaction | typeof db, id: string, lock = false) {
-  const query = tx.select().from(contracts).where(eq(contracts.id, id));
-  const [contract] = await (lock ? query.for("update") : query);
+  const rows = lock
+    ? await lockContractRows(tx, [id])
+    : await tx.select().from(contracts).where(eq(contracts.id, id));
+  const contract = rows.find((row) => row.id === id);
   if (!contract) throw notFound();
   return contract;
 }
@@ -59,13 +62,17 @@ export function canManage(contract: Contract, actor: Actor) {
     (actor.role === "gestor" && contract.createdBy === actor.id)
   );
 }
-export function permissions(contract: Contract, actor: Actor, signatories: Signatory[]) {
+export function permissions(
+  contract: Contract,
+  actor: Actor,
+  signatories: Signatory[],
+  requestedBy?: string | null,
+) {
   const own = contract.createdBy === actor.id;
   const editor = actor.role === "admin" || (actor.role === "gestor" && own);
   const editable = ["draft", "rejected"].includes(contract.status);
   const reviewer =
-    (actor.role === "admin" || (actor.role === "supervisor" && !own)) &&
-    contract.status === "pending_approval";
+    canReview(contract, actor, requestedBy) && contract.status === "pending_approval";
   const me = signatories.find((item) => item.userId === actor.id);
   return {
     edit:
@@ -102,8 +109,8 @@ export function permissions(contract: Contract, actor: Actor, signatories: Signa
     override: actor.role === "admin",
   };
 }
-export async function linkSignatories(tx: Transaction, actor: Actor) {
-  await linkInvitations(tx, actor);
+export async function linkSignatories(tx: Transaction, actor: Actor, contractId?: string) {
+  await linkInvitations(tx, actor, contractId);
 }
 export async function prepareContent(
   tx: Transaction,
@@ -293,34 +300,4 @@ export async function nextSigners(tx: Transaction, contract: Contract) {
       "Tu firma es requerida.",
     );
 }
-export async function decorate(tx: Transaction | typeof db, contract: Contract) {
-  const signer = await getSignatories(tx, contract.id);
-  const [template] = contract.templateId
-    ? await tx
-        .select({ id: contractTemplates.id, title: contractTemplates.title })
-        .from(contractTemplates)
-        .where(eq(contractTemplates.id, contract.templateId))
-    : [];
-  const [creator] = contract.createdBy
-    ? await tx
-        .select({ id: users.id, name: users.name })
-        .from(users)
-        .where(eq(users.id, contract.createdBy))
-    : [];
-  return {
-    ...contentResponse(contract),
-    template: template ?? null,
-    creator: creator ?? null,
-    signatures: {
-      signed: signer.filter((item) => item.status === "signed").length,
-      total: signer.length,
-    },
-    daysToExpiry: contract.endDate
-      ? Math.ceil(
-          (Date.parse(contract.endDate + "T00:00:00Z") -
-            Date.parse(new Date().toISOString().slice(0, 10) + "T00:00:00Z")) /
-            86400000,
-        )
-      : null,
-  };
-}
+export { decorate } from "./decoration.js";

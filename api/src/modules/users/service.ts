@@ -15,6 +15,7 @@ import {
   type patchUserBody,
 } from "./schemas.js";
 import { auditAdmin, type AuditActor } from "../audit/service.js";
+import { escapeLike } from "../../lib/sql.js";
 const notFound = () => new ApiError(404, "NOT_FOUND", "No se encontró el usuario.");
 export async function findUser(id: string) {
   const [user] = await db
@@ -26,7 +27,7 @@ export async function findUser(id: string) {
 }
 export async function listUsers(query: z.infer<typeof listQuery>) {
   const { page, pageSize, q, role, sort, status } = query;
-  const search = q?.replace(/[\\%_]/g, "\\$&");
+  const search = q ? escapeLike(q) : undefined;
   const filter = and(
     isNull(users.deletedAt),
     role ? eq(users.role, role) : undefined,

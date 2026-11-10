@@ -9,15 +9,17 @@ export const areas = [
   "storage",
   "auth",
 ] as const;
-const filters = z.object({
-  from: z.union([z.iso.date(), z.iso.datetime({ offset: true })]).optional(),
-  to: z.union([z.iso.date(), z.iso.datetime({ offset: true })]).optional(),
-  actorId: z.uuid().optional(),
-  area: z.enum(areas).optional(),
-  action: z.string().trim().min(1).max(100).optional(),
-  contractId: z.uuid().optional(),
-  q: z.string().trim().max(200).optional(),
-});
+const filters = z
+  .object({
+    from: z.union([z.iso.date(), z.iso.datetime({ offset: true })]).optional(),
+    to: z.union([z.iso.date(), z.iso.datetime({ offset: true })]).optional(),
+    actorId: z.uuid().optional(),
+    area: z.enum(areas).optional(),
+    action: z.string().trim().min(1).max(100).optional(),
+    contractId: z.uuid().optional(),
+    q: z.string().trim().max(200).optional(),
+  })
+  .strict();
 const orderedDates = (query: { from?: string; to?: string }) =>
   !query.from ||
   !query.to ||
@@ -25,7 +27,7 @@ const orderedDates = (query: { from?: string; to?: string }) =>
     Date.parse(query.to.length === 10 ? query.to + "T23:59:59.999-04:00" : query.to);
 export const listQuery = filters
   .extend({
-    page: z.coerce.number().int().min(1).max(1000000).default(1),
+    page: z.coerce.number().int().min(1).max(10000).default(1),
     pageSize: z.coerce.number().int().min(1).max(100).default(20),
   })
   .refine(orderedDates, "El inicio debe ser anterior al fin.");

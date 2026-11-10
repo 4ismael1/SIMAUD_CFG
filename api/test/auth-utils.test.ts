@@ -41,19 +41,19 @@ describe("validación y JWT", () => {
     for (const token of [wrong, expired, algorithm])
       await expect(verifyAccessToken(token)).rejects.toThrow();
   });
-  it("registro normaliza email y descarta rol y otros atributos", () => {
+  it("registro normaliza email y rechaza rol y otros atributos", () => {
     const input = registerBody.parse({
       email: " EXAMPLE@EXAMPLE.COM ",
       password: "Password123",
       name: "Nombre Apellido",
       phone: "+1 (809) 555-1234",
       cedula: "001-1391820-5",
-      role: "admin",
-      isActive: true,
     });
     expect(input.email).toBe("example@example.com");
     expect(input.phone).toBe("8095551234");
     expect(input.cedula).toBe("00113918205");
+    expect(registerBody.safeParse({ ...input, role: "admin" }).success).toBe(false);
+    expect(registerBody.safeParse({ ...input, isActive: true }).success).toBe(false);
     expect(input).not.toHaveProperty("role");
     expect(input).not.toHaveProperty("isActive");
   });

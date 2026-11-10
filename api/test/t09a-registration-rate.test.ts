@@ -32,7 +32,7 @@ const post = (route: string, payload: object, ip = "127.0.0.1") =>
   app.inject({ method: "POST", url: "/api/v1/auth/" + route, payload, remoteAddress: ip });
 
 it("registro devuelve idéntico 202 sin datos para email nuevo, email existente y cédula ocupada", async () => {
-  const fresh = await post("register", { ...input, role: "admin" });
+  const fresh = await post("register", input);
   const existing = await post("register", {
     ...input,
     email: " NEW@EXAMPLE.COM ",
@@ -100,7 +100,7 @@ it("login agota 20 intentos por IP aunque cambien los emails y conserva otra IP"
   ).toBe(200);
 });
 
-it("el límite de 5 por IP y email normalizado sigue siendo independiente", async () => {
+it("el límite de cuenta normalizada se comparte entre IP y distingue otras cuentas", async () => {
   for (let index = 0; index < 5; index++)
     expect(
       (await post("login", { email: "missing@example.com", password: "wrong" })).statusCode,
@@ -114,13 +114,13 @@ it("el límite de 5 por IP y email normalizado sigue siendo independiente", asyn
   expect(
     (await post("login", { email: "missing@example.com", password: "wrong" }, "127.0.0.2"))
       .statusCode,
-  ).toBe(401);
+  ).toBe(429);
 });
 
 it("registro, recuperación y reenvío comparten presupuesto agregado por IP", async () => {
   for (const route of ["forgot-password", "resend-confirmation"])
     for (let index = 0; index < 3; index++)
-      expect((await post(route, { email: "missing@example.com" })).statusCode).toBe(200);
+      expect((await post(route, { email: `${route}${index}@example.com` })).statusCode).toBe(200);
   for (let index = 0; index < 4; index++)
     expect(
       (await post("register", { ...input, email: `new${index}@example.com` })).statusCode,

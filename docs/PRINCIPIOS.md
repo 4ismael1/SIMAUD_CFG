@@ -20,7 +20,11 @@ principios, se detiene y se pregunta al dueño.
 
 ## 3. Mínimo privilegio
 - Cada rol ve y hace solo lo suyo. **El servidor decide siempre**; el front solo oculta lo que no se puede hacer.
-- Nadie se aprueba a sí mismo, nadie firma por otro ni fuera de turno, nadie se quita el último rol de administrador.
+- Supervisor y gestor no aprueban ni devuelven contratos que crearon o solicitaron, incluidas sus solicitudes de
+  renovación. La autoría y la solicitud originales se conservan aunque cambien el responsable o el rol.
+  **Excepción aprobada por el dueño (10 nov 2026):** el administrador sí puede autoaprobar contratos y renovaciones;
+  la auditoría debe identificar expresamente la autoaprobación.
+- Nadie firma por otro ni fuera de turno, nadie se quita el último rol de administrador.
 - Ante un recurso ajeno, la API responde «no encontrado» (no revela que existe).
 
 ## 4. Identidad y sesiones

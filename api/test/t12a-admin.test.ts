@@ -329,12 +329,12 @@ it("añade campos a los paneles y aísla las series, estados y vencimientos del 
   expect(adminDashboard.totals).toMatchObject({
     users: 5,
     contracts: 2,
-    totalValue: 9125.25,
-    averageValue: 4562.625,
+    totalValue: "9125.25",
+    averageValue: "4562.63",
     approvalRate: null,
   });
   expect(
-    adminDashboard.monthly.every((row: { value: number }) => typeof row.value === "number"),
+    adminDashboard.monthly.every((row: { value: string }) => typeof row.value === "string"),
   ).toBe(true);
   expect(adminDashboard.topManagers).toHaveLength(2);
   expect(adminDashboard.usersByRole).toHaveLength(4);
@@ -356,7 +356,10 @@ it("añade campos a los paneles y aísla las series, estados y vencimientos del 
   const gestorDashboard = await dashboard(gestor);
   expect(gestorDashboard.monthly).toHaveLength(12);
   expect(
-    gestorDashboard.monthly.reduce((sum: number, row: { value: number }) => sum + row.value, 0),
+    gestorDashboard.monthly.reduce(
+      (sum: number, row: { value: string }) => sum + Number(row.value),
+      0,
+    ),
   ).toBe(125.25);
   expect(
     gestorDashboard.byStatus.find((row: { status: string }) => row.status === "active").count,

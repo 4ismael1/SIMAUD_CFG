@@ -163,7 +163,10 @@ export const contractTemplates = pgTable(
   {
     id: id(),
     title: text("title").notNull(),
-    contentFormat: text("content_format").$type<"plain" | "rich-v1">().default("plain").notNull(),
+    contentFormat: text("content_format")
+      .$type<"plain" | "rich-v1" | "rich-v2">()
+      .default("plain")
+      .notNull(),
     content: text("content").notNull(),
     description: text("description"),
     category: text("category").default("general").notNull(),
@@ -178,7 +181,7 @@ export const contractTemplates = pgTable(
   (t) => [
     index("templates_status_idx").on(t.status),
     index("templates_creator_idx").on(t.createdBy),
-    check("templates_content_format", sql`${t.contentFormat} IN ('plain','rich-v1')`),
+    check("templates_content_format", sql`${t.contentFormat} IN ('plain','rich-v1','rich-v2')`),
   ],
 );
 export const contracts = pgTable(
@@ -206,7 +209,10 @@ export const contracts = pgTable(
     everSigned: boolean("ever_signed").default(false).notNull(),
     previousStatus: contractStatus("previous_status"),
     title: text("title").notNull(),
-    contentFormat: text("content_format").$type<"plain" | "rich-v1">().default("plain").notNull(),
+    contentFormat: text("content_format")
+      .$type<"plain" | "rich-v1" | "rich-v2">()
+      .default("plain")
+      .notNull(),
     content: text("content").notNull(),
     generatedContent: text("generated_content"),
     variablesData: jsonb("variables_data").default({}).notNull(),
@@ -228,6 +234,7 @@ export const contracts = pgTable(
     renewalType: text("renewal_type").default("original").notNull(),
     autoRenewal: boolean("auto_renewal").default(false).notNull(),
     createdBy: userRef("created_by"),
+    originalCreatedBy: uuid("original_created_by"),
     approvedBy: userRef("approved_by"),
     approvedAt: time("approved_at"),
     rejectionReason: text("rejection_reason"),
@@ -240,12 +247,15 @@ export const contracts = pgTable(
     index("contracts_end_idx").on(t.endDate),
     index("contracts_archived_idx").on(t.archived),
     index("contracts_parent_idx").on(t.parentContractId),
+    index("contracts_signed_pdf_hash_idx")
+      .on(t.signedPdfSha256)
+      .where(sql`${t.signedPdfSha256} is not null`),
     check(
       "contracts_dates",
       sql`${t.endDate} IS NULL OR ${t.startDate} IS NULL OR ${t.endDate} >= ${t.startDate}`,
     ),
     check("contracts_version_positive", sql`${t.currentVersion} > 0`),
-    check("contracts_content_format", sql`${t.contentFormat} IN ('plain','rich-v1')`),
+    check("contracts_content_format", sql`${t.contentFormat} IN ('plain','rich-v1','rich-v2')`),
     check(
       "contracts_renewal_type",
       sql`${t.renewalType} IN ('original','manual_renewal','auto_renewal')`,
@@ -290,7 +300,10 @@ export const contractVersions = pgTable(
     id: id(),
     contractId: contractRef(),
     versionNumber: integer("version_number").notNull(),
-    contentFormat: text("content_format").$type<"plain" | "rich-v1">().default("plain").notNull(),
+    contentFormat: text("content_format")
+      .$type<"plain" | "rich-v1" | "rich-v2">()
+      .default("plain")
+      .notNull(),
     content: text("content").notNull(),
     generatedContent: text("generated_content"),
     variablesData: jsonb("variables_data").default({}).notNull(),
@@ -301,7 +314,7 @@ export const contractVersions = pgTable(
   },
   (t) => [
     uniqueIndex("versions_contract_number_unique").on(t.contractId, t.versionNumber),
-    check("versions_content_format", sql`${t.contentFormat} IN ('plain','rich-v1')`),
+    check("versions_content_format", sql`${t.contentFormat} IN ('plain','rich-v1','rich-v2')`),
   ],
 );
 export const contractApprovals = pgTable(
@@ -311,6 +324,7 @@ export const contractApprovals = pgTable(
     contractId: contractRef(),
     versionNumber: integer("version_number").notNull(),
     requestedBy: userRef("requested_by"),
+    originalRequestedBy: uuid("original_requested_by"),
     requestedAt: time("requested_at").defaultNow().notNull(),
     reviewedBy: userRef("reviewed_by"),
     reviewedAt: time("reviewed_at"),
@@ -383,6 +397,7 @@ export const contractRenewals = pgTable(
       .notNull()
       .references(() => contracts.id, { onDelete: "cascade" }),
     requestedBy: userRef("requested_by"),
+    originalRequestedBy: uuid("original_requested_by"),
     requestedAt: time("requested_at").defaultNow().notNull(),
     status: renewalStatus("status").default("pending").notNull(),
     proposedChanges: jsonb("proposed_changes").default({}).notNull(),
@@ -614,4 +629,14 @@ export const adminAuditHead = pgTable(
     entryHash: text("entry_hash"),
   },
   (table) => [check("admin_audit_head_id_check", sql`${table.id} = 1`)],
+);
+
+export const authRequestBudgets = pgTable(
+  "auth_request_budgets",
+  {
+    key: text("key").primaryKey(),
+    attempts: integer("attempts").notNull(),
+    expiresAt: time("expires_at").notNull(),
+  },
+  (table) => [index("auth_request_budgets_expiry_idx").on(table.expiresAt)],
 );

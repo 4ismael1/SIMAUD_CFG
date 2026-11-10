@@ -27,6 +27,7 @@ import { initializeSigning } from "./lib/crypto/system-signing.js";
 import { verifyRoutes } from "./modules/verify/routes.js";
 import { signatureStyleRoutes } from "./modules/contracts/signature-style.js";
 import { auditRoutes } from "./modules/audit/routes.js";
+import { installStrictInputs } from "./plugins/strict-inputs.js";
 export async function buildApp(
   options: { logger?: boolean; mailer?: Mailer } = {},
 ): Promise<FastifyInstance> {
@@ -44,6 +45,7 @@ export async function buildApp(
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
   installErrors(app);
+  installStrictInputs(app);
   await app.register(helmet);
   await app.register(cors, {
     origin: new URL(env.APP_URL).origin,
@@ -54,7 +56,7 @@ export async function buildApp(
     global: true,
     max: 100,
     timeWindow: "1 minute",
-    hook: "preHandler",
+    hook: "onRequest",
     errorResponseBuilder: () =>
       new ApiError(429, "RATE_LIMITED", "Demasiados intentos. Inténtalo más tarde."),
   });

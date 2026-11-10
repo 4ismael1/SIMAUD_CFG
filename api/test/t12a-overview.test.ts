@@ -109,8 +109,8 @@ it("calcula totales, decisiones, activaciones y comparación sin multiplicar con
   const overview = await getOverview();
   expect(overview.previousRange).toEqual({ from: "2026-10-02", to: "2026-10-31" });
   expect(overview.kpis.created).toEqual({ value: 3, previous: 1 });
-  expect(overview.kpis.totalValue).toEqual({ value: 300.75, previous: 50 });
-  expect(overview.kpis.averageValue).toEqual({ value: 150.375, previous: 50 });
+  expect(overview.kpis.totalValue).toEqual({ value: "300.75", previous: "50.00" });
+  expect(overview.kpis.averageValue).toEqual({ value: "150.38", previous: "50.00" });
   expect(overview.kpis.activated).toEqual({ value: 1, previous: 0 });
   expect(overview.kpis.cancelled?.value).toBe(1);
   expect(overview.kpis.approvalRate).toEqual({ value: 0.5, previous: null });
@@ -125,7 +125,7 @@ it("calcula totales, decisiones, activaciones y comparación sin multiplicar con
   });
   expect(overview.byManager.find((row) => row.managerId === gestor.user.id)).toMatchObject({
     count: 2,
-    value: 300.75,
+    value: "300.75",
     activated: 1,
     approvalRate: 0.5,
     avgApprovalDays: 2,
@@ -135,18 +135,18 @@ it("calcula totales, decisiones, activaciones y comparación sin multiplicar con
     label: "nov 2026",
     created: 3,
     activated: 1,
-    value: 300.75,
+    value: "300.75",
     previousCreated: 1,
-    previousValue: 50,
+    previousValue: "50.00",
   });
   expect(overview.byTemplate).toEqual([
-    { templateId, label: "Servicios", count: 3, value: 300.75 },
+    { templateId, label: "Servicios", count: 3, value: "300.75" },
   ]);
   expect(overview.byStatus.find((row) => row.status === "active")).toMatchObject({
     count: 2,
-    value: 300.75,
+    value: "300.75",
   });
-  expect(overview.topContracts.map((row) => row.contractValue)).toEqual([200.5, 100.25]);
+  expect(overview.topContracts.map((row) => row.contractValue)).toEqual(["200.50", "100.25"]);
 });
 
 it("filtra conjuntamente estado, plantilla y gestor; users ignora esos filtros y solo se entrega al admin", async () => {
@@ -161,7 +161,7 @@ it("filtra conjuntamente estado, plantilla y gestor; users ignora esos filtros y
   const overview = await getOverview(query);
   expect(overview.kpis.created?.value).toBe(1);
   expect(overview.byManager).toHaveLength(1);
-  expect(overview.valueRanges[1]).toMatchObject({ count: 1, value: 50000 });
+  expect(overview.valueRanges[1]).toMatchObject({ count: 1, value: "50000.00" });
   expect("users" in overview && overview.users).toMatchObject({ total: 5, active: 5 });
   expect("users" in overview && overview.users.newInRange).toEqual({ value: 1, previous: 4 });
   expect("users" in overview && overview.users.registrations).toEqual([
@@ -183,7 +183,9 @@ it.each(["week", "month", "quarter", "year"])(
   async (granularity) => {
     const overview = await getOverview("from=2026-01-01&to=2026-12-31&granularity=" + granularity);
     expect(overview.timeline.length).toBeGreaterThan(0);
-    expect(overview.timeline.every((point) => point.created === 0 && point.value === 0)).toBe(true);
+    expect(overview.timeline.every((point) => point.created === 0 && point.value === "0.00")).toBe(
+      true,
+    );
     expect(overview.timeline.map((point) => point.period)).toEqual(
       overview.timeline.map((point) => point.period).sort(),
     );
@@ -213,7 +215,7 @@ it("aplica los límites exactos de bandas, excluye importes nulos y limita el to
   const overview = await getOverview();
   expect(overview.valueRanges.map((row) => row.count)).toEqual([2, 2, 2, 3, 2]);
   expect(overview.topContracts).toHaveLength(10);
-  expect(overview.topContracts[0]?.contractValue).toBe(9999999);
+  expect(overview.topContracts[0]?.contractValue).toBe("9999999.00");
 });
 
 it("exporta resumen y todas las tablas como CSV, XLSX y PDF con el mismo alcance", async () => {
@@ -236,7 +238,7 @@ it("exporta resumen y todas las tablas como CSV, XLSX y PDF con el mismo alcance
       const workbook = new ExcelJS.Workbook();
       await workbook.xlsx.load(response.rawPayload as unknown as ExcelJS.Buffer);
       expect(workbook.worksheets).toHaveLength(10);
-      expect(workbook.getWorksheet("Gestores")?.getRow(2).values).toContain(123.45);
+      expect(workbook.getWorksheet("Gestores")?.getRow(2).values).toContain("123.45");
     }
     if (format === "pdf") expect(response.rawPayload.subarray(0, 5).toString()).toBe("%PDF-");
   }

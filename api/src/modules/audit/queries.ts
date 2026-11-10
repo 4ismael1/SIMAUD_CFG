@@ -3,6 +3,7 @@ import { db, type Transaction } from "../../db/client.js";
 import { ApiError } from "../../lib/errors.js";
 import type { AuditFilters } from "./schemas.js";
 import { summarize } from "./summary.js";
+import { escapeLike } from "../../lib/sql.js";
 
 export type AuditItem = {
   id: string;
@@ -55,7 +56,7 @@ function conditions(query: AuditFilters): SQL {
   if (query.action) filters.push(sql`action = ${query.action}`);
   if (query.contractId) filters.push(sql`"contractId" = ${query.contractId}::uuid`);
   if (query.q) {
-    const search = "%" + query.q.replace(/[\\%_]/g, "\\$&") + "%";
+    const search = "%" + escapeLike(query.q) + "%";
     filters.push(sql`("targetLabel" ilike ${search} or "contractCode" ilike ${search})`);
   }
   return filters.length ? sql`where ${sql.join(filters, sql` and `)}` : sql``;

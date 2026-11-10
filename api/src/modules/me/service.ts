@@ -72,6 +72,6 @@ export async function changeEmail(id: string, newEmail: string, password: string
         field: "email",
       });
     await tx.update(users).set({ pendingEmail: newEmail }).where(eq(users.id, id));
-    return issueAuthToken(tx, user, "email_confirmation", newEmail);
+    return issueAuthToken(tx, user, "email_confirmation", newEmail, false, true);
   });
 }

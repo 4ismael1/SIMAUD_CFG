@@ -4,7 +4,7 @@ import { env } from "../../config/env.js";
 import { authenticate } from "../../plugins/auth.js";
 import * as schema from "./schemas.js";
 import * as service from "./service.js";
-import { aggregateIpLimit } from "./rate-limit.js";
+import { aggregateIpLimit, identityLimit } from "./rate-limit.js";
 export const cookieName = "simaud_rt";
 export const cookieOptions = {
   httpOnly: true,
@@ -20,6 +20,9 @@ export async function authRoutes(app: FastifyInstance) {
   const a = app.withTypeProvider<ZodTypeProvider>();
   const loginBudget = aggregateIpLimit(app, 20);
   const publicBudget = aggregateIpLimit(app, 10);
+  const emailOf = (request: FastifyRequest) => (request.body as { email: string }).email;
+  const mailBudget = identityLimit("mail-destination", 3, emailOf);
+  const accountBudget = identityLimit("login-account", 5, emailOf);
   const generic = {
     message: "Si la cuenta corresponde, recibirás un email con las instrucciones.",
   };
@@ -28,6 +31,7 @@ export async function authRoutes(app: FastifyInstance) {
     {
       schema: { body: schema.registerBody },
       onRequest: publicBudget,
+      preHandler: mailBudget,
       config: { rateLimit: { max: 10, timeWindow: "1 minute" } },
     },
     async (r, reply) => reply.code(202).send(await service.register(r.body)),
@@ -37,8 +41,9 @@ export async function authRoutes(app: FastifyInstance) {
     {
       schema: { body: schema.loginBody },
       onRequest: loginBudget,
-      config: {
-        rateLimit: {
+      preHandler: [
+        accountBudget,
+        app.rateLimit({
           max: 5,
           timeWindow: "1 minute",
           keyGenerator: (r: FastifyRequest) =>
@@ -47,8 +52,9 @@ export async function authRoutes(app: FastifyInstance) {
             String((r.body as { email?: unknown })?.email ?? "")
               .trim()
               .toLowerCase(),
-        },
-      },
+        }),
+      ],
+      config: { rateLimit: false },
     },
     async (r, reply) => {
       const result = await service.login(r.body.email, r.body.password, context(r));
@@ -90,6 +96,7 @@ export async function authRoutes(app: FastifyInstance) {
     {
       schema: { body: schema.emailBody },
       onRequest: publicBudget,
+      preHandler: mailBudget,
       config: { rateLimit: { max: 3, timeWindow: "1 minute" } },
     },
     async (r) => {
@@ -102,6 +109,7 @@ export async function authRoutes(app: FastifyInstance) {
     {
       schema: { body: schema.emailBody },
       onRequest: publicBudget,
+      preHandler: mailBudget,
       config: { rateLimit: { max: 3, timeWindow: "1 minute" } },
     },
     async (r) => {

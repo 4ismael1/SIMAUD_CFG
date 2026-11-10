@@ -44,7 +44,12 @@ async function deliver(row: typeof emailOutbox.$inferSelect, mailer: Mailer, now
     };
   }
 }
-export async function dispatchEmails(mailer: Mailer = sendMail, now = new Date()) {
+/**
+ * Delivers due mails. Without `now`, "due" is judged by the database clock: the queue rows are
+ * stamped by PostgreSQL, and the API host's clock may run a few milliseconds behind it.
+ */
+export async function dispatchEmails(mailer: Mailer = sendMail, at?: Date) {
+  const now = at ?? new Date();
   const summary = { sent: 0, pending: 0, failed: 0 };
   await db
     .update(emailOutbox)
@@ -65,13 +70,18 @@ export async function dispatchEmails(mailer: Mailer = sendMail, now = new Date()
         ),
       ),
     );
+  // An explicit time (scheduler, tests) is compared with a millisecond of slack, because
+  // next_attempt_at keeps microseconds and JavaScript dates do not.
+  const due = at
+    ? lte(emailOutbox.nextAttemptAt, new Date(at.getTime() + 1))
+    : lte(emailOutbox.nextAttemptAt, sql`clock_timestamp()`);
   // Row locks also protect direct invocations outside the scheduler advisory lock.
   for (let index = 0; index < 100; index++) {
     const status = await db.transaction(async (tx) => {
       const [row] = await tx
         .select()
         .from(emailOutbox)
-        .where(and(eq(emailOutbox.status, "pending"), lte(emailOutbox.nextAttemptAt, now)))
+        .where(and(eq(emailOutbox.status, "pending"), due))
         .orderBy(emailOutbox.nextAttemptAt, emailOutbox.id)
         .limit(1)
         .for("update", { skipLocked: true });

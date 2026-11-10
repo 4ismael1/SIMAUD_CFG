@@ -77,8 +77,11 @@ describe("auth", () => {
     expect(r.statusCode).toBe(200);
     expect(r.json()).toEqual({ status: "ok", db: "ok" });
   });
-  it("registro ignora rol, guarda hashes y exige confirmación", async () => {
-    const r = await post("/auth/register", { ...registration, role: "admin" });
+  it("registro rechaza rol, guarda hashes y exige confirmación", async () => {
+    const unknownField = await post("/auth/register", { ...registration, role: "admin" });
+    expect(unknownField.statusCode).toBe(400);
+    expect(await db.select().from(users)).toHaveLength(0);
+    const r = await post("/auth/register", registration);
     expect(r.statusCode).toBe(202);
     expect(r.json()).toEqual({ message: "Revisa tu correo." });
     expect(r.body).not.toMatch(/passwordHash|tokenHash|password_hash/);
@@ -195,7 +198,7 @@ describe("auth", () => {
     );
     await signIn(app, u, "ChangedPass123");
   });
-  it("resend no revela cuentas y reemplaza confirmaciones anteriores", async () => {
+  it("resend no revela cuentas y conserva la confirmación durante el enfriamiento", async () => {
     await post("/auth/register", registration);
     const old = mailToken(mails);
     const unknown = await post("/auth/resend-confirmation", {
@@ -205,8 +208,10 @@ describe("auth", () => {
       email: registration.email,
     });
     expect(known.body).toBe(unknown.body);
+    expect(mails).toHaveLength(1);
+    expect(mailToken(mails) === old).toBe(true);
+    expect((await post("/auth/confirm-email", { token: old })).statusCode).toBe(200);
     expect((await post("/auth/confirm-email", { token: old })).statusCode).toBe(400);
-    expect((await post("/auth/confirm-email", { token: mailToken(mails) })).statusCode).toBe(200);
   });
   it("rechaza tokens caducados y JWT de rol cambiado", async () => {
     await post("/auth/register", registration);

@@ -1,3 +1,5 @@
+import { boundedReportRows } from "./limits.js";
+import { localDateRange } from "../../lib/sql.js";
 import { sql, type SQL } from "drizzle-orm";
 import type { Transaction } from "../../db/client.js";
 import type { Actor } from "../contracts/service.js";
@@ -19,27 +21,28 @@ export function overviewScope(actor: Actor, query: OverviewQuery) {
 }
 
 export function inRange(column: SQL, range: DateRange) {
-  return sql`${column} >= ${range.from}::date::timestamp at time zone 'America/Santo_Domingo'
-    and ${column} < (${range.to}::date + 1)::timestamp at time zone 'America/Santo_Domingo'`;
+  return localDateRange(column, range.from, range.to);
 }
 
 // Activation means completed signatures, including imported contracts without audit history.
 export const activations = sql`select s.contract_id, max(s.signed_at) activated_at
-  from contract_signatories s
+  from contract_signatories s join eligible e on e.id = s.contract_id
   group by s.contract_id
   having bool_and(s.status = 'signed' and s.signed_at is not null)`;
 
 export async function overviewMetrics(tx: Transaction, scope: SQL, range: DateRange) {
-  const result = await tx.execute<{
+  const result = await boundedReportRows<{
     created: number;
-    totalValue: number;
-    averageValue: number | null;
+    totalValue: string;
+    averageValue: string | null;
     activated: number;
     cancelled: number;
     approvalRate: number | null;
     avgApprovalDays: number | null;
     avgSigningDays: number | null;
-  }>(sql`
+  }>(
+    tx,
+    sql`
     with eligible as (select c.* from contracts c where ${scope}),
     activation as (${activations}),
     decisions as (
@@ -48,8 +51,8 @@ export async function overviewMetrics(tx: Transaction, scope: SQL, range: DateRa
     )
     select
       count(*)::int created,
-      coalesce(sum(c.contract_value), 0)::float8 "totalValue",
-      avg(c.contract_value)::float8 "averageValue",
+      coalesce(sum(c.contract_value), 0)::numeric(30,2)::text "totalValue",
+      round(avg(c.contract_value), 2)::text "averageValue",
       (select count(*)::int from activation s join eligible c on c.id = s.contract_id
         where ${inRange(sql`s.activated_at`, range)}) activated,
       (select count(distinct x.contract_id)::int from contract_cancellations x
@@ -66,7 +69,8 @@ export async function overviewMetrics(tx: Transaction, scope: SQL, range: DateRa
           order by reviewed_at desc, id limit 1) a on true
         where ${inRange(sql`s.activated_at`, range)}) "avgSigningDays"
     from eligible c where ${inRange(sql`c.created_at`, range)}
-  `);
+  `,
+  );
   return result.rows[0]!;
 }
 
@@ -77,7 +81,9 @@ export async function overviewTimeline(
   granularity: OverviewQuery["granularity"],
 ) {
   return (
-    await tx.execute<{ day: string; created: number; activated: number; value: number }>(sql`
+    await boundedReportRows<{ day: string; created: number; activated: number; value: string }>(
+      tx,
+      sql`
     with eligible as (select c.* from contracts c where ${scope}), activation as (${activations}),
     events as (
       select c.created_at at time zone 'America/Santo_Domingo' at,
@@ -89,9 +95,10 @@ export async function overviewTimeline(
       where ${inRange(sql`a.activated_at`, range)}
     )
     select to_char(date_trunc(${granularity}, at), 'YYYY-MM-DD') "day",
-      sum(created)::int created, sum(activated)::int activated, sum(value)::float8 value
+      sum(created)::int created, sum(activated)::int activated, sum(value)::numeric(30,2)::text value
     from events group by 1 order by 1
-  `)
+  `,
+    )
   ).rows;
 }
 
@@ -103,23 +110,34 @@ export async function overviewApprovals(tx: Transaction, scope: SQL, range: Date
     count(*) filter (where a.status = 'approved')::int approved,
     count(*) filter (where a.status = 'rejected')::int returned`;
   const totals = (
-    await tx.execute<{ decided: number; approved: number; returned: number; pending: number }>(sql`
+    await boundedReportRows<{
+      decided: number;
+      approved: number;
+      returned: number;
+      pending: number;
+    }>(
+      tx,
+      sql`
     with eligible as (${eligible}) select ${metrics},
       count(*) filter (where a.status = 'pending')::int pending from eligible a
-  `)
+  `,
+    )
   ).rows[0]!;
   const bySupervisor = (
-    await tx.execute<{
+    await boundedReportRows<{
       supervisorId: string;
       name: string;
       decided: number;
       approved: number;
       returned: number;
       avgResponseDays: number | null;
-    }>(sql`with eligible as (${eligible}) select a.reviewed_by "supervisorId", u.name,
+    }>(
+      tx,
+      sql`with eligible as (${eligible}) select a.reviewed_by "supervisorId", u.name,
     ${metrics}, avg(extract(epoch from a.reviewed_at - a.requested_at) / 86400)::float8 "avgResponseDays"
     from eligible a join users u on u.id = a.reviewed_by where a.status <> 'pending'
-    group by a.reviewed_by, u.name order by decided desc, a.reviewed_by`)
+    group by a.reviewed_by, u.name order by decided desc, a.reviewed_by`,
+    )
   ).rows;
   return { ...totals, bySupervisor };
 }
