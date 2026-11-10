@@ -418,7 +418,7 @@ describe("usuarios", () => {
       });
       expect(r.statusCode).toBe(200);
       expect(Object.keys(r.json()).sort()).toEqual(
-        ["id", "name", "email", "phone", "cedula"].sort(),
+        ["id", "name", "email", "phone", "cedula", "position"].sort(),
       );
     }
   });

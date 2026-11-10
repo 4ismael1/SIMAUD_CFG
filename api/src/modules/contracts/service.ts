@@ -30,6 +30,8 @@ import {
 import { captureDefinitions, type VariableDefinition } from "./variable-history.js";
 import { canReview } from "./review-permissions.js";
 import { lockContractRows } from "./contract-locks.js";
+import { partyDefinitions } from "../../lib/rich-doc/slots.js";
+import type { PreparedSignatory } from "./slot-signatories.js";
 export type Contract = typeof contracts.$inferSelect;
 export type Signatory = typeof signatories.$inferSelect;
 export type Actor = FastifyRequest["user"];
@@ -144,7 +146,10 @@ export async function prepareContent(
 ) {
   const defs = definitions ?? (await captureDefinitions(tx, content, format));
   const names = contentVariables(content, format);
-  const unknown = Object.keys(values).filter((versionNumber) => !names.includes(versionNumber));
+  const implicit = partyDefinitions(content, format).map((definition) => definition.name);
+  const unknown = Object.keys(values).filter(
+    (name) => !names.includes(name) && !implicit.includes(name),
+  );
   if (unknown.length) throw invalid("Variables desconocidas.", { unknown });
   const missing = defs
     .filter(
@@ -154,25 +159,31 @@ export async function prepareContent(
     )
     .map((item) => item.name);
   if (missing.length) throw invalid("Faltan variables requeridas.", { missing });
-  if (validateValues) Object.assign(values, normalizeTemplateValues(values, defs));
+  if (validateValues)
+    Object.assign(
+      values,
+      normalizeTemplateValues(
+        values,
+        defs.filter((definition) => !implicit.includes(definition.name)),
+      ),
+    );
   return generatedContent(content, format, values, defs);
 }
 export async function reconcileSignatories(
   tx: Transaction,
   contractId: string,
-  input: {
-    name: string;
-    email: string;
-    phone?: string;
-    cedula?: string;
-    role: Signatory["role"];
-    signingOrder: number;
-  }[],
+  input: (Omit<PreparedSignatory, "roleLabel" | "slotIndex"> & {
+    roleLabel?: string;
+    slotIndex?: number | null;
+  })[],
 ) {
   if (new Set(input.map((item) => normalizeEmail(item.email))).size !== input.length)
     throw duplicateSignatory();
   const old = await getSignatories(tx, contractId);
-  await tx.update(signatories).set({ userId: null }).where(eq(signatories.contractId, contractId));
+  await tx
+    .update(signatories)
+    .set({ userId: null, slotIndex: null })
+    .where(eq(signatories.contractId, contractId));
   const kept = new Set<string>();
   const linked = new Set<string>();
   for (const item of input) {
@@ -189,6 +200,10 @@ export async function reconcileSignatories(
         .update(signatories)
         .set({
           ...item,
+          roleLabel: item.roleLabel ?? "",
+          slotIndex: item.slotIndex ?? null,
+          phone: item.phone ?? null,
+          cedula: item.cedula ?? null,
           email,
           userId,
           status: "pending",
@@ -244,6 +259,8 @@ export async function snapshot(
         phone: item.phone,
         cedula: item.cedula,
         role: item.role,
+        roleLabel: item.roleLabel,
+        slotIndex: item.slotIndex,
         signingOrder: item.signingOrder,
       })),
     },
@@ -273,7 +290,12 @@ export async function notify(
   tx: Transaction,
   contract: Contract,
   type: string,
-  recipients: { userId: string | null; email?: string }[],
+  recipients: {
+    userId: string | null;
+    email?: string;
+    roleLabel?: string;
+    slotIndex?: number | null;
+  }[],
   message: string,
 ) {
   const seen = new Set<string>();
@@ -298,13 +320,17 @@ export async function notify(
         type,
         title: contract.title,
         message,
-        data: { contractId: contract.id, code: contract.code },
+        data: {
+          contractId: contract.id,
+          code: contract.code,
+          ...(r.roleLabel ? { roleLabel: r.roleLabel, slotIndex: r.slotIndex ?? null } : {}),
+        },
         actionUrl: notificationLink(type, contract.id),
       });
     }
     if (!r.userId && email)
       await enqueueMail(tx, email, "SIMAUD: " + contract.code, type as MailTemplate, {
-        message,
+        message: r.roleLabel ? `${message} Rol: ${r.roleLabel}.` : message,
         contractId: contract.id,
       });
   }

@@ -29,6 +29,7 @@ export async function userRoutes(app: FastifyInstance) {
         .select({
           id: users.id,
           name: users.name,
+          position: users.position,
           email: users.email,
           phone: users.phone,
           cedula: users.cedula,

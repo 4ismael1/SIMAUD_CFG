@@ -82,6 +82,7 @@ export async function createUser(input: z.infer<typeof createUserBody>, actor: A
       .values({
         email: input.email,
         name: input.name,
+        position: input.position,
         phone: input.phone,
         cedula: input.cedula,
         role: input.role,

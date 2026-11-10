@@ -263,6 +263,8 @@ async function createRenewalChild(
         cedula: signer.cedula,
         userId: signer.userId,
         role: signer.role,
+        roleLabel: signer.roleLabel,
+        slotIndex: signer.slotIndex,
         signingOrder: signer.signingOrder,
       })),
     );

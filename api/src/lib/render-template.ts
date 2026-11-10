@@ -6,6 +6,7 @@ export interface Variable {
   type: string;
   required?: boolean;
   options?: string[] | null;
+  implicit?: boolean;
 }
 export const extractVariables = (content: string) => [
   ...new Set([...content.matchAll(/{{\s*([a-z][a-z0-9_]*)\s*}}/g)].map((m) => m[1]!)),

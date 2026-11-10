@@ -5,7 +5,7 @@ import { pageOptions, resolvePage, PAPER_SIZES, mmToPt } from "./page.js";
 import { paginateBlocks, measureBlocks } from "./pagination.js";
 import { ApiError } from "../errors.js";
 import {
-  withSignatureSlots,
+  signatureLayout,
   type PdfSigner,
   signatureSlotSizes,
   type SignatureSlotGeometry,
@@ -47,17 +47,20 @@ export async function documentPdf(
     onSignatureSlot?: (geometry: SignatureSlotGeometry) => void;
   } = {},
 ) {
-  const source = withSignatureSlots(document, options.signers?.length ?? 0);
+  const { document: source, signers } = signatureLayout(document, options.signers ?? []);
   const settings = pageOptions(
     source.attrs?.page,
     source.attrs?.header,
     source.attrs?.footer,
     options.logo,
   );
-  const content = richDocPdf(source, { signers: options.signers, matchEditor: true });
+  const content = richDocPdf(source, {
+    signers,
+    matchEditor: true,
+  });
   await assertBandsFit(source, settings);
   const paginated = await paginateBlocks(source, content, settings);
-  const slots = signatureSlotSizes(source, options.signers?.length ?? 0);
+  const slots = signatureSlotSizes(source, 0);
   return makePdf([...paginated.content, ...(options.appendix ?? [])], title, {
     ...settings,
     pageBreakBefore: (node, queries) => {

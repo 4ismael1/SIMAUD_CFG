@@ -3,7 +3,7 @@ import type { RichDoc, RichNode } from "./types.js";
 import { tableGrid } from "./table.js";
 import { resolvePage, PAPER_SIZES, mmToPt, FONT_LINE_METRICS } from "./page.js";
 import { clauseNumber } from "./numbering.js";
-import { signatureContent, withSignatureSlots, type PdfSigner } from "./signatures.js";
+import { signatureContent, signatureLayout, type PdfSigner } from "./signatures.js";
 
 interface RenderContext {
   fontSize?: number;
@@ -184,10 +184,7 @@ export function richDocPdf(
   options: { signers?: PdfSigner[]; matchEditor?: boolean } = {},
 ): Content[] {
   const page = resolvePage(document.attrs?.page);
-  const signers = [...(options.signers ?? [])].sort(
-    (first, second) => first.signingOrder - second.signingOrder,
-  );
-  const source = withSignatureSlots(document, signers.length);
+  const { document: source, signers } = signatureLayout(document, options.signers ?? []);
   const context: RenderContext = {
     fontSize: options.matchEditor ? page.fontSize : undefined,
     lineMetric: options.matchEditor ? FONT_LINE_METRICS[page.font] : 1,

@@ -27,6 +27,8 @@ export async function copyAmendment(
       phone: signer.phone ?? undefined,
       cedula: signer.cedula ?? undefined,
       role: signer.role,
+      roleLabel: signer.roleLabel,
+      slotIndex: signer.slotIndex,
       signingOrder: signer.signingOrder,
     })),
   );

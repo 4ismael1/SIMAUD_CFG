@@ -7,14 +7,29 @@ import { ApiError, unauthorized } from "../../lib/errors.js";
 import { hashPassword, verifyPassword } from "../../lib/auth/password.js";
 import { active, issueAuthToken, lockUser, revokeSessions } from "../auth/service.js";
 import { publicUser } from "../users/schemas.js";
+import { auditAdmin } from "../audit/service.js";
 export async function updateProfile(
   id: string,
-  input: { name?: string; phone?: string; cedula?: string },
+  input: { name?: string; phone?: string; cedula?: string; position?: string | null },
+  ip?: string,
 ) {
   return db.transaction(async (tx) => {
     const user = await lockUser(tx, id);
     if (!active(user)) throw unauthorized();
     const [updated] = await tx.update(users).set(input).where(eq(users.id, id)).returning();
+    if (input.position !== undefined && input.position !== user.position)
+      await auditAdmin(
+        tx,
+        { actorId: id, ip },
+        {
+          area: "users",
+          action: "user.updated",
+          targetType: "user",
+          targetId: id,
+          targetLabel: updated!.name,
+          details: { fields: ["position"] },
+        },
+      );
     return publicUser(updated!);
   });
 }

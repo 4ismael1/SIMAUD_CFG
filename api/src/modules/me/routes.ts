@@ -21,7 +21,7 @@ export async function meRoutes(app: FastifyInstance) {
           .refine((v) => Object.keys(v).length > 0),
       },
     },
-    async (r) => ({ user: await service.updateProfile(r.user.id, r.body) }),
+    async (r) => ({ user: await service.updateProfile(r.user.id, r.body, r.ip) }),
   );
   a.patch(
     "/me/password",

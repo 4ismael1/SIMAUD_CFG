@@ -21,6 +21,11 @@ export function renderRichDoc(
     if (node.type === "variable") {
       const name = node.attrs!.name!;
       const value = values[name];
+      if (
+        value === "" &&
+        defs.some((definition) => definition.name === name && definition.implicit)
+      )
+        return { type: "text", text: " " };
       if (value === undefined || value === null || value === "") {
         missing.add(name);
         return node;

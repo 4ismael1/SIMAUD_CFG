@@ -35,6 +35,7 @@ export interface RichNode {
     numbered?: "ordinal" | "decimal";
     columns?: 1 | 2 | 3;
     label?: string;
+    party?: string;
     showName?: boolean;
     showId?: boolean;
   };

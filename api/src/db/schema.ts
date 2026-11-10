@@ -75,6 +75,7 @@ export const users = pgTable(
     credentialsVersion: integer("credentials_version").default(0).notNull(),
     mustChangePassword: boolean("must_change_password").default(false).notNull(),
     name: text("name").notNull(),
+    position: text("position"),
     phone: text("phone").notNull().default(""),
     cedula: text("cedula").notNull().default(""),
     role: userRole("role").default("user").notNull(),
@@ -102,6 +103,7 @@ export const users = pgTable(
       .on(t.cedula)
       .where(sql`${t.cedula} <> ''`),
     check("users_email_lower", sql`${t.email} = lower(trim(${t.email}))`),
+    check("users_position_length", sql`char_length(${t.position}) <= 120`),
     index("users_role_idx").on(t.role),
     index("users_created_idx").on(t.createdAt),
   ],
@@ -307,6 +309,8 @@ export const contractSignatories = pgTable(
     cedula: text("cedula"),
     userId: userRef("user_id"),
     role: signatoryRole("role").notNull(),
+    roleLabel: text("role_label").default("").notNull(),
+    slotIndex: integer("slot_index"),
     status: signatoryStatus("status").default("pending").notNull(),
     signingOrder: integer("signing_order").default(1).notNull(),
     signaturePath: text("signature_path"),
@@ -324,6 +328,10 @@ export const contractSignatories = pgTable(
     index("signatory_contract_idx").on(t.contractId),
     index("signatory_user_status_idx").on(t.userId, t.status),
     check("signing_order_positive", sql`${t.signingOrder} > 0`),
+    check("signatory_slot_nonnegative", sql`${t.slotIndex} >= 0`),
+    uniqueIndex("signatory_contract_slot_unique")
+      .on(t.contractId, t.slotIndex)
+      .where(sql`${t.slotIndex} IS NOT NULL`),
   ],
 );
 export const contractVersions = pgTable(

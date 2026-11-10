@@ -53,6 +53,8 @@ export async function contractPdf(
     }
     signers.push({
       signingOrder: signer.signingOrder,
+      roleLabel: signer.roleLabel,
+      slotIndex: signer.slotIndex,
       name: signer.name,
       cedula: signer.cedula,
       signedAt: signer.signedAt,

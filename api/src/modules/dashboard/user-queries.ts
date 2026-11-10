@@ -13,6 +13,8 @@ export async function getUserDashboard(actor: Actor) {
         s.id "signatoryId",
         s.signed_at "signedAt",
         s.status "signatureStatus",
+        s.role_label "roleLabel",
+        s.slot_index "slotIndex",
         (
           c.status = 'pending_signatures'
           and s.status = 'pending'

@@ -4,7 +4,12 @@ import { resolvePage, PAPER_SIZES, mmToPt } from "./page.js";
 import type { Content, ContentStack } from "pdfmake/interfaces.js";
 import type { RichDoc, RichNode } from "./types.js";
 
-export interface PdfSigner {
+interface SlotSigner {
+  slotIndex?: number | null;
+  roleLabel?: string;
+}
+
+export interface PdfSigner extends SlotSigner {
   signingOrder: number;
   name: string;
   cedula: string | null;
@@ -13,19 +18,65 @@ export interface PdfSigner {
   placement?: SignaturePlacement | null;
 }
 
-export function withSignatureSlots(document: RichDoc, signerCount: number): RichDoc {
+export function signatureLayout(document: RichDoc, input: PdfSigner[]) {
+  const signers = [...input].sort((first, second) => first.signingOrder - second.signingOrder);
+  return {
+    document: withSignatureSlots(document, signers),
+    signers: signersBySlot(document, signers).map((signer, slotIndex) => ({
+      ...signer,
+      slotIndex,
+    })),
+  };
+}
+
+export function signerSlotIndex(document: RichDoc, signers: SlotSigner[], index: number) {
+  if (!signers.some((signer) => signer.slotIndex != null)) return index;
+  const signer = signers[index]!;
+  if (signer.slotIndex != null) return signer.slotIndex;
+  const slotCount = document.content
+    .filter((node) => node.type === "signatures")
+    .reduce((count, block) => count + block.content!.length, 0);
+  return slotCount + signers.slice(0, index).filter((item) => item.slotIndex == null).length;
+}
+
+export function signersBySlot<T extends SlotSigner>(document: RichDoc, signers: T[]): T[] {
+  const result: T[] = [];
+  signers.forEach((signer, index) => {
+    result[signerSlotIndex(document, signers, index)] = signer;
+  });
+  return result;
+}
+
+export function withSignatureSlots(document: RichDoc, signers: number | SlotSigner[]): RichDoc {
+  const ordered = typeof signers === "number" ? [] : signersBySlot(document, signers);
+  const signerCount = typeof signers === "number" ? signers : ordered.length;
   const copy = structuredClone(document);
   const blocks = copy.content.filter((block) => block.type === "signatures");
   const count = blocks.reduce((total, block) => total + block.content!.length, 0);
   if (signerCount <= count) return copy;
+  if (typeof signers !== "number" && signers.some((signer) => signer.slotIndex != null)) {
+    for (let index = count; index < signerCount; index += 2)
+      copy.content.push({
+        type: "signatures",
+        content: ordered.slice(index, index + 2).map((signer) => extraSlot(signer)),
+      });
+    return copy;
+  }
   let last = blocks.at(-1);
   if (!last) {
     last = { type: "signatures", content: [] };
     copy.content.push(last);
   }
   for (let index = count; index < signerCount; index++)
-    last.content!.push({ type: "signatureSlot", attrs: { label: "" } });
+    last.content!.push(extraSlot(ordered[index]));
   return copy;
+}
+
+function extraSlot(signer?: SlotSigner): RichNode {
+  return {
+    type: "signatureSlot",
+    attrs: { label: signer?.roleLabel === "Testigo" ? "TESTIGO" : (signer?.roleLabel ?? "") },
+  };
 }
 
 function signatureCell(
@@ -114,8 +165,8 @@ export function signatureContent(
   return { stack: rows, unbreakable: true, margin: [0, 18, 0, 18] };
 }
 
-export function signatureSlotSizes(document: RichDoc, count: number) {
-  const source = withSignatureSlots(document, count);
+export function signatureSlotSizes(document: RichDoc, signers: number | SlotSigner[]) {
+  const source = withSignatureSlots(document, signers);
   const page = resolvePage(source.attrs?.page);
   const paper = PAPER_SIZES[page.size];
   const contentWidth = paper.width - mmToPt(page.margins.left + page.margins.right);

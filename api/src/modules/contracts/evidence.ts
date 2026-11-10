@@ -27,6 +27,8 @@ export interface EvidencePayload {
   userId: string;
   name: string;
   role: string;
+  roleLabel?: string;
+  slotIndex?: number | null;
   documentSha256: string;
   signatureImageSha256: string;
   signaturePath: string;
@@ -150,6 +152,8 @@ async function verifySigner(
       signer.userId !== payload.userId ||
       signer.name !== payload.name ||
       signer.role !== payload.role ||
+      (payload.roleLabel !== undefined && signer.roleLabel !== payload.roleLabel) ||
+      (payload.slotIndex !== undefined && signer.slotIndex !== payload.slotIndex) ||
       signer.viewedAt?.toISOString() !== payload.viewedAt ||
       signer.acceptedDeclarationAt?.toISOString() !== payload.acceptedDeclarationAt ||
       signer.ip !== payload.ip ||

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { email, password, profile } from "../users/schemas.js";
-export const registerBody = profile.extend({ email, password }).strict();
+export const registerBody = profile.omit({ position: true }).extend({ email, password }).strict();
 export const loginBody = z
   .object({
     email,

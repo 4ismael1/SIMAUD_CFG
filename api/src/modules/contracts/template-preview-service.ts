@@ -58,12 +58,14 @@ export async function templatePreviewPdf(
     input.contentFormat === "plain" && input.content === ""
       ? ""
       : encodeContent(input.content, input.contentFormat);
-  const { defs } = await resolveVariables(db, content, input.contentFormat);
+  const { defs, implicit } = await resolveVariables(db, content, input.contentFormat);
   await assertPreviewVariables(
     role,
     defs.map((variable) => variable.name),
   );
-  const labels = new Map(defs.map((definition) => [definition.name, definition.label]));
+  const labels = new Map(
+    [...defs, ...implicit].map((definition) => [definition.name, definition.label]),
+  );
   const document = previewDocument(content, input.contentFormat, labels);
   const settings = await getSettings();
   return documentPdf(document, input.title, { logo: settings.institution.logo });

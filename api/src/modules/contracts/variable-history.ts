@@ -13,6 +13,7 @@ const definitionSchema = z.object({
   type: z.string(),
   required: z.boolean(),
   options: z.array(z.string()).nullable(),
+  implicit: z.boolean().optional(),
 });
 export type VariableDefinition = z.infer<typeof definitionSchema>;
 
@@ -26,8 +27,11 @@ export async function captureDefinitions(
   format: ContentFormat = "plain",
 ): Promise<VariableDefinition[]> {
   await lockVariableCatalog(tx);
-  const { defs } = await resolveVariables(tx, content, format);
-  return defs.map(({ name, type, required, options }) => ({ name, type, required, options }));
+  const { defs, implicit } = await resolveVariables(tx, content, format);
+  return [
+    ...defs.map(({ name, type, required, options }) => ({ name, type, required, options })),
+    ...implicit,
+  ];
 }
 
 export async function historicalDefinitions(tx: Transaction, contract: Contract) {

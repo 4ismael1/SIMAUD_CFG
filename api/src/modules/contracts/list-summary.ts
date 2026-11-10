@@ -25,11 +25,14 @@ export function summaryColumns(actor: Actor) {
       id: string;
       name: string;
       role: string;
+      roleLabel: string;
+      slotIndex: number | null;
       signingOrder: number;
       status: string;
       signedAt: string | null;
     } | null>`(
       select json_build_object('id', s.id, 'name', s.name, 'role', s.role,
+        'roleLabel', s.role_label, 'slotIndex', s.slot_index,
         'signingOrder', s.signing_order, 'status', s.status, 'signedAt', s.signed_at)
       from contract_signatories s where s.contract_id = ${contractId} and s.user_id = ${actor.id}
     )`,

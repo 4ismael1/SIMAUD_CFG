@@ -5,7 +5,11 @@ import { db } from "../../db/client.js";
 import { contractSignatories, signatureEvidence } from "../../db/schema.js";
 import { plainDocument } from "../../lib/rich-doc/document-pdf.js";
 import { storedDocument } from "../../lib/rich-doc/content.js";
-import { signatureSlotSizes, type SignatureSlotGeometry } from "../../lib/rich-doc/signatures.js";
+import {
+  signatureSlotSizes,
+  signerSlotIndex,
+  type SignatureSlotGeometry,
+} from "../../lib/rich-doc/signatures.js";
 import { placeSignature, type SignaturePlacement } from "../../lib/signature-placement.js";
 import { decodeRenderedText } from "../../lib/pdf.js";
 import { storage } from "../../lib/storage.js";
@@ -26,8 +30,12 @@ export function normalizedPlacement(
     contract.contentFormat === "plain"
       ? plainDocument(decodeRenderedText(source))
       : storedDocument(source);
-  const slot = signatureSlotSizes(document, all.length)[
-    all.findIndex((signer) => signer.id === signerId)
+  const slot = signatureSlotSizes(document, all)[
+    signerSlotIndex(
+      document,
+      all,
+      all.findIndex((signer) => signer.id === signerId),
+    )
   ]!;
   return placeSignature(
     image.readUInt32BE(16),
@@ -46,9 +54,15 @@ export async function ownSignatureSlot(
 ) {
   const index = all.findIndex((signer) => signer.userId === userId);
   if (index < 0) return null;
+  const source = contract.generatedContent ?? contract.content;
+  const document =
+    contract.contentFormat === "plain"
+      ? plainDocument(decodeRenderedText(source))
+      : storedDocument(source);
+  const slotIndex = signerSlotIndex(document, all, index);
   let geometry: SignatureSlotGeometry | null = null;
   await contractPdf(connection, contract, (slot) => {
-    if (slot.slotIndex === index) geometry = slot;
+    if (slot.slotIndex === slotIndex) geometry = slot;
   });
   return geometry;
 }

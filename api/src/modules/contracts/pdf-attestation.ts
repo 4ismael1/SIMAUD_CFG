@@ -97,7 +97,7 @@ export async function pdfAttestation(
       {
         stack: [
           { text: signer.name, bold: true },
-          { text: signer.role },
+          { text: signer.roleLabel },
           { text: "Cédula: " + maskCedula(signer.cedula) },
         ],
       },

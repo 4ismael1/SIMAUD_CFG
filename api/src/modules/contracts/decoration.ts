@@ -18,6 +18,21 @@ export async function decorateMany(
       contractId: contractSignatories.contractId,
       signed: sql<number>`count(*) filter (where ${contractSignatories.status} = 'signed')::int`,
       total: sql<number>`count(*)::int`,
+      signatories: sql<
+        {
+          id: string;
+          name: string;
+          role: string;
+          roleLabel: string;
+          slotIndex: number | null;
+          signingOrder: number;
+          status: string;
+        }[]
+      >`jsonb_agg(jsonb_build_object(
+        'id', ${contractSignatories.id}, 'name', ${contractSignatories.name},
+        'role', ${contractSignatories.role}, 'roleLabel', ${contractSignatories.roleLabel},
+        'slotIndex', ${contractSignatories.slotIndex}, 'signingOrder', ${contractSignatories.signingOrder},
+        'status', ${contractSignatories.status}) order by ${contractSignatories.signingOrder}, ${contractSignatories.id})`,
     })
     .from(contractSignatories)
     .where(
@@ -56,6 +71,7 @@ export async function decorateMany(
     template: templatesById.get(contract.templateId ?? "") ?? null,
     creator: creatorsById.get(contract.createdBy ?? "") ?? null,
     signatures: countsByContract.get(contract.id) ?? { signed: 0, total: 0 },
+    signatories: signatures.find((row) => row.contractId === contract.id)?.signatories ?? [],
     daysToExpiry: daysUntil(contract.endDate, now),
   }));
 }

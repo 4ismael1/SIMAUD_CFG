@@ -8,6 +8,7 @@ export const profile = z
     name: zPersonName,
     phone: zPhoneDo,
     cedula: zCedula,
+    position: z.string().trim().max(120).nullable().optional(),
   })
   .strict();
 export const idParams = z.object({ id: z.string().uuid() }).strict();
@@ -44,6 +45,7 @@ export function publicUser(row: typeof users.$inferSelect) {
     id: row.id,
     email: row.email,
     name: row.name,
+    position: row.position,
     phone: row.phone,
     cedula: row.cedula,
     role: row.role,

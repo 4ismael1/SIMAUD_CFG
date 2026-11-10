@@ -1,4 +1,5 @@
 import { escapeLike } from "../../lib/sql.js";
+import { signatureSlots, assertTemplateSlotLabels } from "../../lib/rich-doc/slots.js";
 import { storedDocument } from "../../lib/rich-doc/content.js";
 import { templatePreviewRoutes } from "./template-preview.js";
 import { auditCatalog } from "../audit/catalog.js";
@@ -151,7 +152,7 @@ export async function catalogRoutes(app: FastifyInstance) {
       input.contentFormat === "plain" && input.content === ""
         ? ""
         : encodeContent(input.content, input.contentFormat);
-    const { defs } = await resolveVariables(db, content, input.contentFormat);
+    const { defs, implicit } = await resolveVariables(db, content, input.contentFormat);
     if (req.user.role === "gestor") {
       const active = await txActiveNames();
       if (defs.some((variable) => !active.has(variable.name)))
@@ -160,8 +161,8 @@ export async function catalogRoutes(app: FastifyInstance) {
     return renderContent(
       content,
       input.contentFormat,
-      normalizeTemplateValues(input.values, defs),
-      defs,
+      normalizeTemplateValues(input.values, [...defs, ...implicit]),
+      [...defs, ...implicit],
     );
   });
   async function txActiveNames() {
@@ -179,6 +180,7 @@ export async function catalogRoutes(app: FastifyInstance) {
     if (!template || (req.user.role === "gestor" && template.status !== "active")) throw missing();
     return {
       ...contentResponse(template),
+      signatureSlots: signatureSlots(template.content, template.contentFormat),
       hasSignatureBlock:
         template.contentFormat !== "plain" &&
         storedDocument(template.content).content.some((node) => node.type === "signatures"),
@@ -191,6 +193,7 @@ export async function catalogRoutes(app: FastifyInstance) {
     const result = await db.transaction(async (tx) => {
       await tx.execute(sql`select pg_advisory_xact_lock(10404)`);
       const content = encodeContent(data.content, data.contentFormat);
+      assertTemplateSlotLabels(content, data.contentFormat);
       const { names } = await resolveVariables(tx, content, data.contentFormat);
       const [created] = await tx
         .insert(templates)
@@ -261,6 +264,8 @@ export async function catalogRoutes(app: FastifyInstance) {
             : old.content;
         if (format !== old.contentFormat && !("content" in patch))
           throw new ApiError(400, "VALIDATION_ERROR", "Envía el documento al cambiar de formato.");
+        if ("content" in patch && patch.content !== undefined)
+          assertTemplateSlotLabels(content, format);
         const { names } = await resolveVariables(tx, content, format);
         const [updated] = await tx
           .update(templates)

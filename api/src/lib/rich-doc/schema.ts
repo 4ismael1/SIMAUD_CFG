@@ -122,6 +122,10 @@ const documentStructure = z.strictObject({
                 type: z.literal("signatureSlot"),
                 attrs: z.strictObject({
                   label: z.string().max(60),
+                  party: z
+                    .string()
+                    .regex(/^[a-z][a-z0-9]{0,29}$/)
+                    .optional(),
                   showName: z.boolean().nullish(),
                   showId: z.boolean().nullish(),
                 }),
@@ -197,6 +201,7 @@ function normalizeNode(node: RichNode): RichNode {
     if (node.attrs.label !== undefined) attrs.label = node.attrs.label;
     if (node.attrs.showName === false) attrs.showName = false;
     if (node.attrs.showId === false) attrs.showId = false;
+    if (node.attrs.party !== undefined) attrs.party = node.attrs.party;
     if (Object.keys(attrs).length) result.attrs = attrs;
   }
   if (node.text !== undefined) result.text = node.text;
@@ -212,6 +217,22 @@ export const richDocSchema = z
   .pipe(documentStructure)
   .transform((value) => value as RichDoc)
   .superRefine(checkTables)
+  .superRefine((document, context) => {
+    const parties = new Set<string>();
+    document.content.forEach((block, blockIndex) => {
+      block.content?.forEach((slot, slotIndex) => {
+        const party = slot.type === "signatureSlot" ? slot.attrs?.party : undefined;
+        if (!party) return;
+        if (parties.has(party))
+          context.addIssue({
+            code: "custom",
+            path: ["content", blockIndex, "content", slotIndex, "attrs", "party"],
+            message: "El prefijo de una persona no se puede repetir.",
+          });
+        parties.add(party);
+      });
+    });
+  })
   .transform((value) => normalizeNode(value) as RichDoc);
 
 export function parseRichDoc(value: unknown): RichDoc {

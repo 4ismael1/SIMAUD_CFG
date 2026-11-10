@@ -39,8 +39,9 @@ export const signatory = z
     email: zEmail,
     phone: zPhoneDo.optional(),
     cedula: zCedula.optional(),
-    role: z.enum(signatoryRole.enumValues),
-    signingOrder: z.number().int().min(1).max(1000),
+    role: z.enum(signatoryRole.enumValues).optional(),
+    slotIndex: z.number().int().min(0).max(23999).nullable().optional(),
+    signingOrder: z.number().int().min(1).max(1000).optional(),
   })
   .strict();
 export const contractFields = z
