@@ -227,3 +227,20 @@ export function toContractInput(draft: WizardDraft): ContractInput {
     }),
   };
 }
+
+/**
+ * Whether the user actually wrote something worth recovering. Only choosing a template, or visiting
+ * the wizard, is not a draft: it must not be autosaved nor announced as «borrador» later.
+ */
+export function hasDraftContent(draft: WizardDraft): boolean {
+  const filled = (value: string | undefined) => Boolean(value && value.trim());
+  return (
+    filled(draft.title) ||
+    filled(draft.value) ||
+    filled(draft.startDate) ||
+    filled(draft.endDate) ||
+    filled(draft.notes) ||
+    Object.values(draft.variables ?? {}).some((value) => value !== null && value !== undefined && String(value).trim() !== '') ||
+    draft.signatories.some((signatory) => filled(signatory.name) || filled(signatory.cedula) || filled(signatory.email) || filled(signatory.phone))
+  );
+}

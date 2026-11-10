@@ -15,6 +15,7 @@ import {
   WIZARD_STEPS,
   draftFromContract,
   emptyDraft,
+  hasDraftContent,
   toContractInput,
   validateDetailsStep,
   validateSignatoriesStep,
@@ -61,7 +62,7 @@ function Wizard({ contractId, initial }: WizardProps) {
   const storageKey = user ? `simaud:contract-draft:${user.id}` : null;
 
   const [draft, setDraft] = useState<WizardDraft>(() => initial ?? readLocalDraft(storageKey) ?? emptyDraft());
-  const [restored] = useState(() => !initial && readLocalDraft(storageKey) !== null);
+  const [restored, setRestored] = useState(() => !initial && readLocalDraft(storageKey) !== null);
   const [stepIndex, setStepIndex] = useState(isEdit ? 1 : 0);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [submitting, setSubmitting] = useState<'draft' | 'submit' | null>(null);
@@ -97,7 +98,11 @@ function Wizard({ contractId, initial }: WizardProps) {
   // Autosave new contracts for this tab (sessionStorage: signatory data must not linger on shared computers).
   useEffect(() => {
     if (isEdit || !storageKey) return;
-    const timer = window.setTimeout(() => writeLocalDraft(storageKey, draft), AUTOSAVE_DELAY_MS);
+    // Nothing written yet → nothing stored (so no «contrato a medias» appears on the next visit).
+    const timer = window.setTimeout(
+      () => (hasDraftContent(draft) ? writeLocalDraft(storageKey, draft) : clearLocalDraft(storageKey)),
+      AUTOSAVE_DELAY_MS,
+    );
     return () => window.clearTimeout(timer);
   }, [draft, isEdit, storageKey]);
 
@@ -160,6 +165,8 @@ function Wizard({ contractId, initial }: WizardProps) {
     setDraft(emptyDraft());
     setStepIndex(0);
     setErrors({});
+    setRestored(false);
+    toast.success('Descartado. Empiezas un contrato nuevo.');
   }
 
   const isLast = stepIndex === WIZARD_STEPS.length - 1;
@@ -173,11 +180,15 @@ function Wizard({ contractId, initial }: WizardProps) {
       />
 
       {restored && step === 'template' && (
-        <Alert tone="info">
-          Recuperamos el borrador que dejaste sin terminar.{' '}
-          <button type="button" onClick={discardLocalDraft} className="font-semibold underline">
-            Empezar de cero
-          </button>
+        <Alert
+          tone="info"
+          action={
+            <Button size="sm" onClick={discardLocalDraft}>
+              Empezar de cero
+            </Button>
+          }
+        >
+          Recuperamos el contrato que dejaste a medias en esta pestaña.
         </Alert>
       )}
 
@@ -270,7 +281,8 @@ function readLocalDraft(key: string | null): WizardDraft | null {
     const raw = window.sessionStorage.getItem(key);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as WizardDraft;
-    return Array.isArray(parsed.signatories) ? parsed : null;
+    // A visit that only picked a template is not worth announcing as unfinished work.
+    return Array.isArray(parsed.signatories) && hasDraftContent(parsed) ? parsed : null;
   } catch {
     return null;
   }

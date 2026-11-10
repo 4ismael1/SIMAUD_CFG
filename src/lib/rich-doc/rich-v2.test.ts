@@ -113,7 +113,7 @@ describe('sameDocument (cambios sin guardar)', () => {
 
   it('un cambio real sí cuenta', () => {
     const edited = structuredClone(fromEditor);
-    edited.content[0].content![0].text = 'Hola!';
+    (edited.content[0] as { content: { text: string }[] }).content[0].text = 'Hola!';
     expect(sameDocument(stored, edited)).toBe(false);
   });
 });
