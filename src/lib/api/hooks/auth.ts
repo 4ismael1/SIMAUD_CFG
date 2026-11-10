@@ -1,10 +1,7 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { apiFetch } from "../client";
-import { keys } from "../keys";
 import { updateSession } from "../session";
 import type {
-  AvailabilityQuery,
-  AvailabilityResponse,
   LoginInput,
   LoginResponse,
   RegisterInput,
@@ -43,18 +40,6 @@ export function useLogout() {
 }
 export function useRegister() {
   return useMutation({ mutationFn: register });
-}
-export function useAvailability(query: AvailabilityQuery) {
-  return useQuery({
-    queryKey: keys.availability({ ...query }),
-    queryFn: ({ signal }) =>
-      apiFetch<AvailabilityResponse>("/auth/availability", {
-        query: { ...query },
-        signal,
-      }),
-    enabled: Boolean(query.email || query.cedula),
-    retry: false,
-  });
 }
 export function useConfirmEmail() {
   return useMutation({

@@ -3,8 +3,6 @@ const lists = (domain: string) => [domain, "list"] as const;
 const list = (domain: string, query: QueryParams) =>
   [...lists(domain), query] as const;
 export const keys = {
-  availability: (query: QueryParams) =>
-    ["auth", "availability", query] as const,
   me: ["me"] as const,
   preferences: ["notification-preferences"] as const,
   signatureStyle: ["me", "signature-style"] as const,

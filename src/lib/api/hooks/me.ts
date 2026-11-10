@@ -1,3 +1,4 @@
+import { updateSession } from "../session";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "../client";
 import { keys } from "../keys";
@@ -27,11 +28,18 @@ export function useUpdateMe() {
     },
   });
 }
+export interface PasswordChangeResponse extends MessageResponse {
+  /** The API revokes every other session and issues a new access token for this one. */
+  accessToken: string;
+}
+/** Changing the password replaces the in-memory access token; the old one is rejected (401). */
+export async function changePassword(body: PasswordInput) {
+  const response = await apiFetch<PasswordChangeResponse>("/me/password", { method: "PATCH", body });
+  updateSession("token-renewed", response.accessToken);
+  return response;
+}
 export function useChangePassword() {
-  return useMutation({
-    mutationFn: (body: PasswordInput) =>
-      apiFetch<MessageResponse>("/me/password", { method: "PATCH", body }),
-  });
+  return useMutation({ mutationFn: changePassword });
 }
 export function useChangeEmail() {
   return useMutation({

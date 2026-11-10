@@ -70,15 +70,8 @@ export interface LoginResponse {
 export interface UserResponse {
   user: User;
 }
-export interface RegisterResponse extends UserResponse, MessageResponse {}
-export interface AvailabilityQuery {
-  email?: string;
-  cedula?: string;
-}
-export interface AvailabilityResponse {
-  emailAvailable?: boolean;
-  cedulaAvailable?: boolean;
-}
+/** Registration is opaque (always 202): it never reveals whether an e-mail or cédula already exists. */
+export type RegisterResponse = MessageResponse;
 export interface PasswordInput {
   currentPassword: string;
   newPassword: string;

@@ -21,6 +21,8 @@ Obligatorias para todo el código del proyecto (API y web). Claude rechaza en re
 - Sin duplicación: si algo aparece dos veces, se extrae.
 - Sin código muerto, sin `console.log` olvidados, sin TODO sin dueño.
 
+> Antes de nada: `docs/PRINCIPIOS.md` (qué debe y no debe hacer el sistema). Es obligatorio y prevalece sobre cualquier tarea.
+
 ## Interfaz: acciones y avisos (obligatorio en todo el front)
 - **Ningún botón termina en silencio.** Toda acción que cambia datos, envía algo o descarga un archivo usa `useAction()` (`src/ui/useAction.ts`): muestra un aviso de éxito o de error, siempre.
 - **Confirmar antes de lo destructivo o difícil de revertir** (eliminar, cancelar, rechazar, revocar, reactivar, enviar correos): opción `confirm` de `useAction` o `useConfirm()`. Tono `danger` para lo irreversible; `confirmationText` (escribir el código) para borrados importantes; `reasonLabel` cuando la API exige motivo.

@@ -4,7 +4,7 @@ import { ArrowLeft, KeyRound, Mail, ShieldCheck, TriangleAlert } from 'lucide-re
 import { Alert, Button, ButtonLink, Field, Input } from '../../ui';
 import { useForgotPassword, useResetPassword } from '../../lib/api/hooks/auth';
 import { errorMessage } from '../../lib/errors';
-import { apiFetch } from '../../lib/api/client';
+import { changePassword } from '../../lib/api/hooks/me';
 import { useAuth } from '../../lib/auth';
 import { homePathFor } from '../../app/navigation';
 import { AuthCardLayout } from './AuthLayout';
@@ -182,7 +182,7 @@ export function ForcePasswordChangePage() {
     setSaving(true);
     setError(null);
     try {
-      await apiFetch('/me/password', { method: 'PATCH', body: { currentPassword, newPassword: password } });
+      await changePassword({ currentPassword, newPassword: password });
       completePasswordChange();
       navigate(homePathFor(user.role), { replace: true });
     } catch (changeError) {
