@@ -7,6 +7,7 @@ import { db, pool } from "../db/client.js";
 import { jobRuns } from "../db/schema.js";
 import { env } from "../config/env.js";
 import type { Mailer } from "../lib/mailer.js";
+import { auditAdmin, type AuditActor } from "../modules/audit/service.js";
 
 export const jobNames = [
   "contract-status",
@@ -25,7 +26,7 @@ export function santoDomingoDate(date = new Date()) {
   }).format(date);
 }
 
-export async function runJob(name: JobName, mailer: Mailer, now = new Date()) {
+export async function runJob(name: JobName, mailer: Mailer, now = new Date(), actor?: AuditActor) {
   const connection = await pool.connect();
   const lock = 30300 + jobNames.indexOf(name);
   let acquired = false;
@@ -37,8 +38,18 @@ export async function runJob(name: JobName, mailer: Mailer, now = new Date()) {
     );
     acquired = result.rows[0]!.locked;
     if (!acquired) return { skipped: true, reason: "locked" };
-    const [run] = await db.insert(jobRuns).values({ name, startedAt: now }).returning();
-    runId = run!.id;
+    runId = await db.transaction(async (tx) => {
+      const [run] = await tx.insert(jobRuns).values({ name, startedAt: now }).returning();
+      if (actor)
+        await auditAdmin(tx, actor, {
+          area: "settings",
+          action: "job.started",
+          targetType: "job",
+          targetId: run!.id,
+          targetLabel: name,
+        });
+      return run!.id;
+    });
     const today = santoDomingoDate(now);
     const summary =
       name === "contract-status"

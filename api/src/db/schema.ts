@@ -92,6 +92,7 @@ export const users = pgTable(
     isActive: boolean("is_active").default(true).notNull(),
     deletedAt: time("deleted_at"),
     lastLoginAt: time("last_login_at"),
+    invitedAt: time("invited_at"),
     ...timestamps(),
   },
   (t) => [
@@ -162,6 +163,7 @@ export const contractTemplates = pgTable(
   {
     id: id(),
     title: text("title").notNull(),
+    contentFormat: text("content_format").$type<"plain" | "rich-v1">().default("plain").notNull(),
     content: text("content").notNull(),
     description: text("description"),
     category: text("category").default("general").notNull(),
@@ -176,6 +178,7 @@ export const contractTemplates = pgTable(
   (t) => [
     index("templates_status_idx").on(t.status),
     index("templates_creator_idx").on(t.createdBy),
+    check("templates_content_format", sql`${t.contentFormat} IN ('plain','rich-v1')`),
   ],
 );
 export const contracts = pgTable(
@@ -203,6 +206,7 @@ export const contracts = pgTable(
     everSigned: boolean("ever_signed").default(false).notNull(),
     previousStatus: contractStatus("previous_status"),
     title: text("title").notNull(),
+    contentFormat: text("content_format").$type<"plain" | "rich-v1">().default("plain").notNull(),
     content: text("content").notNull(),
     generatedContent: text("generated_content"),
     variablesData: jsonb("variables_data").default({}).notNull(),
@@ -241,6 +245,7 @@ export const contracts = pgTable(
       sql`${t.endDate} IS NULL OR ${t.startDate} IS NULL OR ${t.endDate} >= ${t.startDate}`,
     ),
     check("contracts_version_positive", sql`${t.currentVersion} > 0`),
+    check("contracts_content_format", sql`${t.contentFormat} IN ('plain','rich-v1')`),
     check(
       "contracts_renewal_type",
       sql`${t.renewalType} IN ('original','manual_renewal','auto_renewal')`,
@@ -285,6 +290,7 @@ export const contractVersions = pgTable(
     id: id(),
     contractId: contractRef(),
     versionNumber: integer("version_number").notNull(),
+    contentFormat: text("content_format").$type<"plain" | "rich-v1">().default("plain").notNull(),
     content: text("content").notNull(),
     generatedContent: text("generated_content"),
     variablesData: jsonb("variables_data").default({}).notNull(),
@@ -293,7 +299,10 @@ export const contractVersions = pgTable(
     changeSummary: text("change_summary"),
     snapshot: jsonb("snapshot").default({}).notNull(),
   },
-  (t) => [uniqueIndex("versions_contract_number_unique").on(t.contractId, t.versionNumber)],
+  (t) => [
+    uniqueIndex("versions_contract_number_unique").on(t.contractId, t.versionNumber),
+    check("versions_content_format", sql`${t.contentFormat} IN ('plain','rich-v1')`),
+  ],
 );
 export const contractApprovals = pgTable(
   "contract_approvals",
@@ -563,4 +572,46 @@ export const emailOutbox = pgTable(
     check("email_outbox_status_check", sql`${table.status} in ('pending','sent','failed')`),
     check("email_outbox_attempts_check", sql`${table.attempts} between 0 and 6`),
   ],
+);
+
+export const adminAuditLogs = pgTable(
+  "admin_audit_logs",
+  {
+    id: id(),
+    at: time("at")
+      .default(sql`clock_timestamp()`)
+      .notNull(),
+    actorId: uuid("actor_id"),
+    actorName: text("actor_name").notNull(),
+    area: text("area")
+      .$type<"users" | "settings" | "templates" | "variables" | "storage" | "auth">()
+      .notNull(),
+    action: text("action").notNull(),
+    targetType: text("target_type").notNull(),
+    targetId: text("target_id"),
+    targetLabel: text("target_label").notNull(),
+    details: jsonb("details").default({}).notNull(),
+    ip: text("ip"),
+    sequence: integer("sequence").default(0).notNull().unique("admin_audit_logs_sequence_key"),
+    entryHash: text("entry_hash").default("").notNull(),
+    previousHash: text("previous_hash"),
+  },
+  (table) => [
+    check(
+      "admin_audit_logs_area_check",
+      sql`${table.area} IN ('users','settings','templates','variables','storage','auth')`,
+    ),
+    index("admin_audit_at_idx").on(table.at, table.id),
+    index("admin_audit_actor_idx").on(table.actorId, table.at),
+    index("admin_audit_area_action_idx").on(table.area, table.action, table.at),
+  ],
+);
+export const adminAuditHead = pgTable(
+  "admin_audit_head",
+  {
+    id: integer("id").primaryKey(),
+    sequence: integer("sequence").default(0).notNull(),
+    entryHash: text("entry_hash"),
+  },
+  (table) => [check("admin_audit_head_id_check", sql`${table.id} = 1`)],
 );

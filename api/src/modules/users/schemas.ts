@@ -15,15 +15,17 @@ export const listQuery = z.object({
   pageSize: z.coerce.number().int().min(1).max(100).default(20),
   q: z.string().trim().max(200).optional(),
   role: role.optional(),
+  status: z.enum(["active", "inactive", "invited"]).optional(),
   sort: z
     .enum(["name", "-name", "email", "-email", "createdAt", "-createdAt"])
     .default("-createdAt"),
 });
-export const createUserBody = profile.extend({
-  email,
-  role: role.default("user"),
-  password: password.optional(),
-});
+export const createUserBody = profile
+  .extend({
+    email,
+    role: role.default("user"),
+  })
+  .strict();
 export const patchUserBody = profile
   .partial()
   .extend({
@@ -46,8 +48,13 @@ export function publicUser(row: typeof users.$inferSelect) {
     isActive: row.isActive,
     deletedAt: row.deletedAt,
     lastLoginAt: row.lastLoginAt,
+    invitedAt: row.invitedAt,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
 }
 export type PublicUser = ReturnType<typeof publicUser>;
+export function userStatus(row: typeof users.$inferSelect) {
+  if (!row.isActive) return "inactive";
+  return row.invitedAt && row.mustChangePassword ? "invited" : "active";
+}

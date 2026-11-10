@@ -7,7 +7,14 @@ import { users, authTokens } from "../../db/schema.js";
 import { ApiError, unauthorized } from "../../lib/errors.js";
 import { hashPassword } from "../../lib/auth/password.js";
 import { active, issueAuthToken, lockUser, revokeSessions } from "../auth/service.js";
-import { publicUser, type listQuery, type createUserBody, type patchUserBody } from "./schemas.js";
+import {
+  publicUser,
+  userStatus,
+  type listQuery,
+  type createUserBody,
+  type patchUserBody,
+} from "./schemas.js";
+import { auditAdmin, type AuditActor } from "../audit/service.js";
 const notFound = () => new ApiError(404, "NOT_FOUND", "No se encontró el usuario.");
 export async function findUser(id: string) {
   const [user] = await db
@@ -18,11 +25,22 @@ export async function findUser(id: string) {
   return publicUser(user);
 }
 export async function listUsers(query: z.infer<typeof listQuery>) {
-  const { page, pageSize, q, role, sort } = query;
+  const { page, pageSize, q, role, sort, status } = query;
   const search = q?.replace(/[\\%_]/g, "\\$&");
   const filter = and(
     isNull(users.deletedAt),
     role ? eq(users.role, role) : undefined,
+    status === "inactive"
+      ? eq(users.isActive, false)
+      : status
+        ? eq(users.isActive, true)
+        : undefined,
+    status === "invited"
+      ? and(sql`${users.invitedAt} is not null`, eq(users.mustChangePassword, true))
+      : undefined,
+    status === "active"
+      ? or(isNull(users.invitedAt), eq(users.mustChangePassword, false))
+      : undefined,
     search
       ? or(
           ilike(users.name, "%" + search + "%"),
@@ -48,15 +66,15 @@ export async function listUsers(query: z.infer<typeof listQuery>) {
         .offset((page - 1) * pageSize);
       const [total] = await tx.select({ value: count() }).from(users).where(filter);
       return {
-        data: rows.map(publicUser),
+        data: rows.map((row) => ({ ...publicUser(row), status: userStatus(row) })),
         meta: { page, pageSize, total: total!.value },
       };
     },
     { isolationLevel: "repeatable read", accessMode: "read only" },
   );
 }
-export async function createUser(input: z.infer<typeof createUserBody>) {
-  const passwordHash = await hashPassword(input.password ?? randomBytes(48).toString("hex"));
+export async function createUser(input: z.infer<typeof createUserBody>, actor: AuditActor) {
+  const passwordHash = await hashPassword(randomBytes(48).toString("hex"));
   const result = await db.transaction(async (tx) => {
     const [user] = await tx
       .insert(users)
@@ -68,9 +86,19 @@ export async function createUser(input: z.infer<typeof createUserBody>) {
         role: input.role,
         passwordHash,
         emailConfirmedAt: new Date(),
+        invitedAt: new Date(),
+        mustChangePassword: true,
       })
       .returning();
-    if (!input.password) await issueAuthToken(tx, user!, "password_reset", user!.email, true);
+    await issueAuthToken(tx, user!, "password_reset", user!.email, true);
+    await auditAdmin(tx, actor, {
+      area: "users",
+      action: "user.created",
+      targetType: "user",
+      targetId: user!.id,
+      targetLabel: user!.name,
+      details: { role: user!.role },
+    });
     return { user: publicUser(user!) };
   });
   return { user: result.user };
@@ -80,6 +108,7 @@ export async function changeUser(
   id: string,
   input: z.infer<typeof patchUserBody>,
   remove = false,
+  ip?: string,
 ) {
   return db.transaction(async (tx) => {
     // Serialize admin membership changes so concurrent demotions cannot remove every admin.
@@ -138,6 +167,44 @@ export async function changeUser(
       afterCommit(tx, () =>
         eventBus.publish(id, { type: "role-changed", data: { role: input.role } }),
       );
+    await auditUserChanges(tx, { actorId, ip }, user, input, remove);
     return publicUser(updated!);
   });
+}
+
+async function auditUserChanges(
+  tx: import("../../db/client.js").Transaction,
+  actor: AuditActor,
+  user: typeof users.$inferSelect,
+  input: z.infer<typeof patchUserBody>,
+  remove: boolean,
+) {
+  const base = {
+    area: "users" as const,
+    targetType: "user",
+    targetId: user.id,
+    targetLabel: user.name,
+  };
+  const fields = Object.keys(input).filter(
+    (key) => input[key as keyof typeof input] !== user[key as keyof typeof input],
+  );
+  if (remove) await auditAdmin(tx, actor, { ...base, action: "user.deleted" });
+  if (fields.some((field) => !["role", "isActive"].includes(field)))
+    await auditAdmin(tx, actor, {
+      ...base,
+      action: "user.updated",
+      details: { fields: fields.filter((field) => !["role", "isActive"].includes(field)) },
+    });
+  if (fields.includes("role"))
+    await auditAdmin(tx, actor, {
+      ...base,
+      action: "user.role_changed",
+      details: { previousRole: user.role, role: input.role },
+    });
+  if (fields.includes("isActive"))
+    await auditAdmin(tx, actor, {
+      ...base,
+      action: input.isActive ? "user.activated" : "user.deactivated",
+      details: { isActive: input.isActive },
+    });
 }

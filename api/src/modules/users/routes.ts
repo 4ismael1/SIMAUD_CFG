@@ -9,9 +9,13 @@ import { ApiError } from "../../lib/errors.js";
 import { requireRole } from "../../plugins/auth.js";
 import * as schema from "./schemas.js";
 import * as service from "./service.js";
+import { sendAccessLink } from "./access.js";
+import { auditActor } from "../audit/service.js";
+import { accessLinkLimits } from "./rate-limit.js";
 export async function userRoutes(app: FastifyInstance) {
   const a = app.withTypeProvider<ZodTypeProvider>();
   const admin = requireRole("admin");
+  const limits = accessLinkLimits(app);
   a.get(
     "/lookup",
     {
@@ -43,18 +47,26 @@ export async function userRoutes(app: FastifyInstance) {
   a.get("/:id", { preHandler: admin, schema: { params: schema.idParams } }, async (r) =>
     service.findUser(r.params.id),
   );
-  a.post("/", { preHandler: admin, schema: { body: schema.createUserBody } }, async (r, reply) => {
-    const result = await service.createUser(r.body);
-    r.log.info(
-      {
-        actorId: r.user.id,
-        entityId: result.user.id,
-        action: "user.created",
-      },
-      "Auditoría usuarios",
-    );
-    return reply.code(201).send(result);
-  });
+  a.post(
+    "/",
+    {
+      preValidation: admin,
+      preHandler: limits.invitation,
+      schema: { body: schema.createUserBody },
+    },
+    async (r, reply) => {
+      const result = await service.createUser(r.body, auditActor(r));
+      r.log.info(
+        {
+          actorId: r.user.id,
+          entityId: result.user.id,
+          action: "user.created",
+        },
+        "Auditoría usuarios",
+      );
+      return reply.code(201).send(result);
+    },
+  );
   a.patch(
     "/:id",
     {
@@ -62,7 +74,7 @@ export async function userRoutes(app: FastifyInstance) {
       schema: { params: schema.idParams, body: schema.patchUserBody },
     },
     async (r) => {
-      const user = await service.changeUser(r.user.id, r.params.id, r.body);
+      const user = await service.changeUser(r.user.id, r.params.id, r.body, false, r.ip);
       r.log.info(
         { actorId: r.user.id, entityId: user.id, action: "user.updated" },
         "Auditoría usuarios",
@@ -71,11 +83,24 @@ export async function userRoutes(app: FastifyInstance) {
     },
   );
   a.delete("/:id", { preHandler: admin, schema: { params: schema.idParams } }, async (r) => {
-    await service.changeUser(r.user.id, r.params.id, {}, true);
+    await service.changeUser(r.user.id, r.params.id, {}, true, r.ip);
     r.log.info(
       { actorId: r.user.id, entityId: r.params.id, action: "user.deleted" },
       "Auditoría usuarios",
     );
     return { message: "Usuario eliminado." };
   });
+  for (const action of ["password-reset", "resend-invite"] as const) {
+    a.post(
+      `/:id/${action}`,
+      {
+        preHandler: [admin, limits.access],
+        schema: { params: schema.idParams },
+      },
+      async (r, reply) =>
+        reply
+          .code(202)
+          .send(await sendAccessLink(auditActor(r), r.params.id, action === "resend-invite")),
+    );
+  }
 }

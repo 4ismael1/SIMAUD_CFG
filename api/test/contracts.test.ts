@@ -431,7 +431,7 @@ it("variables en uso, plantillas en uso, extracción y gestor solo activas", asy
         values: { cliente: "<x>" },
       })
     ).json(),
-  ).toEqual({ html: "&lt;x&gt;", missing: [] });
+  ).toEqual({ contentFormat: "plain", html: "&lt;x&gt;", missing: [] }); // T13 adds the format
 });
 it("vincula firmantes al primer acceso confirmado y persiste refresh grace", async () => {
   const c = await create();

@@ -1,3 +1,4 @@
+import { contentInput, contentResponse, encodeContent } from "../../lib/rich-doc/content.js";
 import { historicalDefinitions, lockVariableCatalog } from "./variable-history.js";
 import { validateInstitutionLogo } from "../../lib/storage-image-validation.js";
 import { applyContractAction } from "./actions.js";
@@ -171,17 +172,25 @@ export async function contractRoutes(app: FastifyInstance) {
         .for("share");
       if (!template || (req.user.role === "gestor" && template.status !== "active"))
         throw contractService.invalid("Plantilla no disponible.");
+      const content =
+        input.content === undefined
+          ? template.content
+          : encodeContent(input.content, template.contentFormat);
       const generatedContent = await contractService.prepareContent(
         tx,
-        template.content,
+        content,
         input.variables,
+        true,
+        undefined,
+        template.contentFormat,
       );
       const [contract] = await tx
         .insert(contracts)
         .values({
           templateId: template.id,
           title: input.title,
-          content: template.content,
+          content,
+          contentFormat: template.contentFormat,
           generatedContent,
           variablesData: input.variables,
           contractValue: String(input.value),
@@ -213,10 +222,7 @@ export async function contractRoutes(app: FastifyInstance) {
       if (!contractService.permissions(contract, req.user, previousSignatories).edit)
         throw contractService.conflict();
       const patch = parse(
-        contractFields
-          .partial()
-          .extend({ content: z.string().min(1).max(200000).optional() })
-          .strict(),
+        contractFields.partial().extend({ content: contentInput.optional() }).strict(),
         req.body,
       );
       if (!Object.keys(patch).length) throw contractService.invalid("Debe indicar algún cambio.");
@@ -240,7 +246,8 @@ export async function contractRoutes(app: FastifyInstance) {
           })),
       };
       parse(contractRelations, merged);
-      let content = patch.content ?? contract.content;
+      let format = contract.contentFormat;
+      let content = contract.content;
       if (patch.templateId && patch.templateId !== contract.templateId) {
         const [template] = await tx
           .select()
@@ -249,13 +256,21 @@ export async function contractRoutes(app: FastifyInstance) {
           .for("share");
         if (!template || (req.user.role === "gestor" && template.status !== "active"))
           throw contractService.invalid("Plantilla no disponible.");
-        content = patch.content ?? template.content;
+        format = template.contentFormat;
+        if (contract.contentFormat === "rich-v1" && format === "plain")
+          throw contractService.invalid(
+            "Un contrato con formato no se puede convertir a texto plano.",
+          );
+        content = template.content;
       }
+      if (patch.content !== undefined) content = encodeContent(patch.content, format);
       const generatedContent = await contractService.prepareContent(
         tx,
         content,
         merged.variables,
         patch.variables !== undefined,
+        undefined,
+        format,
       );
       const changes = {
         templateId: merged.templateId,
@@ -266,6 +281,7 @@ export async function contractRoutes(app: FastifyInstance) {
         endDate: merged.endDate,
         notes: merged.notes,
         content,
+        contentFormat: format,
         generatedContent,
         currentVersion: contract.currentVersion + 1,
         status:
@@ -376,11 +392,13 @@ export async function contractRoutes(app: FastifyInstance) {
       const id = idOf(req);
       await detail(req, id);
       if (kind === "versions")
-        return db
-          .select()
-          .from(versions)
-          .where(eq(versions.contractId, id))
-          .orderBy(versions.versionNumber);
+        return (
+          await db
+            .select()
+            .from(versions)
+            .where(eq(versions.contractId, id))
+            .orderBy(versions.versionNumber)
+        ).map(contentResponse);
       if (kind === "approvals")
         return db
           .select()
@@ -414,7 +432,7 @@ export async function contractRoutes(app: FastifyInstance) {
       .from(versions)
       .where(and(eq(versions.contractId, id), eq(versions.versionNumber, versionNumber)));
     if (!variable) throw contractService.notFound();
-    return variable;
+    return contentResponse(variable);
   });
   app.get("/approvals", { preHandler: requireRole("admin", "supervisor") }, async (req) => {
     const query = parse(
@@ -463,7 +481,7 @@ export async function contractRoutes(app: FastifyInstance) {
           contract: await contractService.decorate(db, contract),
           requester: requester ?? null,
           ageSeconds: Math.floor((Date.now() - approval.requestedAt.getTime()) / 1000),
-          version: current ?? null,
+          version: current ? contentResponse(current) : null,
           diff:
             previousVersion && current
               ? {

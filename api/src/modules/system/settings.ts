@@ -3,6 +3,7 @@ import { inArray } from "drizzle-orm";
 import { db, type Transaction } from "../../db/client.js";
 import { settings } from "../../db/schema.js";
 import { env } from "../../config/env.js";
+import { auditAdmin, type AuditActor } from "../audit/service.js";
 
 export const settingsSchema = z
   .object({
@@ -45,13 +46,22 @@ export async function getSettings(connection: Transaction | typeof db = db): Pro
   });
 }
 
-export async function updateSettings(patch: Partial<Settings>) {
+export async function updateSettings(patch: Partial<Settings>, actor?: AuditActor) {
   await db.transaction(async (tx) => {
     for (const [key, value] of Object.entries(patch))
       await tx
         .insert(settings)
         .values({ key, value })
         .onConflictDoUpdate({ target: settings.key, set: { value } });
+    if (actor)
+      await auditAdmin(tx, actor, {
+        area: "settings",
+        action: "settings.updated",
+        targetType: "settings",
+        targetId: "system",
+        targetLabel: "Ajustes del sistema",
+        details: { fields: Object.keys(patch) },
+      });
   });
   return getSettings();
 }

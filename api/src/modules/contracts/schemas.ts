@@ -1,3 +1,4 @@
+import { contentInput, contentFormatSchema } from "../../lib/rich-doc/content.js";
 import {
   zCedula,
   zPhoneDo,
@@ -46,6 +47,7 @@ export const signatory = z
 export const contractFields = z
   .object({
     templateId: uuid,
+    content: contentInput.optional(),
     title: text,
     variables: values,
     value: zMoneyInput,
@@ -93,7 +95,8 @@ export const variableInput = z
 export const templateInput = z
   .object({
     title: text,
-    content: z.string().min(1).max(200000),
+    content: contentInput,
+    contentFormat: contentFormatSchema.default("plain"),
     description: z.string().max(20000).nullable().optional(),
     category: text.default("general"),
     status: z.enum(["active", "inactive"]).default("active"),

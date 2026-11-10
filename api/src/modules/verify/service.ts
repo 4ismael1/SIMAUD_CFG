@@ -1,9 +1,10 @@
+import { matchesDocumentHash } from "../../lib/rich-doc/content.js";
 import { and, eq } from "drizzle-orm";
 import { db } from "../../db/client.js";
 import { contracts, contractAuditLogs } from "../../db/schema.js";
 import { verifyAuditChain } from "../../lib/crypto/audit-chain.js";
 import { verifySystemSeal } from "../../lib/crypto/system-signing.js";
-import { documentHash, sha256 } from "../../lib/crypto/canonical.js";
+import { sha256 } from "../../lib/crypto/canonical.js";
 import { storage } from "../../lib/storage.js";
 import { getSignatories, type Contract } from "../contracts/service.js";
 import { verifyEvidenceChain } from "../contracts/evidence.js";
@@ -18,7 +19,11 @@ export function verifyContractSeal(contract: Contract) {
     seal.payload.verificationCode === contract.verificationCode &&
     seal.payload.activatedAt === contract.activatedAt?.toISOString() &&
     seal.payload.documentSha256 === contract.documentSha256 &&
-    seal.payload.documentSha256 === documentHash(contract.generatedContent ?? contract.content) &&
+    matchesDocumentHash(
+      contract.generatedContent ?? contract.content,
+      contract.contentFormat,
+      seal.payload.documentSha256,
+    ) &&
     seal.payload.finalPdfSha256 === contract.signedPdfSha256 &&
     seal.payload.evidenceHead === contract.evidenceHead
   );

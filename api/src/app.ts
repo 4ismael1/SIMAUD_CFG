@@ -26,6 +26,7 @@ import { userRoutes } from "./modules/users/routes.js";
 import { initializeSigning } from "./lib/crypto/system-signing.js";
 import { verifyRoutes } from "./modules/verify/routes.js";
 import { signatureStyleRoutes } from "./modules/contracts/signature-style.js";
+import { auditRoutes } from "./modules/audit/routes.js";
 export async function buildApp(
   options: { logger?: boolean; mailer?: Mailer } = {},
 ): Promise<FastifyInstance> {
@@ -85,6 +86,7 @@ export async function buildApp(
       await systemRoutes(routes, mailer);
       await dashboardRoutes(routes);
       await reportRoutes(routes);
+      await auditRoutes(routes);
       await pdfRoutes(routes);
       await verifyRoutes(routes);
       await signatureStyleRoutes(routes);

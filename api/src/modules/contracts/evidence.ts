@@ -1,7 +1,8 @@
+import { contentDocumentHash, matchesDocumentHash } from "../../lib/rich-doc/content.js";
 import { and, eq } from "drizzle-orm";
 import { db, type Transaction } from "../../db/client.js";
 import { contracts, contractVersions, signatureEvidence } from "../../db/schema.js";
-import { canonicalJson, documentHash, sha256 } from "../../lib/crypto/canonical.js";
+import { canonicalJson, sha256 } from "../../lib/crypto/canonical.js";
 import { storage } from "../../lib/storage.js";
 import { getContract, getSignatories, type Contract, type Signatory } from "./service.js";
 
@@ -54,7 +55,10 @@ export async function recordEvidence(
     contractVersion: contract.currentVersion,
     sequence: current.evidenceCount + 1,
     previousEvidenceHash: current.evidenceHead,
-    documentSha256: documentHash(contract.generatedContent ?? contract.content),
+    documentSha256: contentDocumentHash(
+      contract.generatedContent ?? contract.content,
+      contract.contentFormat,
+    ),
   };
   const evidenceHash = sha256(canonicalJson(evidence));
   await tx.insert(signatureEvidence).values({
@@ -82,7 +86,11 @@ async function verifyEvidenceDocument(
   payload: EvidencePayload,
 ) {
   if (payload.contractVersion === contract.currentVersion)
-    return payload.documentSha256 === documentHash(contract.generatedContent ?? contract.content);
+    return matchesDocumentHash(
+      contract.generatedContent ?? contract.content,
+      contract.contentFormat,
+      payload.documentSha256,
+    );
   const [version] = await tx
     .select()
     .from(contractVersions)
@@ -94,7 +102,11 @@ async function verifyEvidenceDocument(
     );
   return (
     !!version &&
-    payload.documentSha256 === documentHash(version.generatedContent ?? version.content)
+    matchesDocumentHash(
+      version.generatedContent ?? version.content,
+      version.contentFormat,
+      payload.documentSha256,
+    )
   );
 }
 

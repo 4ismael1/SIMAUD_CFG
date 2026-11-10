@@ -11,7 +11,8 @@ import {
   templateVariables,
   contractCancellations,
 } from "./schema.js";
-import { renderTemplate } from "../lib/render-template.js";
+import { generatedContent, encodeContent, contentVariables } from "../lib/rich-doc/content.js";
+import type { RichDoc } from "../lib/rich-doc/types.js";
 export async function seedContracts(tx: Transaction) {
   const people = await tx
     .select()
@@ -34,6 +35,7 @@ export async function seedContracts(tx: Transaction) {
     .where(eq(contractTemplates.id, "00000000-0000-4000-8000-000000000001"));
   if (!template) throw Error("Falta plantilla seed");
   const defs = await tx.select().from(templateVariables);
+  await seedRichTemplate(tx, admin.id);
   const statuses = [
     "draft",
     "pending_approval",
@@ -71,7 +73,8 @@ export async function seedContracts(tx: Transaction) {
         templateId: template.id,
         title: "Ejemplo " + (i + 1) + ": " + status,
         content: template.content,
-        generatedContent: renderTemplate(template.content, values, defs).html,
+        contentFormat: template.contentFormat,
+        generatedContent: generatedContent(template.content, template.contentFormat, values, defs),
         variablesData: values,
         contractValue: String(values.valor_contrato),
         startDate: values.fecha_inicio,
@@ -104,6 +107,7 @@ export async function seedContracts(tx: Transaction) {
       contractId: id,
       versionNumber: 1,
       content: c.content,
+      contentFormat: c.contentFormat,
       generatedContent: c.generatedContent,
       variablesData: values,
       createdBy: gestor.id,
@@ -153,4 +157,79 @@ export async function seedContracts(tx: Transaction) {
       newValues: { status, demo: true },
     });
   }
+}
+
+async function seedRichTemplate(tx: Transaction, creatorId: string) {
+  const paragraph = (text: string) => ({ type: "paragraph", content: [{ type: "text", text }] });
+  const cell = (text: string) => ({ type: "tableCell", content: [paragraph(text)] });
+  const document: RichDoc = {
+    type: "doc",
+    content: [
+      {
+        type: "heading",
+        attrs: { level: 1, textAlign: "center" },
+        content: [{ type: "text", text: "Acuerdo de servicios" }],
+      },
+      {
+        type: "paragraph",
+        content: [
+          { type: "text", text: "Cliente " },
+          { type: "variable", attrs: { name: "cliente_nombre" }, marks: [{ type: "bold" }] },
+        ],
+      },
+      {
+        type: "bulletList",
+        content: [{ type: "listItem", content: [paragraph("Alcance y condiciones del servicio")] }],
+      },
+      {
+        type: "table",
+        content: [
+          {
+            type: "tableRow",
+            content: [
+              { type: "tableHeader", content: [paragraph("Concepto")] },
+              { type: "tableHeader", content: [paragraph("Importe")] },
+            ],
+          },
+          {
+            type: "tableRow",
+            content: [
+              cell("Servicios"),
+              {
+                type: "tableCell",
+                content: [
+                  {
+                    type: "paragraph",
+                    content: [{ type: "variable", attrs: { name: "valor_contrato" } }],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+      {
+        type: "table",
+        attrs: { borderless: true },
+        content: [
+          {
+            type: "tableRow",
+            content: [cell("Firma de la institución"), cell("Firma del cliente")],
+          },
+        ],
+      },
+    ],
+  };
+  const content = encodeContent(document, "rich-v1");
+  await tx
+    .insert(contractTemplates)
+    .values({
+      id: "00000000-0000-4000-8000-000000000013",
+      title: "Ejemplo con formato",
+      contentFormat: "rich-v1",
+      content,
+      variables: contentVariables(content, "rich-v1"),
+      createdBy: creatorId,
+    })
+    .onConflictDoNothing();
 }

@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import { db } from "../../db/client.js";
 import { jobRuns, storageMigrationObjects, storageMigrationFailures } from "../../db/schema.js";
-import { audit } from "../../lib/audit.js";
+import { auditStorage as audit } from "../audit/service.js";
 import {
   createDriver,
   readStorageState,
@@ -152,6 +152,33 @@ async function completeMigration(
   });
 }
 
+async function beginMigration(state: StorageState, actor: StorageActor, summary: Summary) {
+  return db.transaction(async (tx) => {
+    let jobId = state.migrationJobId;
+    if (jobId) {
+      await tx
+        .update(jobRuns)
+        .set({ ok: null, finishedAt: null, error: null, summary })
+        .where(eq(jobRuns.id, jobId));
+    } else {
+      const [run] = await tx
+        .insert(jobRuns)
+        .values({ name: "storage-migrate", summary })
+        .returning();
+      jobId = run!.id;
+    }
+    await saveStorageState({ ...state, migrating: true, migrationJobId: jobId }, tx);
+    await audit(tx, {
+      ...actor,
+      action: state.migrationJobId ? "storage:resume" : "storage:migrate",
+      entityType: "storage",
+      oldValues: { driver: state.active.driver },
+      newValues: { driver: state.pending!.driver, jobId },
+    });
+    return jobId;
+  });
+}
+
 async function executeMigration(
   state: StorageState,
   actor: StorageActor,
@@ -160,47 +187,36 @@ async function executeMigration(
   let runId: string | undefined;
   const summary: Summary = { total: 0, copied: 0, verified: 0, failed: 0, failures: [] };
   try {
-    if (state.migrationJobId) {
-      runId = state.migrationJobId;
-      await db
-        .update(jobRuns)
-        .set({ ok: null, finishedAt: null, error: null, summary })
-        .where(eq(jobRuns.id, runId));
-    } else {
-      const [run] = await db
-        .insert(jobRuns)
-        .values({ name: "storage-migrate", summary })
-        .returning();
-      runId = run!.id;
-    }
-    await db.transaction(async (tx) => {
-      await saveStorageState({ ...state, migrating: true, migrationJobId: runId }, tx);
-      await audit(tx, {
-        ...actor,
-        action: state.migrationJobId ? "storage:resume" : "storage:migrate",
-        entityType: "storage",
-        oldValues: { driver: state.active.driver },
-        newValues: { driver: state.pending!.driver, jobId: runId },
-      });
-    });
+    runId = await beginMigration(state, actor, summary);
     announce(runId);
     await migrateReferences(runId, state, summary);
     await completeMigration(runId, state, actor, summary);
   } catch (error) {
-    await saveStorageState({ ...state, migrating: false, migrationJobId: runId });
-    if (runId)
-      await db
-        .update(jobRuns)
-        .set({
-          ok: false,
-          finishedAt: new Date(),
-          summary,
-          error:
-            error instanceof StorageError
-              ? error.message
-              : "La migración se interrumpió. Revisa conectividad y reanuda la tarea.",
-        })
-        .where(eq(jobRuns.id, runId));
+    await db.transaction(async (tx) => {
+      await saveStorageState(
+        { ...state, migrating: false, migrationJobId: runId ?? state.migrationJobId },
+        tx,
+      );
+      await audit(tx, {
+        ...actor,
+        action: "storage:failed",
+        entityType: "storage",
+        newValues: { driver: state.active.driver, jobId: runId },
+      });
+      if (runId)
+        await tx
+          .update(jobRuns)
+          .set({
+            ok: false,
+            finishedAt: new Date(),
+            summary,
+            error:
+              error instanceof StorageError
+                ? error.message
+                : "La migración se interrumpió. Revisa conectividad y reanuda la tarea.",
+          })
+          .where(eq(jobRuns.id, runId));
+    });
     throw error;
   }
 }

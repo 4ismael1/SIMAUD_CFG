@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import { db, type Transaction } from "../../db/client.js";
 import { signatureEvidence } from "../../db/schema.js";
 import { env } from "../../config/env.js";
-import { documentHash } from "../../lib/crypto/canonical.js";
+import { contentDocumentHash } from "../../lib/rich-doc/content.js";
 import type { Contract, Signatory } from "./service.js";
 
 export const formatSigningDate = (value: Date | null) =>
@@ -52,7 +52,10 @@ export async function pdfAttestation(
     { text: contract.code + " | Versión " + contract.currentVersion },
     { text: "SHA-256 del documento canónico:", margin: [0, 12, 0, 4] },
     {
-      text: documentHash(contract.generatedContent ?? contract.content),
+      text: contentDocumentHash(
+        contract.generatedContent ?? contract.content,
+        contract.contentFormat,
+      ),
       fontSize: 8,
       margin: [0, 0, 0, 16],
     },

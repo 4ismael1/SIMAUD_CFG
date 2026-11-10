@@ -14,7 +14,8 @@ import { ApiError } from "../../lib/errors.js";
 import { audit } from "../../lib/audit.js";
 import { enqueueMail } from "../../lib/mail/outbox.js";
 import type { MailTemplate } from "../../lib/mail/templates/index.js";
-import { renderTemplate, extractVariables } from "../../lib/render-template.js";
+import { generatedContent, contentVariables, contentResponse } from "../../lib/rich-doc/content.js";
+import type { ContentFormat } from "../../lib/rich-doc/types.js";
 import {
   linkInvitations,
   normalizeEmail,
@@ -110,9 +111,10 @@ export async function prepareContent(
   values: Record<string, unknown>,
   validateValues = true,
   definitions?: VariableDefinition[],
+  format: ContentFormat = "plain",
 ) {
-  const defs = definitions ?? (await captureDefinitions(tx, content));
-  const names = extractVariables(content);
+  const defs = definitions ?? (await captureDefinitions(tx, content, format));
+  const names = contentVariables(content, format);
   const unknown = Object.keys(values).filter((versionNumber) => !names.includes(versionNumber));
   if (unknown.length) throw invalid("Variables desconocidas.", { unknown });
   const missing = defs
@@ -124,7 +126,7 @@ export async function prepareContent(
     .map((item) => item.name);
   if (missing.length) throw invalid("Faltan variables requeridas.", { missing });
   if (validateValues) Object.assign(values, normalizeTemplateValues(values, defs));
-  return renderTemplate(content, values, defs).html;
+  return generatedContent(content, format, values, defs);
 }
 export async function reconcileSignatories(
   tx: Transaction,
@@ -192,12 +194,14 @@ export async function snapshot(
     contractId: contract.id,
     versionNumber: contract.currentVersion,
     content: contract.content,
+    contentFormat: contract.contentFormat,
     generatedContent: contract.generatedContent,
     variablesData: contract.variablesData,
     createdBy: actor.id,
     changeSummary: summary,
     snapshot: {
-      variableDefinitions: definitions ?? (await captureDefinitions(tx, contract.content)),
+      variableDefinitions:
+        definitions ?? (await captureDefinitions(tx, contract.content, contract.contentFormat)),
       title: contract.title,
       value: contract.contractValue,
       startDate: contract.startDate,
@@ -304,7 +308,7 @@ export async function decorate(tx: Transaction | typeof db, contract: Contract) 
         .where(eq(users.id, contract.createdBy))
     : [];
   return {
-    ...contract,
+    ...contentResponse(contract),
     template: template ?? null,
     creator: creator ?? null,
     signatures: {

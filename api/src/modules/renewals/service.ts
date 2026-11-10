@@ -212,6 +212,7 @@ async function createRenewalChild(
     values,
     true,
     definitions,
+    contract.contentFormat,
   );
   const [child] = await tx
     .insert(contracts)
@@ -219,6 +220,7 @@ async function createRenewalChild(
       templateId: contract.templateId,
       title: contract.title,
       content: contract.content,
+      contentFormat: contract.contentFormat,
       generatedContent,
       variablesData: values,
       contractValue: renewal.proposedValue,

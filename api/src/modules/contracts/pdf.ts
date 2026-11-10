@@ -1,8 +1,10 @@
+import { storedDocument } from "../../lib/rich-doc/content.js";
+import { richDocPdf } from "../../lib/rich-doc/pdf.js";
 import { sanitizePng } from "../../lib/storage-png.js";
 import { storage } from "../../lib/storage.js";
 import { createHash, randomBytes } from "node:crypto";
 import { pdfAttestation, maskCedula, formatSigningDate } from "./pdf-attestation.js";
-import { documentHash } from "../../lib/crypto/canonical.js";
+import { contentDocumentHash } from "../../lib/rich-doc/content.js";
 import { sealPdf } from "../../lib/crypto/system-signing.js";
 import type { FastifyInstance } from "fastify";
 import type { Content } from "pdfmake/interfaces.js";
@@ -33,7 +35,11 @@ export async function contractPdf(
 ): Promise<Buffer> {
   const settings = await getSettings(tx);
   const signatories = await service.getSignatories(tx, contract.id);
-  const text = decodeRenderedText(contract.generatedContent ?? contract.content);
+  const source = contract.generatedContent ?? contract.content;
+  const documentContent =
+    contract.contentFormat === "rich-v1"
+      ? richDocPdf(storedDocument(source))
+      : paragraphs(decodeRenderedText(source));
   const content: Content[] = [];
   if (settings.institution.logo)
     content.push({
@@ -59,7 +65,7 @@ export async function contractPdf(
       color: "#555555",
       margin: [0, 0, 0, 18],
     },
-    ...paragraphs(text),
+    ...documentContent,
     { text: "Firmas", bold: true, fontSize: 14, margin: [0, 20, 0, 12] },
   );
   for (const signer of signatories) {
@@ -89,7 +95,7 @@ export async function saveFinalPdf(
     if (
       current.signedPdfPath !== finalPdfName(current) ||
       current.systemSeal?.payload.documentSha256 !==
-        documentHash(current.generatedContent ?? current.content)
+        contentDocumentHash(current.generatedContent ?? current.content, current.contentFormat)
     )
       throw service.conflict("El PDF final es inmutable y no corresponde a esta versión.");
     const bytes = await storage.get("contracts/" + current.signedPdfPath);
@@ -100,7 +106,10 @@ export async function saveFinalPdf(
   const code = randomBytes(10).toString("hex").toUpperCase();
   const verificationCode = "SIM-" + code.match(/.{4}/g)!.join("-");
   const activatedAt = new Date();
-  const documentSha256 = documentHash(contract.generatedContent ?? contract.content);
+  const documentSha256 = contentDocumentHash(
+    contract.generatedContent ?? contract.content,
+    contract.contentFormat,
+  );
   const bytes = await contractPdf(tx, { ...current, verificationCode, activatedAt });
   const name = finalPdfName(contract);
   await storage.put("contracts/" + name, bytes, { contentType: "application/pdf" });

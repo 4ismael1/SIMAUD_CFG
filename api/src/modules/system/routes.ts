@@ -9,6 +9,7 @@ import type { Mailer } from "../../lib/mailer.js";
 import { storageInput } from "../../lib/storage-config.js";
 import { getStorage, testStorage, updateStorage } from "./storage-service.js";
 import { startStorageMigration, waitStorageMigrations } from "./storage-migration.js";
+import { auditActor } from "../audit/service.js";
 
 export async function systemRoutes(app: FastifyInstance, mailer: Mailer) {
   const admin = { preHandler: requireRole("admin") };
@@ -46,7 +47,7 @@ export async function systemRoutes(app: FastifyInstance, mailer: Mailer) {
       settingsSchema.partial().refine((value) => Object.keys(value).length > 0),
       req.body,
     );
-    return updateSettings(patch);
+    return updateSettings(patch, auditActor(req));
   });
   app.post("/system/mail/test", admin, async (req, reply) => {
     const { to } = parse(z.object({ to: z.email() }).strict(), req.body);
@@ -56,6 +57,11 @@ export async function systemRoutes(app: FastifyInstance, mailer: Mailer) {
     return getJobRuns();
   });
   app.post("/system/jobs/:name/run", admin, async (req) =>
-    runJob(parse(z.enum(jobNames), (req.params as { name: string }).name), mailer),
+    runJob(
+      parse(z.enum(jobNames), (req.params as { name: string }).name),
+      mailer,
+      new Date(),
+      auditActor(req),
+    ),
   );
 }

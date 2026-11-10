@@ -3,7 +3,8 @@ import { z } from "zod";
 import type { Transaction } from "../../db/client.js";
 import { contractVersions } from "../../db/schema.js";
 import { ApiError } from "../../lib/errors.js";
-import { extractVariables } from "../../lib/render-template.js";
+import { contentVariables } from "../../lib/rich-doc/content.js";
+import type { ContentFormat } from "../../lib/rich-doc/types.js";
 import { resolveVariables } from "./catalog.js";
 import type { Contract } from "./service.js";
 
@@ -22,9 +23,10 @@ export async function lockVariableCatalog(tx: Transaction) {
 export async function captureDefinitions(
   tx: Transaction,
   content: string,
+  format: ContentFormat = "plain",
 ): Promise<VariableDefinition[]> {
   await lockVariableCatalog(tx);
-  const { defs } = await resolveVariables(tx, content);
+  const { defs } = await resolveVariables(tx, content, format);
   return defs.map(({ name, type, required, options }) => ({ name, type, required, options }));
 }
 
@@ -41,7 +43,7 @@ export async function historicalDefinitions(tx: Transaction, contract: Contract)
   const parsed = z
     .object({ variableDefinitions: z.array(definitionSchema) })
     .safeParse(version?.snapshot);
-  const names = extractVariables(contract.content);
+  const names = contentVariables(contract.content, contract.contentFormat);
   if (
     !parsed.success ||
     names.some(

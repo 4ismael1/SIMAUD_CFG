@@ -1,7 +1,8 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import { performance } from "node:perf_hooks";
 import { pool, db } from "../../db/client.js";
-import { audit, type AuditEntry } from "../../lib/audit.js";
+import type { AuditEntry } from "../../lib/audit.js";
+import { auditStorage as audit } from "../audit/service.js";
 import {
   createDriver,
   publicConfig,

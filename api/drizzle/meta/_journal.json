@@ -78,6 +78,20 @@
       "when": 1794275656468,
       "tag": "0010_t10_certified_signatures",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1794275656469,
+      "tag": "0011_t13_rich_documents",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1794275656470,
+      "tag": "0012_t12b_admin_audit",
+      "breakpoints": true
     }
   ]
 }
