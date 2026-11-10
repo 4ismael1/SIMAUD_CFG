@@ -170,3 +170,9 @@ export async function apiDownload(path: string, query?: QueryParams) {
     filename: downloadFilename(response.headers.get("Content-Disposition")),
   };
 }
+
+/** POST that returns a file (e.g. a generated PDF preview), with the same session handling as apiFetch. */
+export async function apiPostBlob(path: string, body: unknown, signal?: AbortSignal): Promise<Blob> {
+  const response = await authorizedResponse(path, { method: "POST", body, signal });
+  return response.blob();
+}

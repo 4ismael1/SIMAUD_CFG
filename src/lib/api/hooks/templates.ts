@@ -4,7 +4,7 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { apiFetch } from "../client";
+import { apiFetch, apiPostBlob } from "../client";
 import { keys } from "../keys";
 import type { ContentFormat, DocumentContent } from "../../rich-doc/types";
 import type {
@@ -122,4 +122,29 @@ export function useBestContentFormat(): ContentFormat | undefined {
   if (capabilities.isPending) return undefined;
   if (richV1 === undefined) return undefined;
   return richV1 ? "rich-v1" : "plain";
+}
+
+/**
+ * The real PDF of a template being edited (task T15): same layout, fonts and page breaks as the final
+ * contract, with the data shown as [Label]. Only when the API announces `previewPdf`.
+ */
+export function useTemplatePdfPreview(input: { contentFormat: ContentFormat; content: DocumentContent; title: string } | null) {
+  return useQuery({
+    queryKey: ["templates", "preview-pdf", input],
+    queryFn: ({ signal }) => apiPostBlob("/templates/preview-pdf", input, signal),
+    enabled: input !== null,
+    retry: false,
+    staleTime: 60_000,
+  });
+}
+
+/** True when the API can render the real PDF preview. */
+export function usePdfPreviewSupported(): boolean {
+  const capabilities = useQuery({
+    queryKey: ["templates", "capabilities"],
+    queryFn: ({ signal }) => apiFetch<TemplateCapabilities & { previewPdf?: boolean }>("/templates/capabilities", { signal }),
+    retry: false,
+    staleTime: 5 * 60_000,
+  });
+  return Boolean(capabilities.data?.previewPdf);
 }

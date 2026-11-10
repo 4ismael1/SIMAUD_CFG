@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useBlocker, useNavigate, useParams } from "react-router-dom";
-import { Braces, CircleAlert, Eye, PenLine, Plus, Save } from "lucide-react";
+import { Braces, CircleAlert, Eye, FileText, PenLine, Plus, Save } from "lucide-react";
 import {
   Alert,
   Button,
@@ -20,6 +20,7 @@ import {
 import {
   useCreateTemplate,
   useBestContentFormat,
+  usePdfPreviewSupported,
   useTemplate,
   useTemplates,
   useUpdateTemplate,
@@ -42,6 +43,7 @@ import { isRichDoc, type RichDoc } from "../../lib/rich-doc/types";
 import { sameDocument } from "../../lib/rich-doc/sanitize";
 import { templateCategories } from "./catalog-filters";
 import { RichTextEditor } from "./rich/RichTextEditor";
+import { PdfPreview } from "./rich/PdfPreview";
 import { DocumentView } from "../contracts/components/DocumentView";
 import { VARIABLE_TYPE_LABELS, VariableDialog } from "./TemplatesPage";
 
@@ -153,7 +155,8 @@ function Editor({ template }: { template?: TemplateDetail }) {
       new Map(variableList.map((variable) => [variable.name, variable.label])),
     [variableList],
   );
-  const [mode, setMode] = useState<"edit" | "preview">("edit");
+  const [mode, setMode] = useState<"edit" | "preview" | "pdf">("edit");
+  const pdfSupported = usePdfPreviewSupported();
 
   async function handleSave() {
     const next: typeof errors = {};
@@ -302,6 +305,20 @@ function Editor({ template }: { template?: TemplateDetail }) {
                     </span>
                   ),
                 },
+                // The real PDF, when the API can render it (task T15).
+                ...(pdfSupported
+                  ? [
+                      {
+                        value: "pdf" as const,
+                        label: (
+                          <span className="inline-flex items-center gap-1.5">
+                            <FileText className="size-3.5" />
+                            PDF
+                          </span>
+                        ),
+                      },
+                    ]
+                  : []),
               ]}
             />
           </div>
@@ -313,11 +330,12 @@ function Editor({ template }: { template?: TemplateDetail }) {
               subheading="Vista previa · los datos aparecen con su nombre"
             />
           )}
+          {mode === "pdf" && <PdfPreview content={draft.content} title={draft.title} />}
           {/* The editor stays mounted while previewing so undo history and cursor survive the switch. */}
           {variables.isPending ? (
             <Skeleton className="h-[480px] rounded-lg" />
           ) : (
-            <div className={cn(mode === "preview" && "hidden")}>
+            <div className={cn(mode !== "edit" && "hidden")}>
               <RichTextEditor
                 label="Contenido de la plantilla"
                 initialValue={initial.content}
