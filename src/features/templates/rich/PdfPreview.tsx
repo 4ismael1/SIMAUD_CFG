@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 import { ExternalLink, FileText, RefreshCw } from 'lucide-react';
 import { Alert, Button, Card, EmptyState, Skeleton } from '../../../ui';
 import { useTemplatePdfPreview } from '../../../lib/api/hooks/templates';
@@ -18,15 +18,11 @@ export function PdfPreview({ content, title }: { content: RichDoc; title: string
   // Wait until typing pauses: every request renders the whole PDF on the server.
   const input = useDebouncedValue(useMemo(() => ({ contentFormat: 'rich-v2' as const, content, title: title.trim() || 'Sin título' }), [content, title]), PREVIEW_DELAY_MS);
   const pdf = useTemplatePdfPreview(input);
-  const [url, setUrl] = useState<string | null>(null);
-
   // One object URL per generated PDF, released when replaced or on leaving.
-  useEffect(() => {
-    if (!pdf.data) return;
-    const next = URL.createObjectURL(pdf.data);
-    setUrl(next);
-    return () => URL.revokeObjectURL(next);
-  }, [pdf.data]);
+  const url = useMemo(() => (pdf.data ? URL.createObjectURL(pdf.data) : null), [pdf.data]);
+  useEffect(() => () => {
+    if (url) URL.revokeObjectURL(url);
+  }, [url]);
 
   if (pdf.isError) {
     return (
