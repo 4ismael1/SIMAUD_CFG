@@ -23,3 +23,7 @@ dist-ssr
 *.sln
 *.sw?
 .env
+
+# Production secrets (deploy)
+.env.prod
+deploy/.env.prod

@@ -1,0 +1,15 @@
+# Lista de inclusión: ni secretos, ni uploads, ni artefactos locales llegan al build.
+**
+!package.json
+!package-lock.json
+!tsconfig.json
+!tsconfig.build.json
+!src/
+!src/**
+!drizzle/
+!drizzle/**
+!assets/
+!assets/**
+**/.env
+**/.env.*
+**/*.log

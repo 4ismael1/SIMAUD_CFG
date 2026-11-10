@@ -5,11 +5,6 @@ export function HeroDocument() {
       aria-hidden="true"
       className="relative w-full -rotate-[1.5deg] animate-float rounded-[3px] border border-slate-200 bg-paper px-6 py-8 font-serif text-[13.5px] leading-7 text-slate-800 shadow-[0_30px_70px_rgb(15_23_42/0.16),0_3px_10px_rgb(15_23_42/0.06)] sm:px-11 sm:py-10"
     >
-      <style>{`
-        .hero-signature { stroke-dasharray: 900; stroke-dashoffset: 900; animation: hero-sign 2.4s 1.1s cubic-bezier(.6,.1,.3,1) forwards; }
-        @keyframes hero-sign { to { stroke-dashoffset: 0; } }
-        @media (prefers-reduced-motion: reduce) { .hero-signature { animation: none; stroke-dashoffset: 0; } }
-      `}</style>
       <p className="text-center font-bold tracking-[0.1em]">CONTRATO DE SUMINISTRO</p>
       <p className="text-center font-mono text-[11.5px] text-slate-400">CT-2026-0039 · versión 2</p>
       <p className="mt-3">

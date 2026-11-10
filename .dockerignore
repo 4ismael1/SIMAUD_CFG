@@ -1,0 +1,17 @@
+# Solo los archivos que necesita el build web; la API tiene su propio contexto.
+**
+!package.json
+!package-lock.json
+!index.html
+!vite.config.ts
+!tsconfig*.json
+!src/
+!src/**
+!public/
+!public/**
+!deploy/
+!deploy/nginx/
+!deploy/nginx/**
+**/.env
+**/.env.*
+**/*.log

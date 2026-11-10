@@ -1,0 +1,2 @@
+# UTC: un juego diario; los domingos también se conserva como semanal.
+0 2 * * * /bin/sh /opt/backup/backup.sh > /proc/1/fd/1 2> /proc/1/fd/2

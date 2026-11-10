@@ -1,0 +1,7 @@
+# Solo durante recuperación, con API, web y backup detenidos.
+# Compose combina volúmenes por destino y sustituye el montaje :ro por :rw.
+services:
+  backup:
+    volumes:
+      - storage:/storage:rw
+      - ${BACKUP_DIR:-./deploy/backups}:/backups:ro

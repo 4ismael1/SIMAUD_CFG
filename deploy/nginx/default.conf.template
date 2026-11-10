@@ -1,0 +1,73 @@
+server {
+    listen 80 default_server;
+    server_name ${SERVER_NAME};
+    return 308 https://${SERVER_NAME}$request_uri;
+}
+
+server {
+    listen 443 ssl default_server;
+    server_name ${SERVER_NAME};
+    ssl_certificate /etc/nginx/certs/fullchain.pem;
+    ssl_certificate_key /etc/nginx/certs/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_session_cache shared:TLS:10m;
+    ssl_session_timeout 1d;
+    ssl_session_tickets off;
+
+    root /usr/share/nginx/html;
+    index index.html;
+    # La API admite 2 MiB; se reserva margen para el sobre multipart.
+    client_max_body_size 3m;
+    include /etc/nginx/security-headers.conf;
+
+    # El upstream se vuelve a resolver si Compose sustituye el contenedor de API.
+    resolver 127.0.0.11 valid=10s ipv6=off;
+    set $api_upstream http://api:3000;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    # No propagar valores de confianza enviados por el cliente.
+    proxy_set_header X-Forwarded-For $remote_addr;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header Connection "";
+    proxy_hide_header Strict-Transport-Security;
+    proxy_hide_header X-Content-Type-Options;
+    proxy_hide_header Referrer-Policy;
+    proxy_hide_header Permissions-Policy;
+    proxy_hide_header X-Frame-Options;
+    proxy_hide_header Content-Security-Policy;
+
+    location = /api/v1/events {
+        proxy_pass $api_upstream$request_uri;
+        proxy_buffering off;
+        proxy_cache off;
+        proxy_read_timeout 1h;
+        proxy_send_timeout 1h;
+        gzip off;
+        # Evita que un error upstream incluya el ticket SSE en error.log.
+        error_log /dev/null crit;
+    }
+
+    location /api/ {
+        proxy_pass $api_upstream$request_uri;
+        proxy_read_timeout 120s;
+    }
+
+    location /assets/ {
+        try_files $uri =404;
+        expires 1y;
+        add_header Cache-Control "public, immutable" always;
+        include /etc/nginx/security-headers.conf;
+    }
+
+    location = /index.html {
+        add_header Cache-Control "no-cache" always;
+        include /etc/nginx/security-headers.conf;
+    }
+
+    location / {
+        try_files $uri $uri/ /index.html;
+        add_header Cache-Control "no-cache" always;
+        include /etc/nginx/security-headers.conf;
+    }
+}

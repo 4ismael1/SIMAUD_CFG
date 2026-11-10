@@ -1,0 +1,131 @@
+name: simaud
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-api: &api
+  image: simaud-api:${SIMAUD_VERSION:?Defina SIMAUD_VERSION}
+  build:
+    context: ./api
+    dockerfile: Dockerfile
+  env_file:
+    - ./.env.prod
+  environment:
+    NODE_ENV: production
+    PORT: "3000"
+    TRUST_PROXY: "1"
+    JOBS_ENABLED: "true"
+  logging: *logging
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?Defina POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER:?Defina POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD}
+    volumes:
+      - database:/var/lib/postgresql/data
+    networks:
+      - database
+    healthcheck:
+      test: ["CMD-SHELL", 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    logging: *logging
+
+  api:
+    <<: *api
+    restart: unless-stopped
+    init: true
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - storage:/app/storage
+    networks:
+      - database
+      - proxy
+      # SMTP necesita salida, aunque no haya Internet general.
+      - mail
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+  web:
+    image: simaud-web:${SIMAUD_VERSION:?Defina SIMAUD_VERSION}
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      SERVER_NAME: ${SERVER_NAME:?Defina SERVER_NAME}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ${TLS_CERTS_DIR:-./deploy/certs}:/etc/nginx/certs:ro
+    networks:
+      - proxy
+      - public
+    logging: *logging
+
+  migrate:
+    <<: *api
+    profiles: ["tools"]
+    restart: "no"
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      TRUST_PROXY: "false"
+      JOBS_ENABLED: "false"
+    depends_on:
+      db:
+        condition: service_healthy
+    command: ["node", "dist/db/migrate.js"]
+    networks:
+      - database
+
+  backup:
+    image: simaud-backup:${SIMAUD_VERSION:?Defina SIMAUD_VERSION}
+    build:
+      context: ./deploy/backup
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGHOST: db
+      PGPORT: "5432"
+      PGDATABASE: ${POSTGRES_DB:?Defina POSTGRES_DB}
+      PGUSER: ${POSTGRES_USER:?Defina POSTGRES_USER}
+      PGPASSWORD: ${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD}
+      TZ: UTC
+    volumes:
+      - storage:/storage:ro
+      - ${BACKUP_DIR:-./deploy/backups}:/backups
+    networks:
+      - database
+    logging: *logging
+
+networks:
+  database:
+    internal: true
+  proxy:
+    internal: true
+  mail:
+  public:
+
+volumes:
+  database:
+  storage:
