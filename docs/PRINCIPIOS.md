@@ -34,6 +34,10 @@ principios, se detiene y se pregunta al dueño.
   en la constancia pública aparecen enmascarados.
 - Las imágenes de firma se guardan **cifradas** en disco, fuera de la web, y solo se sirven a quien tiene permiso.
 - Nada sensible en `localStorage` ni en la URL. Los secretos viven en variables de entorno, nunca en git ni en la BD.
+  **Excepción aprobada por el dueño (10 nov 2026):** las credenciales del almacenamiento S3 que el admin configura
+  desde Configuración › Almacenamiento se guardan en la BD **cifradas** (AES-256-GCM con `SETTINGS_ENCRYPTION_KEY`, que
+  sí vive solo en el entorno). Nunca se devuelven a la interfaz ni van a logs o auditoría. Rotar esa clave exige el
+  procedimiento de `docs/DEPLOY.md` (recifrar firmas y credenciales).
 
 ## 6. Conservación
 - Los contratos firmados y su evidencia se conservan **indefinidamente** por defecto (la institución definirá un plazo

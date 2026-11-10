@@ -67,7 +67,8 @@ Rama `feat/backend-propio-y-nueva-ui`. Commits de esta sesión: `aaba3ad` (fix /
 ### Decisiones del dueño (10 nov, mañana)
 - **H02**: el admin SÍ puede aprobar sus propios contratos y renovaciones (queda auditado como autoaprobación); supervisor y gestor no, tampoco renovaciones que solicitaron. Incluido en `docs/tasks/T16-correcciones-auditoria.md`.
 - **Contrato firmado → enmienda con nueva firma** (decidido). Tarea `docs/tasks/T17-enmiendas.md` (incluye H01), lanzar tras T15 y T16.
-- Pendientes: S3 en BD (H15); H03/H04/H05 para otra tarea.
+- **S3 cifrado en BD: aceptado** y documentado como excepción en PRINCIPIOS §5 (H15 resuelto por decisión).
+- Pendiente: H03/H04/H05 (auditoría completa y DTO de privacidad) para otra tarea; H13/H14 (vigencia del certificado, DNS de S3) también.
 
 ### Otros cambios de esta sesión
 - Admin: añadido módulo **Variables** al menú (`/app/variables`). El admin ya ve todas las pantallas existentes.
