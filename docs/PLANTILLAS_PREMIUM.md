@@ -56,7 +56,9 @@ Formato: estos elementos amplían `rich-v1` a **`rich-v2`** (ajustes de página 
 y `clause`). T13 (en curso) deja la base `rich-v1` lista; la fase A–C va en una tarea siguiente (T15) para no
 interrumpirla.
 
-## Decisiones para el dueño
-1. Papel por defecto: **Carta** (habitual en RD) o A4.
-2. Encabezado/pie: ¿logo y nombre de la institución en todas las páginas?
-3. Roles de firmante que deben existir (cliente, contratista, testigo, representante legal…).
+## Decisiones del dueño (10 nov 2026)
+1. **Papel**: Carta por defecto, con opciones (Carta, Oficio/Legal, A4) elegibles por plantilla.
+2. **Encabezado/pie**: vacíos por defecto. Opción de añadir logo y/o texto, con tamaño y posición editables
+   (izquierda/centro/derecha) y «Página X de Y» opcional.
+3. **Firmantes**: un único rol «firmante». La etiqueta (EL CLIENTE, EL CONTRATISTA, TESTIGO…) se escribe en cada
+   casilla del elemento «Firmas» del propio documento. Casilla n ↔ firmante con orden de firma n.
