@@ -2,4 +2,6 @@
 !Dockerfile
 !backup.sh
 !restore.sh
+!capture.sh
+!check-references.sh
 !crontab
