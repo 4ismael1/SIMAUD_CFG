@@ -110,7 +110,7 @@ export function SignerHomePage() {
               <ShieldCheck className="size-4 text-emerald-600" /> ¿Te enviaron un contrato?
             </h2>
             <p className="mt-2 text-[13px] text-slate-600">Comprueba si es auténtico y no ha sido modificado con el código de su constancia.</p>
-            <ButtonLink to="/verificar" viewTransition size="sm" className="mt-3">Verificar un contrato</ButtonLink>
+            <ButtonLink to="/app/verificar" viewTransition size="sm" className="mt-3">Verificar un contrato</ButtonLink>
           </Card>
         </aside>
       </div>

@@ -87,6 +87,8 @@ export const router = createBrowserRouter([
           { path: 'firmas', lazy: app.inbox },
           { path: 'mis-contratos', lazy: app.myContracts },
           { path: 'perfil', lazy: app.profile },
+          // Same check as the public /verificar, inside the panel so the sidebar stays.
+          { path: 'verificar/:code?', lazy: page(() => import('../features/verify/VerifyPage'), (m) => m.VerifyInAppPage) },
           {
             element: <RoleRoute roles={['admin', 'supervisor']} />,
             children: [

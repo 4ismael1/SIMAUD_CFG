@@ -1,5 +1,5 @@
 import { useRef, useState, type FormEvent, type ReactNode } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
 import {
   CircleCheck,
   CircleX,
@@ -15,7 +15,8 @@ import {
   ShieldCheck,
   TriangleAlert,
 } from 'lucide-react';
-import { Alert, Button, Card, Field, Input, Logo, Skeleton, cn, useAction } from '../../ui';
+import { Alert, Button, Card, Field, Input, Logo, PageHeader, Skeleton, cn, useAction } from '../../ui';
+import { useAuth } from '../../lib/auth';
 import {
   isVerificationCode,
   normalizeVerificationCode,
@@ -38,13 +39,33 @@ function pdfProblem(file: File): string | null {
   return null;
 }
 
+/** Where the verification page lives: inside the panel (/app/verificar) with a session, public otherwise. */
+function useVerifyBase() {
+  return useLocation().pathname.startsWith('/app/') ? '/app/verificar' : '/verificar';
+}
+
+/** Link to another verification code, staying in the panel or on the public page. */
+function VerifyLink({ code, className, children }: { code: string; className?: string; children: ReactNode }) {
+  return (
+    <Link to={`${useVerifyBase()}/${code}`} viewTransition className={className}>
+      {children}
+    </Link>
+  );
+}
+
+const INTRO = 'Escribe el código de la constancia (o escanea su QR) y compara el documento que tienes con el original firmado.';
+const FOOTNOTE = 'Los documentos se comparan por su huella digital (SHA-256). La verificación no muestra datos personales completos.';
+
 /**
  * /verificar and /verificar/:code — public page. A code (typed or from the QR) shows data to compare
  * with the paper; only comparing the file itself proves that a document is the authentic original.
+ * With a session open it moves into the panel (/app/verificar), so the sidebar stays.
  */
 export function VerifyPage() {
   const { code } = useParams();
+  const { status } = useAuth();
   const normalized = code ? normalizeVerificationCode(code) : undefined;
+  if (status === 'authenticated') return <Navigate to={`/app/verificar${normalized ? `/${normalized}` : ''}`} replace />;
 
   return (
     <div className="flex min-h-dvh flex-col bg-slate-50">
@@ -62,22 +83,42 @@ export function VerifyPage() {
       <main className="mx-auto flex w-full max-w-3xl flex-1 animate-page-in flex-col gap-6 px-4 py-8 sm:px-6 sm:py-12">
         <div className="flex flex-col gap-1.5">
           <h1 className="text-[26px] font-semibold text-slate-900">Verificar un contrato firmado</h1>
-          <p className="text-slate-500">
-            Escribe el código de la constancia (o escanea su QR) y compara el documento que tienes con el original firmado.
-          </p>
+          <p className="text-slate-500">{INTRO}</p>
         </div>
-        <CodeForm key={normalized ?? ''} initialCode={normalized} />
-        {normalized ? <CodeResult code={normalized} /> : <FileWithoutCode />}
+        <VerifyContent code={normalized} />
       </main>
-      <footer className="px-4 py-6 text-center text-xs text-slate-400">
-        Los documentos se comparan por su huella digital (SHA-256). La verificación no muestra datos personales completos.
-      </footer>
+      <footer className="px-4 py-6 text-center text-xs text-slate-400">{FOOTNOTE}</footer>
     </div>
+  );
+}
+
+/** /app/verificar — the same check inside the panel, keeping the sidebar. */
+export function VerifyInAppPage() {
+  const { code } = useParams();
+  const normalized = code ? normalizeVerificationCode(code) : undefined;
+  return (
+    <>
+      <PageHeader title="Verificar un contrato firmado" description={INTRO} />
+      <div className="flex max-w-3xl flex-col gap-6">
+        <VerifyContent code={normalized} />
+        <p className="text-xs text-slate-400">{FOOTNOTE}</p>
+      </div>
+    </>
+  );
+}
+
+function VerifyContent({ code }: { code?: string }) {
+  return (
+    <>
+      <CodeForm key={code ?? ''} initialCode={code} />
+      {code ? <CodeResult code={code} /> : <FileWithoutCode />}
+    </>
   );
 }
 
 function CodeForm({ initialCode }: { initialCode?: string }) {
   const navigate = useNavigate();
+  const base = useVerifyBase();
   const [value, setValue] = useState(initialCode ?? '');
   const [error, setError] = useState<string | null>(null);
 
@@ -88,7 +129,7 @@ function CodeForm({ initialCode }: { initialCode?: string }) {
       return;
     }
     setError(null);
-    navigate(`/verificar/${normalizeVerificationCode(value)}`, { viewTransition: true });
+    navigate(`${base}/${normalizeVerificationCode(value)}`, { viewTransition: true });
   }
 
   return (
@@ -188,9 +229,9 @@ function FileWithoutCode() {
             >
               Es idéntico al original firmado del contrato con código <span className="font-mono">{data.code}</span>.{' '}
               {data.code && (
-                <Link to={`/verificar/${data.code}`} viewTransition className="font-medium underline">
+                <VerifyLink code={data.code} className="font-medium underline">
                   Ver los datos del contrato
-                </Link>
+                </VerifyLink>
               )}
             </Alert>
           ) : (
@@ -272,9 +313,9 @@ function ResultCard({ result, code }: { result: VerificationResult; code: string
             <p className="mt-2 text-sm">
               Sustituido por la enmienda {result.amendedBy.amendmentNumber ? `E${result.amendedBy.amendmentNumber} ` : ''}(
               <span className="font-mono">{result.amendedBy.code}</span>).{' '}
-              <Link to={`/verificar/${result.amendedBy.verificationCode}`} viewTransition className="font-medium underline">
+              <VerifyLink code={result.amendedBy.verificationCode} className="font-medium underline">
                 Verificar la enmienda
-              </Link>
+              </VerifyLink>
             </p>
           )}
         </div>

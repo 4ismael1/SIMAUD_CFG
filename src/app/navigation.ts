@@ -39,7 +39,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { to: '/app', label: 'Inicio', icon: House, roles: ['user'] },
       { to: '/app/firmas', label: 'Por firmar', icon: PenLine, roles: ['admin', 'supervisor', 'gestor', 'user'], badge: 'pendingSignatures' },
       { to: '/app/mis-contratos', label: 'Mis contratos', icon: FolderOpen, roles: ['user'] },
-      { to: '/verificar', label: 'Verificar un contrato', icon: ShieldCheck, roles: ['user'] },
+      { to: '/app/verificar', label: 'Verificar un contrato', icon: ShieldCheck, roles: ['user'] },
     ],
   },
   {

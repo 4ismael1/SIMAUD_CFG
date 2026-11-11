@@ -174,7 +174,26 @@ it("permisos: usuario no crea; gestor no ve ajenos; firmante solo participa; sup
     404,
   );
   expect((await request(first, "GET", "/contracts")).statusCode).toBe(403);
+  // A signatory sees nothing while the contract is internal (draft, approval, approval rejected)…
+  expect((await request(first, "GET", "/contracts/" + c.id)).statusCode).toBe(404);
+  expect((await request(first, "GET", "/contracts/" + c.id + "/pdf")).statusCode).toBe(404);
+  expect((await request(first, "GET", "/me/signatures")).json().data).toEqual([]);
+  for (const status of ["pending_approval", "rejected"] as const) {
+    await db.update(contracts).set({ status }).where(eq(contracts.id, c.id));
+    expect((await request(first, "GET", "/contracts/" + c.id)).statusCode).toBe(404);
+  }
+  // …and gets it once it is sent to sign, or when a signatory declined it.
+  await db.update(contracts).set({ status: "pending_signatures" }).where(eq(contracts.id, c.id));
   expect((await request(first, "GET", "/contracts/" + c.id)).statusCode).toBe(200);
+  expect((await request(first, "GET", "/me/signatures")).json().meta.total).toBe(1);
+  await db.update(contracts).set({ status: "rejected" }).where(eq(contracts.id, c.id));
+  await db
+    .update(contractSignatories)
+    .set({ status: "declined" })
+    .where(eq(contractSignatories.id, c.signatories[1].id));
+  expect((await request(first, "GET", "/contracts/" + c.id)).statusCode).toBe(200);
+  await db.update(contracts).set({ status: "draft" }).where(eq(contracts.id, c.id));
+  expect((await request(first, "GET", "/contracts/" + c.id)).statusCode).toBe(404);
   expect(
     (await request(supervisor, "PATCH", "/contracts/" + c.id, { title: "x" })).statusCode,
   ).toBe(403);
@@ -440,6 +459,7 @@ it("vincula firmantes al primer acceso confirmado y persiste refresh grace", asy
     .update(contractSignatories)
     .set({ userId: null })
     .where(eq(contractSignatories.contractId, c.id));
+  await db.update(contracts).set({ status: "pending_signatures" }).where(eq(contracts.id, c.id));
   const response = await request(first, "GET", "/me/signatures");
   expect(response.statusCode, response.body).toBe(200);
   expect(response.json().data[0].signatory.id).toBe(c.signatories[0].id);

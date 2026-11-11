@@ -58,11 +58,35 @@ export async function getSignatories(tx: Transaction | typeof db, id: string) {
     .where(eq(signatories.contractId, id))
     .orderBy(signatories.signingOrder, signatories.id);
 }
+/**
+ * Statuses in which the signatories can see a contract: from the moment it is sent to sign. Draft,
+ * pending approval and an approval rejection are internal; the text can still change there.
+ */
+export const SIGNER_VISIBLE_STATUSES: Contract["status"][] = [
+  "pending_signatures",
+  "active",
+  "expiring_soon",
+  "expired",
+  "cancelled",
+  "renewed",
+  "amended",
+];
+
+/**
+ * True once the contract has reached the signatories. «rejected» is also where a contract lands when
+ * a signatory declines to sign; only that case was already in their hands.
+ */
+export function visibleToSignatories(contract: Contract, signatories: Signatory[]) {
+  if (SIGNER_VISIBLE_STATUSES.includes(contract.status)) return true;
+  return contract.status === "rejected" && signatories.some((item) => item.status === "declined");
+}
+
 export function canRead(contract: Contract, actor: Actor, signatories: Signatory[]) {
   return (
     ["admin", "supervisor"].includes(actor.role) ||
     (actor.role === "gestor" && contract.createdBy === actor.id) ||
-    signatories.some((item) => item.userId === actor.id)
+    (signatories.some((item) => item.userId === actor.id) &&
+      visibleToSignatories(contract, signatories))
   );
 }
 export function canManage(contract: Contract, actor: Actor) {
