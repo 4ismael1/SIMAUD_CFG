@@ -8,6 +8,9 @@ export const pool = new pg.Pool({
   connectionString,
   max: 10,
   connectionTimeoutMillis: 5000,
+  // PostgreSQL's JIT compiles queries whose estimated cost is high; for this app's small, frequent
+  // queries the compilation alone took ~1.8 s (admin dashboard history) for <1 ms of real work.
+  options: "-c jit=off",
 });
 export const db = drizzle(pool, { schema });
 const originalTransaction = db.transaction.bind(db);
