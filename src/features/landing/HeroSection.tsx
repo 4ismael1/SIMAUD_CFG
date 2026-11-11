@@ -15,11 +15,14 @@ export function HeroSection() {
       <DotGrid className="[mask-image:radial-gradient(ellipse_70%_60%_at_65%_35%,black,transparent)]" />
       <div className={cn(CONTAINER, 'grid items-center gap-16 pt-10 pb-20 sm:pt-16 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:gap-12 lg:pt-20 lg:pb-28')}>
         <div className="stagger flex min-w-0 flex-col gap-6 [--stagger-delay:60ms] [--stagger-step:90ms]">
-          <h1 className="max-w-[13ch] text-[42px] leading-[1.04] font-semibold tracking-tight sm:text-6xl lg:text-[68px]">
-            Contratos que se firman <span className="text-vino-600">sin papel.</span>
+          <h1 className="flex flex-col gap-3">
+            <span className="text-[44px] leading-none font-semibold tracking-tight sm:text-6xl lg:text-[72px]">
+              SIMAUD-<span className="text-vino-600">LEX</span>
+            </span>
+            <span className="text-xl font-medium text-slate-700 sm:text-2xl lg:text-[28px]">Módulo de Gestión Legal Digital</span>
           </h1>
           <p className="max-w-[46ch] text-[17px] leading-relaxed text-slate-600 sm:text-lg">
-            SIMAUD redacta cada contrato desde una plantilla aprobada, lo envía a revisión y recoge las firmas electrónicas de todas las
+            SIMAUD-LEX redacta cada contrato desde una plantilla aprobada, lo envía a revisión y recoge las firmas electrónicas de todas las
             partes, con constancia de quién hizo qué y cuándo.
           </p>
           <div className="flex flex-col gap-3 sm:flex-row">
