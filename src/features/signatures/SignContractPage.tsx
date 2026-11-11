@@ -7,7 +7,7 @@ import { useSignContract } from '../../lib/api/hooks/signatures';
 import { useAuth } from '../../lib/auth';
 import { errorMessage } from '../../lib/errors';
 import { downloadFromApi } from '../../lib/download';
-import { formatDate } from '../../lib/format';
+import { formatCedula, formatDate } from '../../lib/format';
 import { DocumentView } from '../contracts/components/DocumentView';
 import { signatoryRoleLabel } from '../contracts/components/SignatoriesPanel';
 import { SignaturePad, type SignaturePadHandle } from './SignaturePad';
@@ -200,7 +200,7 @@ export function SignContractPage() {
             label={
               <>
                 Leí el contrato completo y lo firmo electrónicamente como <b>{mySignatory.name}</b>
-                {mySignatory.cedula ? <>, cédula <span className="font-mono">{mySignatory.cedula}</span></> : null}. Esta firma tiene la misma
+                {mySignatory.cedula ? <>, cédula <span className="font-mono">{formatCedula(mySignatory.cedula)}</span></> : null}. Esta firma tiene la misma
                 validez que la manuscrita (Ley 126-02).
               </>
             }
