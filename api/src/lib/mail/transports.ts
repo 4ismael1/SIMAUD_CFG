@@ -27,6 +27,16 @@ export function resendTransport(config: MailConfig, request: typeof fetch = fetc
             html: message.html,
             text: message.text,
             reply_to: config.MAIL_REPLY_TO,
+            ...(message.attachments?.length
+              ? {
+                  attachments: message.attachments.map((file) => ({
+                    filename: file.filename,
+                    content: file.content.toString("base64"),
+                    content_type: file.contentType,
+                    content_id: file.cid,
+                  })),
+                }
+              : {}),
           }),
         });
       } catch {
@@ -68,6 +78,16 @@ export function smtpTransport(
           subject: message.subject,
           text: message.text,
           html: message.html,
+          ...(message.attachments?.length
+            ? {
+                attachments: message.attachments.map((file) => ({
+                  filename: file.filename,
+                  content: file.content,
+                  cid: file.cid,
+                  contentType: file.contentType,
+                })),
+              }
+            : {}),
           ...(message.idempotencyKey
             ? { messageId: "<" + message.idempotencyKey + "@simaud>" }
             : {}),

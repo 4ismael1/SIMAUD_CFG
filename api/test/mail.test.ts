@@ -113,7 +113,11 @@ it.each(mailTemplates)(
       contractId: 'id"<',
       token: 'token"<&',
     });
-    expect(result.html).not.toContain("<img");
+    // Only the embedded logo may be an image; the injected tag must come out escaped.
+    expect(result.html).not.toContain("<img src=x");
+    expect(result.html).not.toContain('onerror="');
+    expect(result.html).toContain('src="cid:simaud-logo"');
+    expect(result.attachments[0]).toMatchObject({ cid: "simaud-logo", contentType: "image/png" });
     expect(result.html).not.toContain("<script>");
     expect(result.html).toContain("&lt;script&gt;&amp;&#39;");
     expect(result.html).toContain('width="600"');
@@ -126,7 +130,10 @@ it.each(mailTemplates)(
       "/auth/recuperar",
       "/app/firmas",
       "/app/contratos/id%22%3C",
+      "/app/contratos/id%22%3C/firmar",
+      "/app/aprobaciones",
       "/app",
+      "/",
     ]).toContain(link.pathname);
   },
 );

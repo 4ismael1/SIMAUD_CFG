@@ -28,6 +28,8 @@ export async function enqueueNotificationMail(
       name: user.name,
       message: notification.message,
       contractId: typeof data.contractId === "string" ? data.contractId : undefined,
+      code: typeof data.code === "string" ? data.code : undefined,
+      title: notification.title,
     },
   );
 }

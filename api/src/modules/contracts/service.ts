@@ -333,6 +333,8 @@ export async function notify(
       await enqueueMail(tx, email, "SIMAUD: " + contract.code, type as MailTemplate, {
         message: r.roleLabel ? `${message} Rol: ${r.roleLabel}.` : message,
         contractId: contract.id,
+        code: contract.code,
+        title: contract.title,
       });
   }
 }

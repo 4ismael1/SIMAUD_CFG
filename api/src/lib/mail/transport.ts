@@ -4,6 +4,8 @@ export interface MailMessage {
   text: string;
   html: string;
   template: string;
+  /** Inline images referenced from the HTML as cid:<cid> (the logo). */
+  attachments?: { filename: string; content: Buffer; cid: string; contentType: string }[];
   idempotencyKey?: string;
 }
 export interface MailTransport {
