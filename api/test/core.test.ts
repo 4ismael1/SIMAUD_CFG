@@ -278,17 +278,35 @@ describe("perfil", () => {
       method: "PATCH",
       url: base + "/me",
       headers: authorization(login.token),
-      payload: { name: "Nuevo nombre", phone: "8295551234", cedula: "40200700678" },
+      payload: { name: "Nuevo nombre", phone: "8295551234" },
     });
     expect(r.statusCode).toBe(200);
     expect(r.json().user.name).toBe("Nuevo nombre");
-    const conflict = await app.inject({
+    // A registered cédula cannot be changed by its owner (it identifies them as a signatory).
+    const locked = await app.inject({
       method: "PATCH",
       url: base + "/me",
       headers: authorization(login.token),
+      payload: { cedula: "40200700678" },
+    });
+    expect(locked.statusCode).toBe(403);
+    // Someone without one may fill it in, but not with another person's.
+    const empty = await createUser({ cedula: "" });
+    const emptyLogin = await signIn(app, empty);
+    const conflict = await app.inject({
+      method: "PATCH",
+      url: base + "/me",
+      headers: authorization(emptyLogin.token),
       payload: { cedula: other.cedula },
     });
     expect(conflict.statusCode).toBe(409);
+    const filled = await app.inject({
+      method: "PATCH",
+      url: base + "/me",
+      headers: authorization(emptyLogin.token),
+      payload: { cedula: "40200700678" },
+    });
+    expect(filled.statusCode, filled.body).toBe(200);
     expect(
       (
         await app.inject({

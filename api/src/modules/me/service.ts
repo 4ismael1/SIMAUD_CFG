@@ -16,8 +16,22 @@ export async function updateProfile(
   return db.transaction(async (tx) => {
     const user = await lockUser(tx, id);
     if (!active(user)) throw unauthorized();
+    // The cédula identifies a person when they are added as a signatory: anyone may fill it in once,
+    // but changing it afterwards goes through an administrator (an admin may correct their own).
+    const cedulaChanged = input.cedula !== undefined && input.cedula !== user.cedula;
+    if (cedulaChanged && user.cedula && user.role !== "admin")
+      throw new ApiError(
+        403,
+        "FORBIDDEN",
+        "Tu cédula ya está registrada. Para corregirla, pide el cambio a un administrador.",
+      );
     const [updated] = await tx.update(users).set(input).where(eq(users.id, id)).returning();
-    if (input.position !== undefined && input.position !== user.position)
+    const audited = [
+      ...(input.position !== undefined && input.position !== user.position ? ["position"] : []),
+      ...(cedulaChanged ? ["cedula"] : []),
+      ...(input.name !== undefined && input.name !== user.name ? ["name"] : []),
+    ];
+    if (audited.length)
       await auditAdmin(
         tx,
         { actorId: id, ip },
@@ -27,7 +41,7 @@ export async function updateProfile(
           targetType: "user",
           targetId: id,
           targetLabel: updated!.name,
-          details: { fields: ["position"] },
+          details: { fields: audited },
         },
       );
     return publicUser(updated!);

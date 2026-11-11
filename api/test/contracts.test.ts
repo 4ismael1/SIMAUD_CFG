@@ -186,6 +186,21 @@ it("permisos: usuario no crea; gestor no ve ajenos; firmante solo participa; sup
   await db.update(contracts).set({ status: "pending_signatures" }).where(eq(contracts.id, c.id));
   expect((await request(first, "GET", "/contracts/" + c.id)).statusCode).toBe(200);
   expect((await request(first, "GET", "/me/signatures")).json().meta.total).toBe(1);
+  // A signatory sees their own row in full but not the other party's contact data or IP…
+  const seen = (await request(first, "GET", "/contracts/" + c.id)).json();
+  const mine = seen.signatories.find((s: { userId?: string }) => s.userId === first.id);
+  const others = seen.signatories.filter((s: { userId?: string }) => s.userId !== first.id);
+  expect(mine.email).toBe(first.email);
+  for (const party of others) {
+    expect(party).not.toHaveProperty("email");
+    expect(party).not.toHaveProperty("cedula");
+    expect(party).not.toHaveProperty("ip");
+  }
+  expect(seen.can.history).toBe(false);
+  // …nor the internal history: versions, audit trail and approvals.
+  for (const kind of ["versions", "audit", "approvals", "versions/1"])
+    expect((await request(first, "GET", "/contracts/" + c.id + "/" + kind)).statusCode).toBe(404);
+  expect((await request(gestor, "GET", "/contracts/" + c.id + "/versions")).statusCode).toBe(200);
   await db.update(contracts).set({ status: "rejected" }).where(eq(contracts.id, c.id));
   await db
     .update(contractSignatories)

@@ -111,6 +111,8 @@ export type ContractPermissions = Record<
   resetSignature?: boolean;
   /** T17: every signature can be voided (the actor's own is not among them). */
   resetSignatures?: boolean;
+  /** Versions, activity and approvals: staff who manage the contract, never its signatories. */
+  history?: boolean;
 };
 /** T17: one link of the original ↔ amendments chain (no personal data). */
 export interface AmendmentLink {

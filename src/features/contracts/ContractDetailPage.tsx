@@ -95,7 +95,7 @@ export function ContractDetailPage() {
 
       <Tabs
         label="Secciones del contrato"
-        items={TAB_ITEMS}
+        items={data.can.history === false ? TAB_ITEMS.filter((item) => item.value === 'documento') : TAB_ITEMS}
         value={tab}
         onChange={(value) => setSearchParams(value === 'documento' ? {} : { vista: value }, { replace: true })}
       />
@@ -109,8 +109,8 @@ export function ContractDetailPage() {
           </aside>
         </div>
       )}
-      {tab === 'versiones' && <ContractVersions contractId={data.id} currentVersion={data.currentVersion} />}
-      {tab === 'actividad' && <ContractActivity contractId={data.id} />}
+      {tab === 'versiones' && data.can.history !== false && <ContractVersions contractId={data.id} currentVersion={data.currentVersion} />}
+      {tab === 'actividad' && data.can.history !== false && <ContractActivity contractId={data.id} />}
     </>
   );
 }

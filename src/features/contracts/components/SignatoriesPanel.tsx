@@ -67,7 +67,7 @@ export function SignatoriesPanel({ contract, canRemind }: { contract: ContractDe
               <span className="min-w-0 flex-1">
                 <span className="block truncate font-semibold">{signatory.name}</span>
                 <span className="block truncate text-xs text-slate-500">
-                  {signatoryRoleLabel(signatory)} · {signatory.email}
+                  {signatoryRoleLabel(signatory)}{signatory.email ? ` · ${signatory.email}` : ''}
                 </span>
               </span>
               <SignatoryState signatory={signatory} isTurn={signatory.id === turn?.id} />

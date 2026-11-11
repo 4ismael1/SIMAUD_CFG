@@ -162,7 +162,7 @@ export async function processRenewal(
     if (
       action === "cancel"
         ? renewal.requestedBy !== req.user.id
-        : !(["admin", "supervisor"].includes(req.user.role) || contract.createdBy === req.user.id)
+        : !contractService.canManage(contract, req.user)
     )
       throw contractService.forbidden();
     if (renewal.status !== "pending")

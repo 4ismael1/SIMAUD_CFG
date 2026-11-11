@@ -87,12 +87,8 @@ export async function signatureRoutes(app: FastifyInstance) {
     if (!file.contractId) throw contractService.notFound();
     const contract = await contractService.getContract(db, file.contractId);
     const all = await contractService.getSignatories(db, contract.id);
-    if (!(
-      ["admin", "supervisor"].includes(req.user.role) ||
-      contract.createdBy === req.user.id ||
-      all.some((item) => item.userId === req.user.id)
-    ))
-      throw contractService.notFound();
+    // Same rule as opening the contract (current role, and signatories only once it was sent to sign).
+    if (!contractService.canRead(contract, req.user, all)) throw contractService.notFound();
     let bytes: Buffer;
     try {
       bytes = await storage.get(signatureKey(file.path));

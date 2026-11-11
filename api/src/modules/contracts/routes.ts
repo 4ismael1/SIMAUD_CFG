@@ -35,6 +35,14 @@ import { signatureRoutes, removeSignatureFiles } from "./signatures.js";
 export async function contractRoutes(app: FastifyInstance) {
   const auth = { preHandler: authenticate };
   const staff = { preHandler: requireRole("admin", "supervisor", "gestor") };
+  /**
+   * Versions (drafts included), the audit trail and approval comments are internal: only staff who
+   * manage the contract see them, never its signatories.
+   */
+  async function assertStaffAccess(req: FastifyRequest, id: string) {
+    const contract = await contractService.getContract(db, id);
+    if (!contractService.canManage(contract, req.user)) throw contractService.notFound();
+  }
   const idOf = (req: FastifyRequest) => parse(uuid, (req.params as { id: string }).id);
   /**
    * withSlot=false skips measuring the actor's signature box (it lays out the whole PDF): action
@@ -52,12 +60,17 @@ export async function contractRoutes(app: FastifyInstance) {
         .from(files)
         .where(and(eq(files.contractId, id), eq(files.kind, "signature")));
       const requestedBy = await getPendingApprovalRequester(tx, id);
+      // Staff with access see everything; a signatory sees their own row in full and, for the other
+      // parties, only what the signature boxes show (no email, phone, cédula, IP or browser).
+      const staff = contractService.canManage(contract, req.user);
+      const decorated = await contractService.decorate(tx, contract);
       return {
-        ...(await contractService.decorate(tx, contract)),
+        ...decorated,
+        ...(staff ? {} : { notes: null }),
         missingCedula: missingCedula(allSignatories),
         statusNotice: await statusNotice(tx, contract),
         signatories: allSignatories.map((item) => ({
-          ...item,
+          ...(staff || item.userId === req.user.id ? item : otherParty(item)),
           canResetSignature: canResetSignature(contract, req.user, item),
           signatureFileId: signatureFiles.find((f) => f.path === item.signaturePath)?.id ?? null,
         })),
@@ -71,6 +84,8 @@ export async function contractRoutes(app: FastifyInstance) {
             !(await hasOpenAmendment(tx, contract)) &&
             !(await hasOpenRenewal(tx, contract.id)),
           reassign: canReassign(contract, req.user),
+          // Versions, activity and approvals (internal history).
+          history: staff,
         },
       };
     });
@@ -207,7 +222,7 @@ export async function contractRoutes(app: FastifyInstance) {
   for (const kind of ["versions", "audit", "approvals"] as const) {
     app.get("/contracts/:id/" + kind, auth, async (req) => {
       const id = idOf(req);
-      await detail(req, id);
+      await assertStaffAccess(req, id);
       const pagination = parse(pageInput, req.query);
       if (kind === "versions")
         return (
@@ -248,7 +263,7 @@ export async function contractRoutes(app: FastifyInstance) {
       z.object({ id: uuid, n: z.coerce.number().int().min(1).max(2147483647) }).strict(),
       req.params,
     );
-    await detail(req, id);
+    await assertStaffAccess(req, id);
     const [variable] = await db
       .select()
       .from(versions)
@@ -262,4 +277,19 @@ export async function contractRoutes(app: FastifyInstance) {
   await adminContractRoutes(app, detail);
   await signatureRoutes(app);
   await amendmentRoutes(app);
+}
+
+/** What a signatory may see of the other parties: the same as their signature box shows. */
+function otherParty(item: contractService.Signatory) {
+  return {
+    id: item.id,
+    contractId: item.contractId,
+    name: item.name,
+    role: item.role,
+    roleLabel: item.roleLabel,
+    slotIndex: item.slotIndex,
+    signingOrder: item.signingOrder,
+    status: item.status,
+    signedAt: item.signedAt,
+  };
 }

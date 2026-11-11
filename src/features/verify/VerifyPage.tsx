@@ -428,7 +428,7 @@ function ResultCard({ result, code }: { result: VerificationResult; code: string
   const hasData = result.status !== 'not_found' && result.status !== 'revoked';
 
   return (
-    <section aria-live="polite" className="flex animate-rise-in flex-col gap-4">
+    <section aria-live="polite" className="flex animate-fade-in flex-col gap-4">
       <div className={cn('flex items-start gap-4 rounded-xl border p-5', view.tone)}>
         <span className="shrink-0">{view.icon}</span>
         <div className="min-w-0">
