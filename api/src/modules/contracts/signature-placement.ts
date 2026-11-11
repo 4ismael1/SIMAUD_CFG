@@ -54,6 +54,34 @@ export async function ownSignatureSlot(
 ) {
   const index = all.findIndex((signer) => signer.userId === userId);
   if (index < 0) return null;
+  // The box is only used to place or adjust one's signature, which is possible only while signing is
+  // open. Measuring it lays out the whole PDF (0.4-1.4 s on the server), so skip it otherwise.
+  if (!signaturesMutable(contract)) return null;
+  // Same document and same signer texts give the same layout: reuse the measurement.
+  const key = JSON.stringify([
+    contract.id,
+    contract.currentVersion,
+    contract.generatedContent ?? contract.content,
+    all.map((signer) => [signer.id, signer.name, signer.cedula, signer.signedAt, signer.slotIndex]),
+    index,
+  ]);
+  const cached = slotCache.get(key);
+  if (cached !== undefined) return cached;
+  const geometry = await measureSlot(connection, contract, all, index);
+  if (slotCache.size >= SLOT_CACHE_SIZE) slotCache.delete(slotCache.keys().next().value!);
+  slotCache.set(key, geometry);
+  return geometry;
+}
+
+const SLOT_CACHE_SIZE = 200;
+const slotCache = new Map<string, SignatureSlotGeometry | null>();
+
+async function measureSlot(
+  connection: Parameters<typeof contractPdf>[0],
+  contract: service.Contract,
+  all: service.Signatory[],
+  index: number,
+) {
   const source = contract.generatedContent ?? contract.content;
   const document =
     contract.contentFormat === "plain"

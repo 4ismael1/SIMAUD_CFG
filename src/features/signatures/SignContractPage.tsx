@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Check, CircleCheck, Download, Maximize2, PenLine, ShieldCheck, Type, Undo2, Upload, X } from 'lucide-react';
-import { Alert, Button, ButtonLink, Checkbox, EmptyState, Logo, Segmented, Skeleton, useAction, useToast } from '../../ui';
+import { CircleCheck, Download, Maximize2, PenLine, ShieldCheck, Type, Undo2, Upload, X } from 'lucide-react';
+import { Button, ButtonLink, Checkbox, EmptyState, Logo, Segmented, Skeleton, useAction, useToast } from '../../ui';
 import { useContract } from '../../lib/api/hooks/contracts';
 import { useSignContract } from '../../lib/api/hooks/signatures';
 import { useAuth } from '../../lib/auth';
@@ -34,8 +34,6 @@ export function SignContractPage() {
   const contract = useContract(id);
   const sign = useSignContract(id);
   const padRef = useRef<SignaturePadHandle>(null);
-  const endOfDocumentRef = useRef<HTMLDivElement>(null);
-  const [readToEnd, setReadToEnd] = useState(false);
   const [viewedAt] = useState(() => new Date().toISOString());
   const [accepted, setAccepted] = useState(false);
   const [mode, setMode] = useState<Mode>('type');
@@ -56,16 +54,6 @@ export function SignContractPage() {
   const [placement, setPlacement] = useState<SignaturePlacement>(AUTO_PLACEMENT);
 
   const handlePadChange = useCallback((hasInk: boolean) => setHasDrawing(hasInk), []);
-
-  useEffect(() => {
-    const marker = endOfDocumentRef.current;
-    if (!marker) return;
-    const observer = new IntersectionObserver((entries) => {
-      if (entries.some((entry) => entry.isIntersecting)) setReadToEnd(true);
-    });
-    observer.observe(marker);
-    return () => observer.disconnect();
-  }, [contract.data]);
 
   useEffect(() => () => {
     if (uploaded) URL.revokeObjectURL(uploaded.url);
@@ -154,7 +142,8 @@ export function SignContractPage() {
 
   const hasSignature =
     mode === 'type' ? typedValue.text.trim().length > 0 : mode === 'draw' ? Boolean(captured) || hasDrawing : Boolean(uploaded);
-  const canSubmit = readToEnd && accepted && hasSignature && !sign.isPending;
+  // Ticking the declaration («he leído…») is the consent; scrolling to the end is not required.
+  const canSubmit = accepted && hasSignature && !sign.isPending;
 
   async function handleReview() {
     let signature: Blob | null | undefined;
@@ -204,12 +193,7 @@ export function SignContractPage() {
 
       <div className="mx-auto flex w-full max-w-[1360px] flex-wrap items-start gap-6 px-4 py-6 sm:px-7">
         <section className="flex min-w-0 flex-[999_1_560px] flex-col gap-3">
-          <p className={readToEnd ? 'flex items-center gap-1.5 text-xs font-semibold text-green-700' : 'text-xs text-slate-500'}>
-            {readToEnd ? <><Check className="size-4" aria-hidden="true" />Leíste el documento completo</> : 'Desplázate hasta el final del documento para poder firmar.'}
-          </p>
-          <DocumentView content={data.generatedContent} heading={data.title} subheading={`${data.code} · versión ${data.currentVersion}`}>
-            <div ref={endOfDocumentRef} className="h-px" aria-hidden="true" />
-          </DocumentView>
+          <DocumentView content={data.generatedContent} heading={data.title} subheading={`${data.code} · versión ${data.currentVersion}`} />
         </section>
 
         <aside className="flex w-full flex-[1_1_360px] flex-col gap-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-pop lg:sticky lg:top-24 lg:max-h-[calc(100dvh-7rem)] lg:max-w-[440px] lg:overflow-y-auto">
@@ -315,7 +299,6 @@ export function SignContractPage() {
           </p>
           {/* Always reachable: pinned to the bottom of the panel (and of the screen on phones). */}
           <div className="sticky bottom-0 z-10 -mx-5 -mb-5 mt-auto flex flex-col gap-3 rounded-b-2xl border-t border-slate-100 bg-white px-5 pt-3 pb-5">
-            {!readToEnd && <Alert tone="info">Lee el documento hasta el final para habilitar la firma.</Alert>}
             <Button variant="primary" size="lg" block icon={<PenLine />} disabled={!canSubmit} onClick={() => void handleReview()}>
               Revisar y firmar
             </Button>

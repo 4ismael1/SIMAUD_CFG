@@ -71,16 +71,7 @@ export async function sign(
   ).toBeVisible();
   const card = page.getByRole("listitem").filter({ hasText: contract.code });
   await card.getByRole("link", { name: "Firmar ahora", exact: true }).click();
-  await page
-    .getByRole("checkbox", { name: /Leí el contrato completo/ })
-    .scrollIntoViewIfNeeded();
-  await page
-    .getByText("En constancia, las partes aceptan", { exact: false })
-    .scrollIntoViewIfNeeded();
-  await page.mouse.wheel(0, 850);
-  await expect(
-    page.getByText("Leíste el documento completo", { exact: true }),
-  ).toBeVisible();
+  // Ticking the declaration is enough: scrolling to the end is no longer required.
   await page
     .getByRole("checkbox", { name: /Leí el contrato completo/ })
     .check();

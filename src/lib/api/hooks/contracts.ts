@@ -149,7 +149,15 @@ function useContractAction<T>(id: string, action: string) {
         method: "POST",
         body,
       }),
-    onSuccess: () => invalidateContract(client, id),
+    // The response is already the updated contract: show it at once, so the success message does not
+    // wait for every list, count and dashboard to refetch; those refresh behind it.
+    onSuccess: (updated) => {
+      client.setQueryData<ContractDetail>(keys.contracts.detail(id), (previous) => ({
+        ...updated,
+        signatureSlot: updated.signatureSlot ?? previous?.signatureSlot ?? null,
+      }));
+      void invalidateContract(client, id);
+    },
   });
 }
 export function useSubmitContract(id: string) {

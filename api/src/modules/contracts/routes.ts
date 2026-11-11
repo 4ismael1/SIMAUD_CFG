@@ -36,7 +36,11 @@ export async function contractRoutes(app: FastifyInstance) {
   const auth = { preHandler: authenticate };
   const staff = { preHandler: requireRole("admin", "supervisor", "gestor") };
   const idOf = (req: FastifyRequest) => parse(uuid, (req.params as { id: string }).id);
-  async function detail(req: FastifyRequest, id: string) {
+  /**
+   * withSlot=false skips measuring the actor's signature box (it lays out the whole PDF): action
+   * responses do not use it, the page refetches the detail afterwards anyway.
+   */
+  async function detail(req: FastifyRequest, id: string, withSlot = true) {
     return db.transaction(async (tx) => {
       const contract = await contractService.getContract(tx, id, true);
       await contractService.linkSignatories(tx, req.user, id);
@@ -57,7 +61,9 @@ export async function contractRoutes(app: FastifyInstance) {
           canResetSignature: canResetSignature(contract, req.user, item),
           signatureFileId: signatureFiles.find((f) => f.path === item.signaturePath)?.id ?? null,
         })),
-        signatureSlot: await ownSignatureSlot(tx, contract, allSignatories, req.user.id),
+        signatureSlot: withSlot
+          ? await ownSignatureSlot(tx, contract, allSignatories, req.user.id)
+          : null,
         can: {
           ...contractService.permissions(contract, req.user, allSignatories, requestedBy),
           amend:
@@ -162,7 +168,7 @@ export async function contractRoutes(app: FastifyInstance) {
           comment: input.comment,
         });
       });
-      return detail(req, id);
+      return detail(req, id, false);
     });
   }
   app.delete("/contracts/:id", auth, async (req, reply) =>
