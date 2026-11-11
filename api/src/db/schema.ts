@@ -682,6 +682,21 @@ export const authRequestBudgets = pgTable(
   (table) => [index("auth_request_budgets_expiry_idx").on(table.expiresAt)],
 );
 
+/** Marked copies handed out by the system (status stamp or verification copy), recognised by hash. */
+export const issuedCopies = pgTable(
+  "issued_copies",
+  {
+    sha256: text("sha256").primaryKey(),
+    contractId: uuid("contract_id")
+      .notNull()
+      .references(() => contracts.id, { onDelete: "cascade" }),
+    kind: text("kind").$type<"status" | "verification">().notNull(),
+    stamp: text("stamp"),
+    issuedAt: timestamp("issued_at", { withTimezone: true }).defaultNow().notNull(),
+    issuedBy: uuid("issued_by").references(() => users.id, { onDelete: "set null" }),
+  },
+  (table) => [index("issued_copies_contract_idx").on(table.contractId)],
+);
 export const verificationCodes = pgTable(
   "verification_codes",
   {

@@ -20,9 +20,9 @@ import { useAuth } from '../../lib/auth';
 import {
   isVerificationCode,
   normalizeVerificationCode,
+  useLookupFile,
   useVerification,
-  useVerifyFile,
-  useVerifyHash,
+  type FileVerificationResult,
   type VerificationResult,
   type VerificationStatus,
 } from '../../lib/api/hooks/verify';
@@ -53,7 +53,7 @@ function VerifyLink({ code, className, children }: { code: string; className?: s
   );
 }
 
-const INTRO = 'Escribe el código de la constancia (o escanea su QR) y compara el documento que tienes con el original firmado.';
+const INTRO = 'Sube el PDF del contrato: comprobamos que sea exactamente el original firmado y en qué estado está hoy.';
 const FOOTNOTE = 'Los documentos se comparan por su huella digital (SHA-256). La verificación no muestra datos personales completos.';
 
 /**
@@ -107,12 +107,34 @@ export function VerifyInAppPage() {
   );
 }
 
+/** The PDF is the main check; the code from the certificate (or its QR) is the alternative. */
 function VerifyContent({ code }: { code?: string }) {
+  if (code)
+    return (
+      <>
+        <CodeResult code={code} />
+        <SecondaryCode title="Verificar otro código" />
+      </>
+    );
   return (
     <>
-      <CodeForm key={code ?? ''} initialCode={code} />
-      {code ? <CodeResult code={code} /> : <FileWithoutCode />}
+      <PdfCheck />
+      <SecondaryCode title="¿No tienes el PDF? Verifica con el código de la constancia" />
     </>
+  );
+}
+
+function SecondaryCode({ title }: { title: string }) {
+  return (
+    <details className="rounded-xl border border-slate-200 bg-white">
+      <summary className="flex cursor-pointer list-none items-center gap-2 px-5 py-4 text-sm font-medium text-slate-700 hover:text-slate-900">
+        <FileSearch className="size-4 text-slate-400" aria-hidden="true" />
+        {title}
+      </summary>
+      <div className="border-t border-slate-100">
+        <CodeForm />
+      </div>
+    </details>
   );
 }
 
@@ -133,7 +155,7 @@ function CodeForm({ initialCode }: { initialCode?: string }) {
   }
 
   return (
-    <Card className="p-5">
+    <div className="p-5">
       <form className="flex flex-col gap-3 sm:flex-row sm:items-start" onSubmit={submit} noValidate>
         <div className="min-w-0 flex-1">
           <Field label="Código de verificación" hint="Está en la constancia final del contrato, junto al QR." error={error}>
@@ -151,12 +173,12 @@ function CodeForm({ initialCode }: { initialCode?: string }) {
           Verificar
         </Button>
       </form>
-    </Card>
+    </div>
   );
 }
 
 /** Drop zone for a PDF; `busy` replaces the prompt while the file is being checked. */
-function PdfDropZone({ busy, onFile, note }: { busy: boolean; onFile: (file: File) => void; note: string }) {
+function PdfDropZone({ busy, onFile, note, large }: { busy: boolean; onFile: (file: File) => void; note: string; large?: boolean }) {
   const input = useRef<HTMLInputElement>(null);
   return (
     <>
@@ -170,7 +192,10 @@ function PdfDropZone({ busy, onFile, note }: { busy: boolean; onFile: (file: Fil
           if (file) onFile(file);
         }}
         disabled={busy}
-        className="flex w-full flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-slate-300 px-4 py-7 text-center text-sm text-slate-500 transition-colors hover:border-vino-400 hover:bg-vino-50/40 disabled:cursor-wait"
+        className={cn(
+          'flex w-full flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-slate-300 px-4 text-center text-sm text-slate-500 transition-colors hover:border-vino-400 hover:bg-vino-50/40 disabled:cursor-wait',
+          large ? 'py-12' : 'py-7',
+        )}
       >
         <FileUp className="size-6 text-slate-400" aria-hidden="true" />
         {busy ? 'Comprobando…' : 'Arrastra el PDF o haz clic para elegirlo'}
@@ -191,65 +216,166 @@ function PdfDropZone({ busy, onFile, note }: { busy: boolean; onFile: (file: Fil
   );
 }
 
-/** No code at hand: the server looks the PDF up by its hash. */
-function FileWithoutCode() {
-  const verifyFile = useVerifyFile();
+/**
+ * Upload check shared by both entries. The PDF's hash is computed in the browser and only the hash is
+ * sent; `expectedCode` (from the URL) flags an authentic PDF that belongs to another contract.
+ */
+function PdfCheck({ expectedCode }: { expectedCode?: string }) {
+  const lookup = useLookupFile();
   const [problem, setProblem] = useState<string | null>(null);
 
   function pick(file: File) {
     const issue = pdfProblem(file);
     setProblem(issue);
-    if (!issue) verifyFile.mutate(file);
+    if (!issue) lookup.mutate(file);
   }
 
-  const data = verifyFile.data;
   return (
-    <Card className="flex flex-col gap-3 p-5">
+    <Card className="flex flex-col gap-4 p-5 sm:p-6">
       <div>
-        <h2 className="text-sm font-medium text-slate-900">¿No tienes el código?</h2>
-        <p className="text-sm text-slate-500">Sube el PDF y buscaremos el contrato original que le corresponde.</p>
+        <h2 className="text-base font-semibold text-slate-900">{expectedCode ? 'Comprueba tu documento' : 'Sube el contrato en PDF'}</h2>
+        <p className="text-sm text-slate-500">
+          Es la comprobación que prueba la autenticidad: el archivo debe ser idéntico, byte a byte, al que emitió el sistema.
+        </p>
       </div>
-      <PdfDropZone busy={verifyFile.isPending} onFile={pick} note="Se envía solo para compararlo; no se guarda." />
+      <PdfDropZone busy={lookup.isPending} onFile={pick} note="El archivo no sale de tu equipo: solo se envía su huella digital." large={!expectedCode} />
       {problem && (
         <p className="text-xs text-red-600" role="alert">
           {problem}
         </p>
       )}
-      {verifyFile.isError && (
+      {lookup.isError && (
         <div className="animate-pop-in">
-          <Alert tone="danger">{errorMessage(verifyFile.error)}</Alert>
+          <Alert tone="danger">{errorMessage(lookup.error)}</Alert>
         </div>
       )}
-      {data && (
-        <div key={verifyFile.submittedAt} className="animate-pop-in">
-          {data.matches ? (
-            <Alert
-              tone={data.status === 'registered' ? 'success' : 'warning'}
-              title={data.status === 'registered' ? 'Documento auténtico' : 'El PDF coincide, pero revisa su estado'}
-            >
-              Es idéntico al original firmado del contrato con código <span className="font-mono">{data.code}</span>.{' '}
-              {data.code && (
-                <VerifyLink code={data.code} className="font-medium underline">
-                  Ver los datos del contrato
-                </VerifyLink>
-              )}
-            </Alert>
-          ) : (
-            <Alert tone="danger" title="Este PDF no coincide con ningún contrato firmado">
-              Puede ser una copia modificada, otra versión, la copia de verificación marcada o un documento que no salió de este sistema.
-            </Alert>
-          )}
+      {lookup.data && (
+        <div key={lookup.submittedAt} className="animate-pop-in">
+          <FileVerdict result={lookup.data} expectedCode={expectedCode} />
         </div>
       )}
     </Card>
   );
 }
 
+interface VerdictView {
+  tone: string;
+  icon: ReactNode;
+  title: string;
+  detail: ReactNode;
+}
+
+const RED = 'border-red-200 bg-red-50 text-red-950';
+const AMBER = 'border-amber-200 bg-amber-50 text-amber-950';
+
+/** What a file check means, in plain words. Only an exact original of a valid contract is green. */
+function verdictFor(result: FileVerificationResult, expectedCode?: string): VerdictView {
+  const since = result.revokedAt ? ` desde el ${formatDateTime(result.revokedAt)}` : '';
+  if (result.matches && expectedCode && result.code && result.code !== expectedCode)
+    return {
+      tone: AMBER,
+      icon: <TriangleAlert className="size-6 text-amber-600" />,
+      title: 'Este PDF es de otro contrato',
+      detail: (
+        <>
+          Es un original auténtico, pero su código es <span className="font-mono">{result.code}</span>, no el que estás consultando.
+        </>
+      ),
+    };
+  if (result.matches) return originalVerdict(result.status, since);
+  if (result.issuedCopy) {
+    const copy = result.issuedCopy;
+    const what = copy.kind === 'verification' ? 'una copia de verificación' : `una copia marcada «${copy.stamp ?? ''}»`;
+    const state = !copy.signed
+      ? 'Cuando se emitió, el contrato aún no estaba firmado por todas las partes: no tiene validez como contrato.'
+      : result.status === 'cancelled'
+        ? `El contrato está CANCELADO${since}.`
+        : result.status === 'amended'
+          ? 'El contrato fue sustituido por una enmienda.'
+          : result.status === 'registered'
+            ? 'El contrato firmado sigue vigente.'
+            : 'Revisa el estado del contrato con su código.';
+    const valid = copy.signed && result.status === 'registered';
+    return {
+      tone: valid ? 'border-sky-200 bg-sky-50 text-sky-950' : AMBER,
+      icon: <Info className={cn('size-6', valid ? 'text-sky-600' : 'text-amber-600')} />,
+      title: 'Copia emitida por el sistema, no el original firmado',
+      detail: `Es ${what}, entregada el ${formatDateTime(copy.issuedAt)}. ${state} Para probar la autenticidad del contrato, usa el PDF original firmado.`,
+    };
+  }
+  return {
+    tone: RED,
+    icon: <FileX2 className="size-6 text-red-600" />,
+    title: 'Este PDF no coincide con ningún documento del sistema',
+    detail:
+      'Puede estar modificado (aunque sea en un detalle), ser otra versión, estar escaneado o no haber salido de este sistema. No lo des por auténtico.',
+  };
+}
+
+function originalVerdict(status: VerificationStatus, since: string): VerdictView {
+  switch (status) {
+    case 'registered':
+      return {
+        tone: 'border-emerald-200 bg-emerald-50 text-emerald-950',
+        icon: <FileCheck2 className="size-6 text-emerald-600" />,
+        title: 'Documento auténtico y vigente',
+        detail: 'Es idéntico al original firmado por todas las partes, y el contrato sigue en vigor.',
+      };
+    case 'cancelled':
+      return {
+        tone: RED,
+        icon: <ShieldAlert className="size-6 text-red-600" />,
+        title: `Documento auténtico, pero el contrato está CANCELADO${since}`,
+        detail: 'El archivo es el original firmado, pero el contrato se canceló después y ya no tiene efecto.',
+      };
+    case 'amended':
+      return {
+        tone: 'border-violet-200 bg-violet-50 text-violet-950',
+        icon: <ShieldAlert className="size-6 text-violet-600" />,
+        title: 'Documento auténtico, pero sustituido por una enmienda',
+        detail: 'El archivo es el original firmado, pero ya no rige: lo sustituye una enmienda firmada después.',
+      };
+    case 'integrity_error':
+      return {
+        tone: RED,
+        icon: <TriangleAlert className="size-6 text-red-600" />,
+        title: 'La comprobación de integridad falló',
+        detail: 'Los registros del contrato no coinciden con su sello. No confíes en este documento y avisa a la institución.',
+      };
+    default:
+      return {
+        tone: AMBER,
+        icon: <ShieldAlert className="size-6 text-amber-600" />,
+        title: 'Documento auténtico, pero su código ya no es válido',
+        detail: 'El archivo es el original, pero la institución reemplazó o revocó su código. Pide el código vigente.',
+      };
+  }
+}
+
+function FileVerdict({ result, expectedCode }: { result: FileVerificationResult; expectedCode?: string }) {
+  const view = verdictFor(result, expectedCode);
+  return (
+    <div className={cn('flex items-start gap-3 rounded-xl border p-4', view.tone)}>
+      <span className="shrink-0">{view.icon}</span>
+      <div className="min-w-0">
+        <p className="font-semibold">{view.title}</p>
+        {result.title && <p className="mt-0.5 text-sm font-medium opacity-90">{result.title}</p>}
+        <p className="mt-0.5 text-sm opacity-80">{view.detail}</p>
+        {result.code && result.code !== expectedCode && (
+          <VerifyLink code={result.code} className="mt-2 inline-block text-sm font-medium underline">
+            Ver los datos del contrato
+          </VerifyLink>
+        )}
+      </div>
+    </div>
+  );
+}
+
 const STATUS_VIEW: Record<VerificationStatus, { title: string; detail: string; tone: string; icon: ReactNode }> = {
   registered: {
-    title: 'Código registrado',
+    title: 'Código válido: contrato firmado y vigente',
     detail:
-      'Corresponde a un contrato firmado por todas las partes y sus registros están íntegros. Para confirmar que tu documento es el original, compáralo abajo.',
+      'Existe un contrato firmado con este código y sus registros están íntegros. Esto no prueba que TU documento sea auténtico: sube el PDF abajo para comprobarlo.',
     tone: 'border-sky-200 bg-sky-50 text-sky-950',
     icon: <ShieldCheck className="size-7 text-sky-600" />,
   },
@@ -321,7 +447,7 @@ function ResultCard({ result, code }: { result: VerificationResult; code: string
         </div>
       </div>
 
-      {hasData && <CompareDocument code={code} />}
+      {hasData && <PdfCheck expectedCode={code} />}
 
       {hasData && (
         <Card className="divide-y divide-slate-100">
@@ -377,70 +503,11 @@ function ResultCard({ result, code }: { result: VerificationResult; code: string
   );
 }
 
-/** The only check that proves authenticity: the file's hash, computed here, against the original's. */
-function CompareDocument({ code }: { code: string }) {
-  const verifyHash = useVerifyHash(code);
-  const [problem, setProblem] = useState<string | null>(null);
-
-  function pick(file: File) {
-    const issue = pdfProblem(file);
-    setProblem(issue);
-    if (!issue) verifyHash.mutate(file);
-  }
-
-  const data = verifyHash.data;
-  return (
-    <Card className="flex flex-col gap-3 p-5">
-      <div>
-        <h3 className="text-sm font-medium text-slate-900">Comprueba tu documento</h3>
-        <p className="text-sm text-slate-500">Elige el PDF que recibiste. Se compara su huella digital con la del original firmado.</p>
-      </div>
-      <PdfDropZone busy={verifyHash.isPending} onFile={pick} note="El archivo no sale de tu equipo: solo se envía su huella." />
-      {problem && (
-        <p className="text-xs text-red-600" role="alert">
-          {problem}
-        </p>
-      )}
-      {verifyHash.isError && (
-        <div className="animate-pop-in">
-          <Alert tone="danger">{errorMessage(verifyHash.error)}</Alert>
-        </div>
-      )}
-      {data && (
-        <div key={verifyHash.submittedAt} className="animate-pop-in">
-          {data.match && data.status === 'registered' && (
-            <div className="flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-950">
-              <FileCheck2 className="size-6 shrink-0 text-emerald-600" aria-hidden="true" />
-              <div>
-                <p className="font-semibold">Documento auténtico</p>
-                <p className="text-sm opacity-80">Es idéntico, byte a byte, al original firmado por todas las partes.</p>
-              </div>
-            </div>
-          )}
-          {data.match && data.status !== 'registered' && (
-            <Alert tone="warning" title="El archivo es el original, pero revisa su estado">
-              {STATUS_VIEW[data.status].detail}
-            </Alert>
-          )}
-          {!data.match && (
-            <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-red-950">
-              <FileX2 className="size-6 shrink-0 text-red-600" aria-hidden="true" />
-              <div>
-                <p className="font-semibold">Este archivo NO coincide con el original</p>
-                <p className="text-sm opacity-80">
-                  Puede estar modificado, ser otra versión o ser la copia de verificación marcada. No lo des por auténtico.
-                </p>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-    </Card>
-  );
-}
-
+/** Clean copy for people with access to the contract (checked by the API); never on the public page. */
 function OfficialCopy({ code, result }: { code: string; result: VerificationResult }) {
   const { runAction } = useAction();
+  const { status } = useAuth();
+  if (status !== 'authenticated') return null;
 
   if (!result.downloadAvailable) {
     if (!result.legacy) return null;

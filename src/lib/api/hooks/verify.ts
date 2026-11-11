@@ -38,10 +38,16 @@ export interface HashVerificationResult {
 }
 
 export interface FileVerificationResult {
+  /** True only when the bytes are exactly the signed original. */
   matches: boolean;
   status: VerificationStatus;
-  code?: string;
+  code?: string | null;
   systemSignatureValid: boolean;
+  title?: string;
+  activatedAt?: string | null;
+  revokedAt?: string | null;
+  /** A marked copy this system handed out (status stamp or verification copy), not the original. */
+  issuedCopy?: { kind: 'status' | 'verification'; stamp: string | null; issuedAt: string; signed: boolean };
 }
 
 /** Upper case, without spaces or dashes: the API accepts any grouping. */
@@ -98,5 +104,16 @@ export function useVerifyFile() {
       formData.set('file', file, file.name);
       return apiFetch<FileVerificationResult>('/verify/file', { method: 'POST', formData });
     },
+  });
+}
+
+/**
+ * Main check: the PDF's SHA-256 is computed here and only the hash is sent, so the document never
+ * leaves the visitor's device. The server answers whether it is a signed original or a copy it issued.
+ */
+export function useLookupFile() {
+  return useMutation({
+    mutationFn: async (file: File) =>
+      apiFetch<FileVerificationResult>('/verify/lookup', { method: 'POST', body: { sha256: await fileSha256(file) } }),
   });
 }

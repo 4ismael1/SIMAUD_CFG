@@ -13,7 +13,14 @@ import { verifyAuditChain } from "../../lib/crypto/audit-chain.js";
 import { verifySystemSeal } from "../../lib/crypto/system-signing.js";
 import { sha256 } from "../../lib/crypto/canonical.js";
 import { storage } from "../../lib/storage.js";
-import { getContract, getSignatories, type Contract } from "../contracts/service.js";
+import {
+  canRead,
+  getContract,
+  getSignatories,
+  type Actor,
+  type Contract,
+} from "../contracts/service.js";
+import { findIssuedCopy, recordIssuedCopy } from "./issued-copies.js";
 import { verifyEvidenceChain } from "../contracts/evidence.js";
 
 export function verifyContractSeal(contract: Contract) {
@@ -154,17 +161,54 @@ async function verificationSnapshot(tx: Transaction, code: string): Promise<Publ
 }
 
 export async function verifyPdfFile(bytes: Buffer) {
-  const hash = sha256(bytes);
+  return verifyPdfSha256(sha256(bytes));
+}
+
+/**
+ * Looks a document up by the SHA-256 of its exact bytes. The page computes it in the browser, so the
+ * PDF never leaves the visitor's device; a hash reveals nothing about a document one does not hold.
+ */
+export async function verifyPdfSha256(hash: string) {
+  hash = hash.toLowerCase();
   const [contract] = await db.select().from(contracts).where(eq(contracts.signedPdfSha256, hash));
-  if (!contract || !contract.verificationCode)
-    return { matches: false, status: "not_found", systemSignatureValid: false };
-  const result = await publicVerification(contract.verificationCode);
-  return {
-    matches: true,
-    code: contract.verificationCode,
-    status: result.status,
-    systemSignatureValid: "systemSignatureValid" in result && result.systemSignatureValid,
-  };
+  if (contract?.verificationCode) {
+    const result = await publicVerification(contract.verificationCode);
+    return {
+      matches: true,
+      code: contract.verificationCode,
+      status: result.status,
+      systemSignatureValid: "systemSignatureValid" in result && result.systemSignatureValid,
+      ...summary(result),
+    };
+  }
+  // Not the signed original: it may still be a marked copy this system handed out.
+  const copy = await findIssuedCopy(hash);
+  if (copy) {
+    const code = copy.contract.verificationCode;
+    const result = code ? await publicVerification(code) : null;
+    return {
+      matches: false,
+      issuedCopy: {
+        kind: copy.kind,
+        stamp: copy.stamp,
+        issuedAt: copy.issuedAt,
+        // Signed contracts answer with their verification state; unsigned ones only say so.
+        signed: !!code,
+      },
+      code,
+      status: result?.status ?? "not_found",
+      systemSignatureValid:
+        !!result && "systemSignatureValid" in result && result.systemSignatureValid,
+      ...(result ? summary(result) : {}),
+    };
+  }
+  return { matches: false, status: "not_found", systemSignatureValid: false };
+}
+
+/** Minimal data to show with a file result (the uploader already holds the document). */
+function summary(result: PublicVerification) {
+  if (!("title" in result)) return {};
+  return { title: result.title, activatedAt: result.activatedAt, revokedAt: result.revokedAt };
 }
 
 export async function verifyPdfHash(code: string, hash: string) {
@@ -177,7 +221,11 @@ export async function verifyPdfHash(code: string, hash: string) {
   return { match, status: result.status };
 }
 
-export async function officialPdfCopy(code: string, ip: string) {
+/**
+ * Clean copy of the signed original. Private: only people who can open the contract in the app get
+ * it (staff with access and its signatories); the public page only compares documents.
+ */
+export async function officialPdfCopy(code: string, ip: string, actor: Actor) {
   const registration = await findVerificationCode(code);
   if (!registration || registration.revoked || registration.legacy)
     throw new ApiError(404, "NOT_FOUND", "No se encontró la copia de verificación.");
@@ -186,6 +234,8 @@ export async function officialPdfCopy(code: string, ip: string) {
     throw new ApiError(404, "NOT_FOUND", "No se encontró la copia de verificación.");
   return db.transaction(async (tx) => {
     const contract = await getContract(tx, registration.contractId, true);
+    if (!canRead(contract, actor, await getSignatories(tx, contract.id)))
+      throw new ApiError(404, "NOT_FOUND", "No se encontró la copia de verificación.");
     const current = await findVerificationCode(code, tx);
     if (
       !current ||
@@ -200,11 +250,17 @@ export async function officialPdfCopy(code: string, ip: string) {
     if (sha256(bytes) !== contract.signedPdfSha256)
       throw new ApiError(409, "CONFLICT", "El PDF final no supera la verificación de integridad.");
     const copy = await verificationCopy(bytes);
+    await recordIssuedCopy(
+      copy,
+      { contractId: contract.id, kind: "verification", issuedBy: actor.id },
+      tx,
+    );
     await audit(tx, {
       contractId: contract.id,
       entityType: "contract",
       entityId: contract.id,
       action: "verification_pdf_downloaded",
+      userId: actor.id,
       ip: maskIp(ip),
     });
     return copy;

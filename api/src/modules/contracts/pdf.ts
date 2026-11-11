@@ -8,6 +8,7 @@ import { storage } from "../../lib/storage.js";
 import { createHash } from "node:crypto";
 import { pdfAttestation } from "./pdf-attestation.js";
 import { stampStatus, statusNotice } from "./status-notice.js";
+import { recordIssuedCopy } from "../verify/issued-copies.js";
 import { contentDocumentHash } from "../../lib/rich-doc/content.js";
 import { sealPdf } from "../../lib/crypto/system-signing.js";
 import type { FastifyInstance } from "fastify";
@@ -165,7 +166,15 @@ export async function pdfRoutes(app: FastifyInstance) {
     // download cannot pass for a contract in force. ?final=true still returns the untouched signed
     // original, the file that matches the verification hash.
     const notice = final === "true" ? null : await statusNotice(db, contract);
-    if (notice) bytes = await stampStatus(bytes, notice);
+    if (notice) {
+      bytes = await stampStatus(bytes, notice);
+      await recordIssuedCopy(bytes, {
+        contractId: contract.id,
+        kind: "status",
+        stamp: notice.stamp,
+        issuedBy: req.user.id,
+      });
+    }
     const suffix =
       final === "true"
         ? "-final"

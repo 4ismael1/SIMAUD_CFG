@@ -1,12 +1,18 @@
 import { z } from "zod";
 import { parse, uuid } from "../contracts/schemas.js";
-import { requireRole } from "../../plugins/auth.js";
+import { authenticate, requireRole } from "../../plugins/auth.js";
 import { identityLimit } from "../auth/rate-limit.js";
 import { normalizeVerificationCode } from "./codes.js";
 import { rotateVerificationCode } from "./management.js";
 import type { FastifyInstance } from "fastify";
 import { ApiError } from "../../lib/errors.js";
-import { publicVerification, verifyPdfFile, verifyPdfHash, officialPdfCopy } from "./service.js";
+import {
+  publicVerification,
+  verifyPdfFile,
+  verifyPdfHash,
+  verifyPdfSha256,
+  officialPdfCopy,
+} from "./service.js";
 
 export async function verifyRoutes(app: FastifyInstance) {
   app.addHook("onSend", async (request, reply, payload) => {
@@ -19,6 +25,13 @@ export async function verifyRoutes(app: FastifyInstance) {
     const code = (req.params as { code: string }).code;
     return publicVerification(code);
   });
+  app.post("/verify/lookup", { config: { rateLimit: limit } }, async (req) => {
+    const input = parse(
+      z.strictObject({ sha256: z.string().regex(/^[a-fA-F0-9]{64}$/) }),
+      req.body,
+    );
+    return verifyPdfSha256(input.sha256);
+  });
   app.post("/verify/hash", { config: { rateLimit: limit } }, async (req) => {
     const input = parse(
       z.strictObject({ code: z.string().max(200), sha256: z.string().regex(/^[a-fA-F0-9]{64}$/) }),
@@ -30,15 +43,23 @@ export async function verifyRoutes(app: FastifyInstance) {
     "/verify/:code/pdf",
     {
       config: { rateLimit: { max: 3, timeWindow: "1 minute" } },
-      preHandler: identityLimit(
-        "verification-copy",
-        5,
-        (request) =>
-          normalizeVerificationCode((request.params as { code: string }).code) ?? "malformed",
-      ),
+      // Private: a session with access to the contract is required (checked in officialPdfCopy).
+      preHandler: [
+        authenticate,
+        identityLimit(
+          "verification-copy",
+          5,
+          (request) =>
+            normalizeVerificationCode((request.params as { code: string }).code) ?? "malformed",
+        ),
+      ],
     },
     async (request, reply) => {
-      const bytes = await officialPdfCopy((request.params as { code: string }).code, request.ip);
+      const bytes = await officialPdfCopy(
+        (request.params as { code: string }).code,
+        request.ip,
+        request.user,
+      );
       return reply
         .header("Content-Disposition", 'attachment; filename="copia-verificacion.pdf"')
         .header("X-Content-Type-Options", "nosniff")

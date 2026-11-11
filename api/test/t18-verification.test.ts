@@ -81,8 +81,13 @@ it("descarga una copia marcada sin modificar el PDF, la huella o el sello y audi
   const fixture = await signingFixture(app, 1);
   const contract = await fixture.seal();
   const original = await storage.get("contracts/" + contract.signedPdfPath);
+  // Private: without a session, or for someone outside the contract, there is no copy.
+  expect(
+    (await app.inject({ url: `/api/v1/verify/${contract.verificationCode}/pdf` })).statusCode,
+  ).toBe(401);
   const response = await app.inject({
     url: `/api/v1/verify/${contract.verificationCode}/pdf`,
+    headers: fixture.actors[0]!.headers,
     remoteAddress: "198.51.100.45",
   });
   expect(response.statusCode, response.body).toBe(200);
@@ -123,7 +128,34 @@ it("descarga una copia marcada sin modificar el PDF, la huella o el sello y audi
     .select()
     .from(contractAuditLogs)
     .where(eq(contractAuditLogs.action, "verification_pdf_downloaded"));
-  expect(log).toMatchObject({ ip: "198.51.*.*", userId: null, userAgent: null, newValues: null });
+  // Who downloaded it is now known (a session is required); the IP stays truncated.
+  expect(log).toMatchObject({
+    ip: "198.51.*.*",
+    userId: fixture.actors[0]!.user.id,
+    userAgent: null,
+    newValues: null,
+  });
+  // The marked copy is not the original, but uploading it is recognised as a copy issued here.
+  const boundary = "copy";
+  const upload = await app.inject({
+    method: "POST",
+    url: "/api/v1/verify/file",
+    headers: { "content-type": "multipart/form-data; boundary=" + boundary },
+    payload: Buffer.concat([
+      Buffer.from(
+        `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="c.pdf"\r\n` +
+          "Content-Type: application/pdf\r\n\r\n",
+      ),
+      response.rawPayload,
+      Buffer.from(`\r\n--${boundary}--\r\n`),
+    ]),
+  });
+  expect(upload.json()).toMatchObject({
+    matches: false,
+    code: contract.verificationCode,
+    status: "registered",
+    issuedCopy: { kind: "verification", signed: true },
+  });
   expect(await verifyAuditChain(contract.id)).toBe(true);
   expect(
     (await app.inject({ url: "/api/v1/verify/" + contract.verificationCode })).json(),
@@ -148,7 +180,12 @@ it("mantiene códigos legacy resolubles y sin descarga", async () => {
     systemSignatureValid: true,
   });
   expect(
-    (await app.inject({ url: `/api/v1/verify/${contract.verificationCode}/pdf` })).statusCode,
+    (
+      await app.inject({
+        url: `/api/v1/verify/${contract.verificationCode}/pdf`,
+        headers: fixture.admin.headers,
+      })
+    ).statusCode,
   ).toBe(404);
 });
 
@@ -172,7 +209,12 @@ it("solo admin rota con motivo, oculta el código revocado y conserva el sello y
     { status: "revoked" },
   );
   expect(
-    (await app.inject({ url: `/api/v1/verify/${contract.verificationCode}/pdf` })).statusCode,
+    (
+      await app.inject({
+        url: `/api/v1/verify/${contract.verificationCode}/pdf`,
+        headers: fixture.admin.headers,
+      })
+    ).statusCode,
   ).toBe(404);
   expect((await app.inject({ url: "/api/v1/verify/" + next })).json()).toMatchObject({
     status: "registered",
@@ -181,7 +223,10 @@ it("solo admin rota con motivo, oculta el código revocado y conserva el sello y
   });
   expect((await fixture.current()).systemSeal).toEqual(contract.systemSeal);
   expect((await fixture.current()).signedPdfSha256).toBe(contract.signedPdfSha256);
-  expect((await app.inject({ url: `/api/v1/verify/${next}/pdf` })).statusCode).toBe(200);
+  expect(
+    (await app.inject({ url: `/api/v1/verify/${next}/pdf`, headers: fixture.admin.headers }))
+      .statusCode,
+  ).toBe(200);
 });
 
 it("limita hash por IP y copia tanto por IP como por código normalizado con no-store incluso en 429", async () => {
@@ -203,6 +248,7 @@ it("limita hash por IP y copia tanto por IP como por código normalizado con no-
         : contract.verificationCode;
     const result = await app.inject({
       url: `/api/v1/verify/${code}/pdf`,
+      headers: fixture.admin.headers,
       remoteAddress: `192.0.2.${index + 1}`,
     });
     expect(result.statusCode, result.body).toBe(index < 5 ? 200 : 429);
@@ -211,6 +257,7 @@ it("limita hash por IP y copia tanto por IP como por código normalizado con no-
   for (let index = 0; index < 4; index++) {
     const result = await app.inject({
       url: "/api/v1/verify/0000-0000-0000-0000/pdf",
+      headers: fixture.admin.headers,
       remoteAddress: "192.0.2.100",
     });
     expect(result.statusCode).toBe(index < 3 ? 404 : 429);
