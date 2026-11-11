@@ -1,4 +1,5 @@
 import { amendmentRoutes } from "./amendment-routes.js";
+import { statusNotice } from "./status-notice.js";
 import { createContract, updateContract } from "./writes.js";
 import { missingCedula } from "./cedula.js";
 import { hasOpenAmendment, hasOpenRenewal, mirrorAmendmentEvent } from "./amendments.js";
@@ -50,6 +51,7 @@ export async function contractRoutes(app: FastifyInstance) {
       return {
         ...(await contractService.decorate(tx, contract)),
         missingCedula: missingCedula(allSignatories),
+        statusNotice: await statusNotice(tx, contract),
         signatories: allSignatories.map((item) => ({
           ...item,
           canResetSignature: canResetSignature(contract, req.user, item),

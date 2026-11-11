@@ -6,6 +6,7 @@ import { isApiError, errorMessage } from '../../lib/errors';
 import type { ContractDetail } from '../../lib/api/types';
 import { formatDate, formatDateTime, formatMoney } from '../../lib/format';
 import { StatusBadge } from './components/ContractBits';
+import { contractStatus } from '../../lib/api/status';
 import { ContractActions } from './components/ContractActions';
 import { AmendmentChain } from './components/AmendmentChain';
 import { DocumentView } from './components/DocumentView';
@@ -86,6 +87,8 @@ export function ContractDetailPage() {
         </Alert>
       )}
 
+      <StatusNoticeAlert contract={data} />
+
       {data.status === 'rejected' && data.rejectionReason && (
         <Alert tone="danger" title="Devuelto con observaciones">«{data.rejectionReason}»</Alert>
       )}
@@ -112,8 +115,24 @@ export function ContractDetailPage() {
   );
 }
 
+/** States that end the contract's effect: shown in sight, not only as the badge next to the title. */
+const ENDED = new Set(['cancelled', 'expired', 'renewed', 'amended']);
+
+function StatusNoticeAlert({ contract }: { contract: ContractDetail }) {
+  const notice = contract.statusNotice;
+  if (!notice || !ENDED.has(notice.status)) return null;
+  const when = notice.at ? ` el ${formatDate(notice.at)}` : '';
+  return (
+    <Alert tone={notice.tone} title={`${contractStatus[notice.status].label}${when}`}>
+      {notice.title} {notice.detail} Los PDF que se descarguen llevan la marca «{notice.stamp}» en cada página.
+    </Alert>
+  );
+}
+
 function SummaryCard({ contract }: { contract: ContractDetail }) {
+  const notice = contract.statusNotice;
   const rows: [string, string][] = [
+    ['Estado', contractStatus[contract.status].label + (notice?.at ? ` · ${formatDate(notice.at)}` : '')],
     ['Valor', contract.contractValue ? formatMoney(contract.contractValue) : '—'],
     ['Vigencia', contract.startDate && contract.endDate ? `${formatDate(contract.startDate)} – ${formatDate(contract.endDate)}` : '—'],
     ['Plantilla', contract.template?.title ?? '—'],

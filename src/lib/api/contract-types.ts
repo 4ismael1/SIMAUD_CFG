@@ -137,8 +137,20 @@ export interface SignatureSlotGeometry {
   width: number;
   height: number;
 }
+/** What the current state means (cancelled, expired…); null while the contract is in force. */
+export interface StatusNotice {
+  status: ContractStatus;
+  stamp: string;
+  title: string;
+  at: string | null;
+  detail: string | null;
+  tone: 'danger' | 'warning' | 'info';
+}
+
 export interface ContractDetail extends Contract {
   signatories: Signatory[];
+  /** Also stamped on every downloaded PDF; older APIs omit it. */
+  statusNotice?: StatusNotice | null;
   can: ContractPermissions;
   /** T18: only the actor's own box; null when the actor is not a signatory or on older APIs. */
   signatureSlot?: SignatureSlotGeometry | null;  /** T20: names of signatories without a cédula; it cannot be sent to approval until completed. */

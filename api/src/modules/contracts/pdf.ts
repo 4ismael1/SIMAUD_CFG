@@ -7,6 +7,7 @@ import { sanitizePng } from "../../lib/storage-png.js";
 import { storage } from "../../lib/storage.js";
 import { createHash } from "node:crypto";
 import { pdfAttestation } from "./pdf-attestation.js";
+import { stampStatus, statusNotice } from "./status-notice.js";
 import { contentDocumentHash } from "../../lib/rich-doc/content.js";
 import { sealPdf } from "../../lib/crypto/system-signing.js";
 import type { FastifyInstance } from "fastify";
@@ -160,11 +161,25 @@ export async function pdfRoutes(app: FastifyInstance) {
       if (createHash("sha256").update(bytes).digest("hex") !== contract.signedPdfSha256)
         throw service.conflict("El PDF final no supera la verificación de integridad.");
     } else bytes = await contractPdf(db, contract);
+    // Outside its validity (draft, cancelled, expired…) every copy carries the state in sight, so a
+    // download cannot pass for a contract in force. ?final=true still returns the untouched signed
+    // original, the file that matches the verification hash.
+    const notice = final === "true" ? null : await statusNotice(db, contract);
+    if (notice) bytes = await stampStatus(bytes, notice);
+    const suffix =
+      final === "true"
+        ? "-final"
+        : notice
+          ? "-" + notice.stamp.toLowerCase().replace(/\s+/g, "-")
+          : "";
     return reply
       .header("Cache-Control", "private, no-store")
       .header(
         "Content-Disposition",
-        'attachment; filename="' + contract.code + (final === "true" ? "-final" : "") + '.pdf"',
+        'attachment; filename="' +
+          contract.code +
+          suffix.normalize("NFD").replace(/[\u0300-\u036f]/g, "") +
+          '.pdf"',
       )
       .type("application/pdf")
       .send(bytes);

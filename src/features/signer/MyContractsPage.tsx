@@ -104,7 +104,7 @@ function ContractRow({ row }: { row: SignatureInboxItem }) {
             onClick={() =>
               void runAction({
                 pending: 'Preparando el PDF…',
-                run: () => downloadFromApi(`/contracts/${row.id}/pdf`, `${row.code}.pdf`, { final: true }),
+                run: () => downloadFromApi(`/contracts/${row.id}/pdf`, `${row.code}.pdf`),
                 success: 'PDF descargado.',
               })
             }

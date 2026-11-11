@@ -2,10 +2,36 @@ import { isRouteErrorResponse, useRouteError } from 'react-router-dom';
 import { FileQuestion, TriangleAlert } from 'lucide-react';
 import { Button, ButtonLink, EmptyState, Logo } from '../ui';
 
+const RELOAD_KEY = 'simaud:stale-chunk-reload';
+
+/**
+ * After a new version is deployed, an open tab still points to the previous build's page files, which
+ * no longer exist: opening a page then fails to load its code. That is not a real error, so reload
+ * once to pick up the new version (guarded, so a genuinely broken file cannot cause a reload loop).
+ */
+function isStaleBuild(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error ?? '');
+  return /dynamically imported module|Importing a module script failed|error loading dynamically|Failed to fetch dynamically/i.test(message);
+}
+
+function reloadOnce(): boolean {
+  try {
+    const last = Number(sessionStorage.getItem(RELOAD_KEY) ?? 0);
+    if (Date.now() - last < 30_000) return false;
+    sessionStorage.setItem(RELOAD_KEY, String(Date.now()));
+  } catch {
+    // Storage blocked: still reload; the next failure shows the error page.
+  }
+  window.location.reload();
+  return true;
+}
+
 /** Catches render errors so a single broken page never blanks the whole app. */
 export function RouteError() {
   const error = useRouteError();
   const isNotFound = isRouteErrorResponse(error) && error.status === 404;
+  const reloading = !isNotFound && isStaleBuild(error) && reloadOnce();
+  if (reloading) return null;
 
   if (import.meta.env.DEV) {
     console.error(error);
