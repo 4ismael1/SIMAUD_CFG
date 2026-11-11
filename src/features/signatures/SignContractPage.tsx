@@ -206,7 +206,7 @@ export function SignContractPage() {
             }
           />
           <div className="flex flex-col gap-2">
-            <div className="flex items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <Segmented
                 label="Forma de firmar"
                 value={mode}

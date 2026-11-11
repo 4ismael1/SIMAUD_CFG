@@ -67,6 +67,25 @@ export const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(fu
     context.strokeStyle = STROKE_COLOR;
     context.fillStyle = STROKE_COLOR;
     context.lineWidth = strokeWidth;
+    // Resizing a canvas wipes it: paint the strokes again so the signature is never lost (a button
+    // appearing next to the pad, a scrollbar, turning the phone…).
+    for (const line of strokes.current) {
+      const first = line[0];
+      if (!first) continue;
+      context.beginPath();
+      if (line.length === 1) {
+        context.arc(first.x, first.y, strokeWidth / 2, 0, Math.PI * 2);
+        context.fill();
+        continue;
+      }
+      context.moveTo(first.x, first.y);
+      for (let index = 1; index < line.length; index++) {
+        const control = line[index - 1]!;
+        const point = line[index]!;
+        context.quadraticCurveTo(control.x, control.y, (control.x + point.x) / 2, (control.y + point.y) / 2);
+      }
+      context.stroke();
+    }
   }, [strokeWidth]);
 
   const clear = useCallback(() => {
@@ -82,14 +101,10 @@ export const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(fu
 
   useEffect(() => {
     resize();
-    // Resizing wipes the canvas, so it also clears the signature (the user simply signs again).
-    const observer = new ResizeObserver(() => {
-      resize();
-      resetInk();
-    });
+    const observer = new ResizeObserver(() => resize());
     if (canvasRef.current) observer.observe(canvasRef.current);
     return () => observer.disconnect();
-  }, [resize, resetInk]);
+  }, [resize]);
 
   useImperativeHandle(ref, () => ({
     clear,
@@ -147,7 +162,9 @@ export const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(fu
     if (!drawing.current || !context || !previousPoint.current || !previousMidpoint.current) return;
 
     // Coalesced events give pens and fast strokes their full resolution.
-    const samples = event.nativeEvent.getCoalescedEvents?.() ?? [event.nativeEvent];
+    // Some devices and automated input report an EMPTY coalesced list: fall back to the event itself.
+    const coalesced = event.nativeEvent.getCoalescedEvents?.() ?? [];
+    const samples = coalesced.length > 0 ? coalesced : [event.nativeEvent];
     const rect = event.currentTarget.getBoundingClientRect();
 
     for (const sample of samples) {
