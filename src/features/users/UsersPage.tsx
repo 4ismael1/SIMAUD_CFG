@@ -19,6 +19,7 @@ import {
   useAction,
   type Column,
   type MenuItem,
+  revealFirstError,
 } from '../../ui';
 import { useCreateUser, useDeleteUser, useResendInvite, useSendPasswordReset, useUpdateUser, useUsers } from '../../lib/api/hooks/users';
 import type { Role, User, UserStatus } from '../../lib/api/core-types';
@@ -283,7 +284,10 @@ function InviteUserDialog({ open, onClose }: { open: boolean; onClose: () => voi
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    if (!validate()) return;
+    if (!validate()) {
+      revealFirstError();
+      return;
+    }
     const result = await runAction({
       run: () => create.mutateAsync({ name: form.name.trim(), email: form.email.trim(), cedula: form.cedula, phone: form.phone, role: form.role }),
       success: `Invitación enviada a ${form.email.trim()}.`,

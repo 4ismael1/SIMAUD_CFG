@@ -35,3 +35,4 @@ export type { Column } from './DataTable';
 export { useScrollReveal } from './motion';
 export { ColumnChart, ChartLegend, ChartTooltip, BarList } from './bar-charts';
 export type { ColumnSeries, BarListItem } from './bar-charts';
+export { revealFirstError } from './revealFirstError';

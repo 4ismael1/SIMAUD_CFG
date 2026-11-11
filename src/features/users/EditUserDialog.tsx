@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { Button, Dialog, Field, Input, useAction } from '../../ui';
+import { Button, Dialog, Field, Input, useAction, revealFirstError } from '../../ui';
 import { useUpdateUser } from '../../lib/api/hooks/users';
 import type { User, UserPatch } from '../../lib/api/core-types';
 import { formatCedula, validateCedula, validatePersonName, validatePhoneDo } from '../../lib/validation';
@@ -63,7 +63,10 @@ export function EditUserDialog({ user, open, onClose }: EditUserDialogProps) {
     event.preventDefault();
     const found = validate(form);
     setErrors(found);
-    if (Object.keys(found).length > 0) return;
+    if (Object.keys(found).length > 0) {
+      revealFirstError();
+      return;
+    }
     const result = await runAction({ run: () => update.mutateAsync(patch), success: `Se actualizaron los datos de ${form.name.trim()}.` });
     if (result.ok) onClose();
   }

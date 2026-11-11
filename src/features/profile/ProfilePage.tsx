@@ -1,6 +1,6 @@
 import { useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { Camera, KeyRound, Mail, Trash2 } from 'lucide-react';
-import { Avatar, Badge, Button, Card, CardHeader, Checkbox, Field, Input, PageHeader, Skeleton, useAction, useToast } from '../../ui';
+import { Avatar, Badge, Button, Card, CardHeader, Checkbox, Field, Input, PageHeader, Skeleton, useAction, useToast, revealFirstError } from '../../ui';
 import {
   useChangeEmail,
   useChangePassword,
@@ -77,7 +77,10 @@ function PersonalSection() {
       if (!phoneCheck.ok) next.phone = phoneCheck.message;
     }
     setErrors(next);
-    if (Object.keys(next).length > 0) return;
+    if (Object.keys(next).length > 0) {
+      revealFirstError();
+      return;
+    }
     const result = await runAction({ run: () => updateMe.mutateAsync({ name: name.trim(), phone }), success: 'Datos actualizados.' });
     if (result.ok) await refreshUser();
   }

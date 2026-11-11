@@ -21,6 +21,7 @@ import {
   type Column,
   type MenuItem,
   type Tone,
+  revealFirstError,
 } from '../../ui';
 import { useApproveRenewal, useCancelRenewal, useCreateRenewal, useEligibleRenewals, useRejectRenewal, useRenewals } from '../../lib/api/hooks/renewals';
 import type { Priority, RenewalListItem, RenewalStatus } from '../../lib/api/lifecycle-types';
@@ -198,7 +199,10 @@ function RequestRenewalDialog({ open, onClose }: { open: boolean; onClose: () =>
     if (!money.ok) next.value = money.message;
     if (form.reason.trim().length < 5) next.reason = 'Explica brevemente el motivo.';
     setErrors(next);
-    if (Object.keys(next).length > 0 || !money.ok) return;
+    if (Object.keys(next).length > 0 || !money.ok) {
+      revealFirstError();
+      return;
+    }
     const result = await runAction({
       run: () => create.mutateAsync({ contractId: form.contractId, proposedStartDate: form.start, proposedEndDate: form.end, proposedValue: money.value, reason: form.reason.trim() }),
       success: 'Solicitud de renovación enviada.',

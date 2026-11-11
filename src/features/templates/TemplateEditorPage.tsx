@@ -16,7 +16,9 @@ import {
   cn,
   useAction,
   useConfirm,
+  useToast,
 } from "../../ui";
+import { signerData, signerDataAsVariables, type SignerDatum } from "../../lib/rich-doc/signer-data";
 import {
   useCreateTemplate,
   useBestContentFormat,
@@ -148,10 +150,17 @@ function Editor({ template }: { template?: TemplateDetail }) {
     return () => window.removeEventListener("beforeunload", warn);
   }, [dirty]);
 
+  const toast = useToast();
   const variableList = useMemo(() => variables.data ?? [], [variables.data]);
+  // Data filled from the signer of each box with a data prefix: valid even though not in the catalog.
+  const signer = useMemo(() => signerData(draft.content), [draft.content]);
+  const editorVariables = useMemo(
+    () => [...variableList, ...signerDataAsVariables(signer).filter((datum) => !variableList.some((variable) => variable.name === datum.name))],
+    [variableList, signer],
+  );
   const used = useMemo(() => richDocVariables(draft.content), [draft.content]);
   const unknown = used.filter(
-    (name) => !variableList.some((variable) => variable.name === name),
+    (name) => !editorVariables.some((variable) => variable.name === name),
   );
   const categories = useMemo(
     () => templateCategories(templates.data ?? []),
@@ -159,8 +168,8 @@ function Editor({ template }: { template?: TemplateDetail }) {
   );
   const variableLabels = useMemo(
     () =>
-      new Map(variableList.map((variable) => [variable.name, variable.label])),
-    [variableList],
+      new Map(editorVariables.map((variable) => [variable.name, variable.label])),
+    [editorVariables],
   );
   const [mode, setMode] = useState<"edit" | "preview" | "pdf">("edit");
   const pdfSupported = usePdfPreviewSupported();
@@ -174,7 +183,16 @@ function Editor({ template }: { template?: TemplateDetail }) {
     if (unknown.length > 0)
       next.content = `Hay datos que no existen: ${unknown.join(", ")}. Créalos o quítalos del texto.`;
     setErrors(next);
-    if (Object.keys(next).length > 0) return;
+    if (Object.keys(next).length > 0) {
+      // Never fail silently at the bottom of the page: say it up front and take the user there.
+      toast.error(next.title ?? next.content ?? "Revisa los datos marcados.");
+      window.setTimeout(() => {
+        const target = document.getElementById(next.title ? "template-title" : "template-content-error");
+        target?.scrollIntoView({ behavior: "smooth", block: "center" });
+        if (next.title) (target as HTMLInputElement | null)?.focus();
+      }, 50);
+      return;
+    }
 
     const body: TemplateInput = {
       title: draft.title.trim(),
@@ -253,6 +271,7 @@ function Editor({ template }: { template?: TemplateDetail }) {
         <div className="grid gap-4 p-5 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
           <Field label="Título" error={errors.title}>
             <Input
+              id="template-title"
               value={draft.title}
               onChange={(event) =>
                 setDraft({ ...draft, title: event.target.value })
@@ -358,7 +377,7 @@ function Editor({ template }: { template?: TemplateDetail }) {
                 onChange={(content) =>
                   setDraft((current) => ({ ...current, content }))
                 }
-                variables={variableList}
+                variables={editorVariables}
                 onCreateVariable={(name) => setCreating(name)}
                 invalid={Boolean(errors.content)}
               />
@@ -366,6 +385,7 @@ function Editor({ template }: { template?: TemplateDetail }) {
           )}
           {errors.content && (
             <p
+              id="template-content-error"
               className="flex items-center gap-1.5 text-[13px] text-red-700"
               role="alert"
             >
@@ -379,6 +399,7 @@ function Editor({ template }: { template?: TemplateDetail }) {
           used={used}
           unknown={unknown}
           variables={variableList}
+          signer={signer}
           onCreate={setCreating}
         />
       </div>
@@ -397,6 +418,8 @@ interface UsedVariablesPanelProps {
   used: string[];
   unknown: string[];
   variables: Variable[];
+  /** Data filled from the signer of a box (shown as such, never «Crear»). */
+  signer: SignerDatum[];
   onCreate: (name: string) => void;
 }
 
@@ -405,11 +428,13 @@ function UsedVariablesPanel({
   used,
   unknown,
   variables,
+  signer,
   onCreate,
 }: UsedVariablesPanelProps) {
   const byName = new Map(
     variables.map((variable) => [variable.name, variable]),
   );
+  const signerByName = new Map(signer.map((datum) => [datum.name, datum]));
   return (
     <Card className="xl:sticky xl:top-[76px]">
       <CardHeader
@@ -436,6 +461,7 @@ function UsedVariablesPanel({
         <ul className="flex flex-col gap-1 px-3 pb-4">
           {used.map((name) => {
             const variable = byName.get(name);
+            const fromSigner = signerByName.get(name);
             const missing = unknown.includes(name);
             return (
               <li
@@ -447,12 +473,13 @@ function UsedVariablesPanel({
               >
                 <span className="min-w-0">
                   <span className="block truncate text-sm text-slate-800">
-                    {variable?.label ?? name}
+                    {variable?.label ?? fromSigner?.label ?? name}
                   </span>
                   <span className="block truncate font-mono text-[11px] text-slate-400">
                     {name}
                     {variable &&
                       ` · ${VARIABLE_TYPE_LABELS[variable.type]}${variable.required ? "" : " · opcional"}`}
+                    {!variable && fromSigner && ` · del firmante (${fromSigner.role})`}
                   </span>
                 </span>
                 {missing && (

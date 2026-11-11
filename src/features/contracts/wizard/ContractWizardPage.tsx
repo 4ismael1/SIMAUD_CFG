@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useBlocker, useNavigate, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, ArrowRight, Check, Save, Send } from 'lucide-react';
-import { Alert, Button, ButtonLink, EmptyState, PageHeader, Skeleton, cn, useConfirm, useToast } from '../../../ui';
+import { Alert, Button, ButtonLink, EmptyState, PageHeader, Skeleton, cn, useConfirm, useToast, revealFirstError } from '../../../ui';
 import { apiFetch } from '../../../lib/api/client';
 import { invalidateContract } from '../../../lib/api/hooks/cache';
 import { useContract, useCreateContract, useUpdateContract } from '../../../lib/api/hooks/contracts';
@@ -131,6 +131,7 @@ function Wizard({ contractId, initial }: WizardProps) {
       const found = validateStep(WIZARD_STEPS[current].id);
       if (Object.keys(found).length > 0) {
         setErrors(found);
+        revealFirstError();
         return { ok: false, failedAt: current };
       }
     }

@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Alert, Button, Checkbox, Field, Input } from '../../ui';
+import { Alert, Button, Checkbox, Field, Input, revealFirstError } from '../../ui';
 import { useRegister } from '../../lib/api/hooks/auth';
 import { formatCedula, isValidCedula } from '../../lib/format';
 import { errorField, errorMessage } from '../../lib/errors';
@@ -49,7 +49,10 @@ export function RegisterPage() {
     const validationErrors = validate(form);
     setErrors(validationErrors);
     setShowErrors(true);
-    if (Object.keys(validationErrors).length > 0) return;
+    if (Object.keys(validationErrors).length > 0) {
+      revealFirstError();
+      return;
+    }
 
     try {
       await registerMutation.mutateAsync({

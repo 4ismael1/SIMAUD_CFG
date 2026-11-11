@@ -27,7 +27,7 @@ export function Sidebar({ user, avatarUrl, counts, collapsed = false, onNavigate
         <Logo variant={collapsed ? 'mark' : 'full'} className="h-8" />
       </div>
 
-      <div className={cn('flex min-h-0 flex-1 flex-col gap-1 py-4', collapsed ? 'px-3' : 'overflow-y-auto px-3')}>
+      <div className={cn('flex min-h-0 flex-1 flex-col gap-1 py-4 [&>*]:shrink-0', collapsed ? 'px-3' : 'overflow-y-auto px-3')}>
         {canCreateContract && <NewContractLink collapsed={collapsed} onNavigate={onNavigate} />}
 
         {groups.map((group, groupIndex) => (
@@ -79,7 +79,7 @@ function NewContractLink({ collapsed, onNavigate }: { collapsed: boolean; onNavi
       onClick={onNavigate}
       aria-label={collapsed ? 'Nuevo contrato' : undefined}
       className={cn(
-        'group relative mb-2 flex h-9 items-center justify-center gap-2 rounded-lg bg-vino-600 text-sm font-medium text-white',
+        'group relative mb-2 flex h-10 shrink-0 items-center justify-center gap-2 rounded-lg bg-vino-600 text-sm font-semibold text-white',
         'shadow-[0_1px_2px_rgb(139_32_41/0.35),inset_0_1px_0_rgb(255_255_255/0.12)] transition-[background-color,transform] duration-150',
         'hover:bg-vino-700 active:scale-[0.98]',
       )}
