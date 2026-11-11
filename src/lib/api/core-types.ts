@@ -14,7 +14,7 @@ export type ContractStatus =
 export type ApprovalStatus = "pending" | "approved" | "rejected";
 export type SignatoryRole = "client" | "witness" | "contractor";
 export type SignatoryStatus = "pending" | "signed" | "declined";
-export type VariableType = "text" | "date" | "number" | "select" | "textarea";
+export type VariableType = "text" | "date" | "number" | "select" | "textarea" | "money";
 export type TemplateStatus = "active" | "inactive";
 export type CancellationReason =
   | "breach"

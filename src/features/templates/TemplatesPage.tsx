@@ -45,6 +45,7 @@ export const VARIABLE_TYPE_LABELS: Record<VariableType, string> = {
   text: 'Texto',
   textarea: 'Texto largo',
   number: 'Número',
+  money: 'Monto (RD$)',
   date: 'Fecha',
   select: 'Lista de opciones',
 };

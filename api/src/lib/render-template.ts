@@ -43,15 +43,11 @@ export function formatVariable(value: unknown, def: Variable | undefined, name: 
     formatted =
       "RD$ " + integer!.replace(/\B(?=(\d{3})+(?!\d))/g, ".") + "," + fraction.padEnd(2, "0");
   } else if (def?.type === "number") {
+    // A plain number (months, days, percentages…): never shown as money.
     const n = Number(value);
     if (!Number.isFinite(n))
       throw new ApiError(400, "VALIDATION_ERROR", "Número inválido.", { field: name });
-    formatted =
-      "RD$ " +
-      new Intl.NumberFormat("de-DE", {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      }).format(n);
+    formatted = new Intl.NumberFormat("de-DE", { maximumFractionDigits: 2 }).format(n);
   } else if (def?.type === "date") {
     const result = validateIsoDate(String(value));
     if (!result.ok)

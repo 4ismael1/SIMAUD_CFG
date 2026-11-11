@@ -1,0 +1,816 @@
+/**
+ * Ten contract templates for common agreements in the Dominican Republic. Plain, complete clauses;
+ * references to Dominican law are the usual ones (Código Civil, Código de Trabajo Ley 16-92, Ley 126-02,
+ * Ley 172-13, Ley 108-05, Ley 4314). They are starting points: the institution's legal team should review
+ * them before using them with real parties.
+ */
+import type { RichDoc } from "../../lib/rich-doc/types.js";
+import {
+  clause,
+  closingClauses,
+  company,
+  doc,
+  list,
+  p,
+  person,
+  signatures,
+  signedIn,
+  title,
+} from "./builders.js";
+
+export interface TemplateSeed {
+  title: string;
+  category: string;
+  description: string;
+  content: RichDoc;
+}
+
+const servicios: TemplateSeed = {
+  title: "Contrato de prestación de servicios profesionales",
+  category: "Servicios",
+  description:
+    "Servicios independientes con honorarios, entregables, plazo y confidencialidad. Sin relación laboral.",
+  content: doc(
+    title("CONTRATO DE PRESTACIÓN DE SERVICIOS PROFESIONALES"),
+    p(
+      { b: "ENTRE:" },
+      " De una parte, ",
+      ...person("prestador", "EL PRESTADOR"),
+      "; y de la otra parte, ",
+      ...person("cliente", "EL CLIENTE"),
+      ".",
+    ),
+    p(
+      "Las partes, reconociéndose mutuamente capacidad legal para contratar y obligarse, han convenido el presente contrato, que se regirá por las cláusulas siguientes:",
+    ),
+    clause("OBJETO"),
+    p(
+      { b: "EL PRESTADOR" },
+      " se obliga a prestar a ",
+      { b: "EL CLIENTE" },
+      " los servicios profesionales que se describen a continuación, con la diligencia, calidad técnica y ética propias de su profesión:",
+    ),
+    p({ v: "descripcion_servicios" }),
+    p("Entregables esperados: ", { v: "entregables" }, "."),
+    clause("PLAZO"),
+    p(
+      "El presente contrato tendrá una duración de ",
+      { v: "duracion_meses" },
+      " mes(es), contados a partir del ",
+      { v: "fecha_inicio" },
+      " y hasta el ",
+      { v: "fecha_fin" },
+      ". Podrá prorrogarse por acuerdo escrito de ambas partes.",
+    ),
+    clause("HONORARIOS Y FORMA DE PAGO"),
+    p(
+      "Como contraprestación, ",
+      { b: "EL CLIENTE" },
+      " pagará a ",
+      { b: "EL PRESTADOR" },
+      " la suma total de ",
+      { v: "valor_contrato" },
+      ", mediante ",
+      { v: "forma_pago" },
+      ", contra la presentación de la factura con número de comprobante fiscal (NCF) correspondiente. De los pagos se harán las retenciones de impuestos que disponga la ley.",
+    ),
+    clause("INDEPENDENCIA"),
+    p(
+      { b: "EL PRESTADOR" },
+      " actuará con plena autonomía técnica y bajo su propia responsabilidad, sin subordinación ni horario. Este contrato es de naturaleza civil y no crea relación de trabajo entre las partes; ",
+      { b: "EL PRESTADOR" },
+      " será responsable de sus propias obligaciones fiscales y de seguridad social.",
+    ),
+    clause("OBLIGACIONES DE LAS PARTES"),
+    list(
+      [
+        { b: "EL PRESTADOR" },
+        " ejecutará los servicios en el plazo acordado e informará a ",
+        { b: "EL CLIENTE" },
+        " sobre su avance cuando este lo solicite.",
+      ],
+      [
+        { b: "EL CLIENTE" },
+        " facilitará la información y el acceso necesarios, revisará los entregables y pagará los honorarios en la forma convenida.",
+      ],
+    ),
+    clause("CONFIDENCIALIDAD Y PROPIEDAD INTELECTUAL"),
+    p(
+      { b: "EL PRESTADOR" },
+      " guardará reserva sobre toda la información de ",
+      { b: "EL CLIENTE" },
+      " a la que tenga acceso, durante el contrato y por dos (2) años después de su terminación. Los entregables producidos en ejecución de este contrato serán propiedad de ",
+      { b: "EL CLIENTE" },
+      " una vez pagados.",
+    ),
+    clause("TERMINACIÓN"),
+    p(
+      "Cualquiera de las partes podrá dar por terminado el contrato con un aviso escrito de quince (15) días. En tal caso, ",
+      { b: "EL CLIENTE" },
+      " pagará únicamente los servicios efectivamente prestados hasta la fecha de terminación. El incumplimiento grave de una parte autoriza a la otra a resolver el contrato de inmediato.",
+    ),
+    ...closingClauses(),
+    signedIn(),
+    signatures([
+      { label: "EL PRESTADOR", party: "prestador" },
+      { label: "EL CLIENTE", party: "cliente" },
+    ]),
+  ),
+};
+
+const trabajoIndefinido: TemplateSeed = {
+  title: "Contrato de trabajo por tiempo indefinido",
+  category: "Laboral",
+  description: "Relación laboral por tiempo indefinido conforme al Código de Trabajo (Ley 16-92).",
+  content: doc(
+    title("CONTRATO DE TRABAJO POR TIEMPO INDEFINIDO"),
+    p(
+      { b: "ENTRE:" },
+      " De una parte, ",
+      ...company("empresa", "empleador", "EL EMPLEADOR"),
+      "; y de la otra parte, ",
+      ...person("trabajador", "EL TRABAJADOR"),
+      ".",
+    ),
+    p(
+      "Las partes convienen el presente contrato de trabajo, regido por la Ley núm. 16-92 que aprueba el Código de Trabajo de la República Dominicana y por las cláusulas siguientes:",
+    ),
+    clause("OBJETO Y PUESTO"),
+    p(
+      { b: "EL TRABAJADOR" },
+      " se obliga a prestar sus servicios personales a ",
+      { b: "EL EMPLEADOR" },
+      " en el puesto de ",
+      { v: "puesto_trabajo" },
+      ", bajo su dependencia y dirección, desempeñando las funciones siguientes:",
+    ),
+    p({ v: "funciones_puesto" }),
+    clause("DURACIÓN"),
+    p(
+      "El contrato es por tiempo indefinido y entra en vigor el ",
+      { v: "fecha_inicio" },
+      ". Conforme al artículo 75 del Código de Trabajo, durante los tres (3) primeros meses cualquiera de las partes podrá ponerle término sin responsabilidad.",
+    ),
+    clause("JORNADA Y LUGAR DE TRABAJO"),
+    p(
+      "La jornada será ",
+      { v: "horario_trabajo" },
+      ", sin exceder los límites legales, y el trabajo se realizará en ",
+      { v: "lugar_trabajo" },
+      ". Las horas extraordinarias se pagarán con los recargos establecidos en el Código de Trabajo.",
+    ),
+    clause("SALARIO"),
+    p(
+      { b: "EL EMPLEADOR" },
+      " pagará a ",
+      { b: "EL TRABAJADOR" },
+      " un salario mensual de ",
+      { v: "salario_mensual" },
+      ", pagadero por quincenas vencidas, del cual se harán las retenciones legales de impuesto sobre la renta y de la Seguridad Social (Ley 87-01).",
+    ),
+    clause("DERECHOS DEL TRABAJADOR"),
+    list(
+      [
+        "Vacaciones anuales pagadas, salario de Navidad y participación en los beneficios de la empresa, conforme a la ley.",
+      ],
+      [
+        "Inscripción en el Sistema Dominicano de Seguridad Social desde el inicio de la relación laboral.",
+      ],
+      ["Descanso semanal y días feriados en los términos del Código de Trabajo."],
+    ),
+    clause("OBLIGACIONES DEL TRABAJADOR"),
+    p(
+      { b: "EL TRABAJADOR" },
+      " cumplirá sus funciones con diligencia, observará el reglamento interno y las normas de seguridad, y guardará reserva sobre la información confidencial de ",
+      { b: "EL EMPLEADOR" },
+      ", aun después de terminado el contrato.",
+    ),
+    clause("TERMINACIÓN"),
+    p(
+      "El contrato terminará por las causas previstas en el Código de Trabajo (desahucio, despido, dimisión, mutuo acuerdo, entre otras), con los preavisos y prestaciones que la ley establezca en cada caso.",
+    ),
+    ...closingClauses(),
+    signedIn(),
+    signatures([
+      { label: "EL EMPLEADOR", party: "empleador" },
+      { label: "EL TRABAJADOR", party: "trabajador" },
+    ]),
+  ),
+};
+
+const trabajoDeterminado: TemplateSeed = {
+  title: "Contrato de trabajo por tiempo determinado",
+  category: "Laboral",
+  description:
+    "Para obras o servicios concretos de duración limitada (arts. 33 y 34 del Código de Trabajo).",
+  content: doc(
+    title("CONTRATO DE TRABAJO POR TIEMPO DETERMINADO"),
+    p(
+      { b: "ENTRE:" },
+      " De una parte, ",
+      ...company("empresa", "empleador", "EL EMPLEADOR"),
+      "; y de la otra parte, ",
+      ...person("trabajador", "EL TRABAJADOR"),
+      ".",
+    ),
+    clause("CAUSA DEL CONTRATO"),
+    p(
+      "Las partes celebran este contrato por tiempo determinado, conforme a los artículos 33 y 34 del Código de Trabajo, por la siguiente causa:",
+    ),
+    p({ v: "causa_temporal" }),
+    clause("PUESTO Y FUNCIONES"),
+    p(
+      { b: "EL TRABAJADOR" },
+      " ocupará el puesto de ",
+      { v: "puesto_trabajo" },
+      " y realizará las funciones siguientes:",
+    ),
+    p({ v: "funciones_puesto" }),
+    clause("DURACIÓN"),
+    p(
+      "El contrato rige desde el ",
+      { v: "fecha_inicio" },
+      " hasta el ",
+      { v: "fecha_fin" },
+      ". Llegado ese término, terminará sin responsabilidad para las partes, salvo que la labor continúe, en cuyo caso se considerará por tiempo indefinido conforme a la ley.",
+    ),
+    clause("JORNADA, LUGAR Y SALARIO"),
+    p(
+      "La jornada será ",
+      { v: "horario_trabajo" },
+      " en ",
+      { v: "lugar_trabajo" },
+      ". El salario mensual será de ",
+      { v: "salario_mensual" },
+      ", pagadero por quincenas vencidas, con las retenciones legales correspondientes.",
+    ),
+    clause("DERECHOS Y OBLIGACIONES"),
+    p(
+      { b: "EL TRABAJADOR" },
+      " disfrutará de los derechos que el Código de Trabajo reconoce a los trabajadores por tiempo determinado, incluida la inscripción en la Seguridad Social, y cumplirá con diligencia sus funciones y el reglamento interno.",
+    ),
+    ...closingClauses(),
+    signedIn(),
+    signatures([
+      { label: "EL EMPLEADOR", party: "empleador" },
+      { label: "EL TRABAJADOR", party: "trabajador" },
+    ]),
+  ),
+};
+
+const alquilerVivienda: TemplateSeed = {
+  title: "Contrato de alquiler de vivienda",
+  category: "Inmobiliario",
+  description:
+    "Alquiler de vivienda con depósito (Ley 4314), fiador solidario y causas de rescisión.",
+  content: doc(
+    title("CONTRATO DE ALQUILER DE VIVIENDA"),
+    p(
+      { b: "ENTRE:" },
+      " De una parte, ",
+      ...person("arrendador", "EL PROPIETARIO"),
+      "; de otra parte, ",
+      ...person("arrendatario", "EL INQUILINO"),
+      "; y de otra parte, ",
+      ...person("fiador", "EL FIADOR SOLIDARIO"),
+      ".",
+    ),
+    clause("OBJETO"),
+    p(
+      { b: "EL PROPIETARIO" },
+      " da en alquiler a ",
+      { b: "EL INQUILINO" },
+      ", quien acepta, el inmueble ubicado en ",
+      { v: "inmueble_direccion" },
+      ", con las características siguientes:",
+    ),
+    p({ v: "inmueble_descripcion" }),
+    p(
+      "El inmueble se destinará exclusivamente a vivienda familiar de ",
+      { b: "EL INQUILINO" },
+      ", quien no podrá subarrendarlo ni cederlo sin autorización escrita de ",
+      { b: "EL PROPIETARIO" },
+      ".",
+    ),
+    clause("DURACIÓN"),
+    p(
+      "El alquiler se pacta por ",
+      { v: "duracion_meses" },
+      " mes(es), desde el ",
+      { v: "fecha_inicio" },
+      " hasta el ",
+      { v: "fecha_fin" },
+      ". A su vencimiento podrá renovarse por acuerdo de las partes.",
+    ),
+    clause("PRECIO Y PAGO"),
+    p(
+      "La renta mensual es de ",
+      { v: "renta_mensual" },
+      ", que ",
+      { b: "EL INQUILINO" },
+      " pagará por mes adelantado a más tardar el día ",
+      { v: "dia_pago" },
+      " de cada mes. El retraso de más de diez (10) días generará un recargo del cinco por ciento (5 %) de la mensualidad.",
+    ),
+    clause("DEPÓSITO"),
+    p(
+      { b: "EL INQUILINO" },
+      " entrega en este acto un depósito equivalente a ",
+      { v: "deposito_meses" },
+      " mes(es) de renta, que se depositará en el Banco Agrícola de la República Dominicana conforme a la Ley núm. 4314, y se devolverá al término del contrato, deducidos los daños y las deudas pendientes.",
+    ),
+    clause("OBLIGACIONES DE LAS PARTES"),
+    list(
+      [
+        { b: "EL INQUILINO" },
+        " pagará puntualmente la renta y los servicios de agua, electricidad, teléfono y mantenimiento; conservará el inmueble en buen estado y lo devolverá como lo recibió, salvo el desgaste normal.",
+      ],
+      [
+        { b: "EL INQUILINO" },
+        " no hará modificaciones sin autorización escrita; las mejoras quedarán a beneficio del inmueble.",
+      ],
+      [
+        { b: "EL PROPIETARIO" },
+        " garantizará el uso pacífico del inmueble y realizará las reparaciones mayores que no se deban al uso del inquilino.",
+      ],
+    ),
+    clause("FIANZA SOLIDARIA"),
+    p(
+      { b: "EL FIADOR SOLIDARIO" },
+      " se constituye garante solidario e indivisible de todas las obligaciones de ",
+      { b: "EL INQUILINO" },
+      " derivadas de este contrato y de sus renovaciones, renunciando a los beneficios de discusión y división.",
+    ),
+    clause("RESCISIÓN"),
+    p(
+      "La falta de pago de dos (2) mensualidades o el incumplimiento de cualquier otra obligación dará derecho a ",
+      { b: "EL PROPIETARIO" },
+      " a solicitar la rescisión del contrato y el desalojo, conforme al Código Civil y a la legislación de alquileres vigente.",
+    ),
+    ...closingClauses(),
+    signedIn(),
+    signatures(
+      [
+        { label: "EL PROPIETARIO", party: "arrendador" },
+        { label: "EL INQUILINO", party: "arrendatario" },
+        { label: "EL FIADOR SOLIDARIO", party: "fiador" },
+      ],
+      3,
+    ),
+  ),
+};
+
+const alquilerLocal: TemplateSeed = {
+  title: "Contrato de alquiler de local comercial",
+  category: "Inmobiliario",
+  description: "Local para actividad comercial, con incremento anual, depósito y seguros.",
+  content: doc(
+    title("CONTRATO DE ALQUILER DE LOCAL COMERCIAL"),
+    p(
+      { b: "ENTRE:" },
+      " De una parte, ",
+      ...person("arrendador", "EL PROPIETARIO"),
+      "; y de la otra parte, ",
+      ...person("arrendatario", "EL INQUILINO"),
+      ".",
+    ),
+    clause("OBJETO Y DESTINO"),
+    p(
+      { b: "EL PROPIETARIO" },
+      " da en alquiler a ",
+      { b: "EL INQUILINO" },
+      " el local comercial ubicado en ",
+      { v: "inmueble_direccion" },
+      ", descrito así: ",
+      { v: "inmueble_descripcion" },
+      ". El local se destinará exclusivamente a ",
+      { v: "actividad_comercial" },
+      ".",
+    ),
+    clause("DURACIÓN"),
+    p(
+      "El contrato tendrá una duración de ",
+      { v: "duracion_meses" },
+      " mes(es), desde el ",
+      { v: "fecha_inicio" },
+      " hasta el ",
+      { v: "fecha_fin" },
+      ", renovable por acuerdo escrito.",
+    ),
+    clause("RENTA E INCREMENTO"),
+    p(
+      "La renta mensual es de ",
+      { v: "renta_mensual" },
+      ", más el impuesto que corresponda (ITBIS), pagadera por mes adelantado a más tardar el día ",
+      { v: "dia_pago" },
+      " de cada mes. La renta se incrementará un ",
+      { v: "incremento_anual" },
+      " % al cumplirse cada año de vigencia.",
+    ),
+    clause("DEPÓSITO"),
+    p(
+      { b: "EL INQUILINO" },
+      " entrega un depósito equivalente a ",
+      { v: "deposito_meses" },
+      " mes(es) de renta, que se depositará conforme a la Ley núm. 4314 y se devolverá al término del contrato, deducidas las deudas y daños.",
+    ),
+    clause("PERMISOS, MEJORAS Y SEGUROS"),
+    list(
+      [
+        { b: "EL INQUILINO" },
+        " obtendrá a su cargo los permisos y licencias que requiera su actividad, y cumplirá las normas municipales, sanitarias y de seguridad.",
+      ],
+      [
+        "Las remodelaciones requieren autorización escrita y quedarán a beneficio del inmueble, salvo las instalaciones removibles sin daño.",
+      ],
+      [
+        { b: "EL INQUILINO" },
+        " mantendrá un seguro de responsabilidad civil y de su mercancía durante la vigencia del contrato.",
+      ],
+    ),
+    clause("RESCISIÓN"),
+    p(
+      "La falta de pago de dos (2) mensualidades, el cambio de destino del local o el incumplimiento de otras obligaciones facultará a ",
+      { b: "EL PROPIETARIO" },
+      " a rescindir el contrato y solicitar el desalojo conforme a la ley.",
+    ),
+    ...closingClauses(),
+    signedIn(),
+    signatures([
+      { label: "EL PROPIETARIO", party: "arrendador" },
+      { label: "EL INQUILINO", party: "arrendatario" },
+    ]),
+  ),
+};
+
+const vehiculo: TemplateSeed = {
+  title: "Contrato de compraventa de vehículo de motor",
+  category: "Compraventa",
+  description:
+    "Venta de vehículo usado con datos de matrícula, traspaso ante la DGII y estado del vehículo.",
+  content: doc(
+    title("CONTRATO DE COMPRAVENTA DE VEHÍCULO DE MOTOR"),
+    p(
+      { b: "ENTRE:" },
+      " De una parte, ",
+      ...person("vendedor", "EL VENDEDOR"),
+      "; y de la otra parte, ",
+      ...person("comprador", "EL COMPRADOR"),
+      ".",
+    ),
+    clause("OBJETO"),
+    p(
+      { b: "EL VENDEDOR" },
+      " vende, cede y transfiere a ",
+      { b: "EL COMPRADOR" },
+      ", quien acepta, el vehículo de motor siguiente:",
+    ),
+    list(
+      [
+        "Marca: ",
+        { v: "vehiculo_marca" },
+        "; modelo: ",
+        { v: "vehiculo_modelo" },
+        "; año: ",
+        { v: "vehiculo_anio" },
+        "; color: ",
+        { v: "vehiculo_color" },
+        ".",
+      ],
+      [
+        "Placa: ",
+        { v: "vehiculo_placa" },
+        "; chasis: ",
+        { v: "vehiculo_chasis" },
+        "; matrícula núm. ",
+        { v: "vehiculo_matricula" },
+        ".",
+      ],
+    ),
+    clause("PRECIO Y PAGO"),
+    p(
+      "El precio convenido es de ",
+      { v: "valor_contrato" },
+      ", pagadero mediante ",
+      { v: "forma_pago" },
+      ". ",
+      { b: "EL VENDEDOR" },
+      " otorga recibo de descargo por las sumas recibidas.",
+    ),
+    clause("DECLARACIONES DEL VENDEDOR"),
+    p(
+      { b: "EL VENDEDOR" },
+      " declara que el vehículo es de su exclusiva propiedad, que está libre de gravámenes, oposiciones, multas e impuestos pendientes, y que no ha sido objeto de robo ni de alteraciones en sus números de identificación.",
+    ),
+    clause("ESTADO Y ENTREGA"),
+    p(
+      { b: "EL COMPRADOR" },
+      " declara haber inspeccionado el vehículo y recibirlo en el estado en que se encuentra, a su entera satisfacción. La entrega del vehículo, sus llaves y la matrícula original se realiza en la fecha de este contrato.",
+    ),
+    clause("TRASPASO Y RESPONSABILIDAD"),
+    p(
+      "El traspaso ante la Dirección General de Impuestos Internos (DGII) correrá por cuenta de ",
+      { b: "EL COMPRADOR" },
+      ", quien lo realizará en un plazo de treinta (30) días. Desde la entrega, ",
+      { b: "EL COMPRADOR" },
+      " asume toda responsabilidad civil y penal derivada del uso del vehículo.",
+    ),
+    ...closingClauses(),
+    signedIn(),
+    signatures([
+      { label: "EL VENDEDOR", party: "vendedor" },
+      { label: "EL COMPRADOR", party: "comprador" },
+    ]),
+  ),
+};
+
+const promesaInmueble: TemplateSeed = {
+  title: "Contrato de promesa de compraventa de inmueble",
+  category: "Compraventa",
+  description:
+    "Promesa con monto inicial y plazo para el contrato definitivo y el traspaso (Ley 108-05).",
+  content: doc(
+    title("CONTRATO DE PROMESA DE COMPRAVENTA DE INMUEBLE"),
+    p(
+      { b: "ENTRE:" },
+      " De una parte, ",
+      ...person("vendedor", "EL PROMITENTE VENDEDOR"),
+      "; y de la otra parte, ",
+      ...person("comprador", "EL PROMITENTE COMPRADOR"),
+      ".",
+    ),
+    clause("OBJETO"),
+    p(
+      { b: "EL PROMITENTE VENDEDOR" },
+      " promete vender a ",
+      { b: "EL PROMITENTE COMPRADOR" },
+      ", quien promete comprar, el inmueble ubicado en ",
+      { v: "inmueble_direccion" },
+      ", identificado con la designación catastral ",
+      { v: "inmueble_designacion" },
+      " y amparado por el certificado de título (matrícula) núm. ",
+      { v: "inmueble_titulo" },
+      ", con las características siguientes:",
+    ),
+    p({ v: "inmueble_descripcion" }),
+    clause("PRECIO Y FORMA DE PAGO"),
+    p(
+      "El precio total es de ",
+      { v: "valor_contrato" },
+      ". En este acto, ",
+      { b: "EL PROMITENTE COMPRADOR" },
+      " entrega la suma de ",
+      { v: "monto_inicial" },
+      " como monto inicial, que se imputará al precio. El saldo se pagará al firmar el contrato definitivo de compraventa.",
+    ),
+    clause("PLAZO"),
+    p(
+      "Las partes se obligan a firmar el contrato definitivo y a realizar el pago del saldo a más tardar el ",
+      { v: "fecha_fin" },
+      ".",
+    ),
+    clause("DECLARACIONES Y DOCUMENTOS"),
+    p(
+      { b: "EL PROMITENTE VENDEDOR" },
+      " declara que el inmueble es de su propiedad, que está libre de cargas y gravámenes y al día en el pago del Impuesto al Patrimonio Inmobiliario (IPI), y se obliga a entregar los documentos necesarios para el traspaso ante el Registro de Títulos, conforme a la Ley núm. 108-05 de Registro Inmobiliario.",
+    ),
+    clause("INCUMPLIMIENTO"),
+    p(
+      "Si ",
+      { b: "EL PROMITENTE COMPRADOR" },
+      " no cumple en el plazo convenido, perderá el monto inicial a título de indemnización. Si quien incumple es ",
+      { b: "EL PROMITENTE VENDEDOR" },
+      ", devolverá el monto inicial más una suma igual como indemnización.",
+    ),
+    clause("GASTOS"),
+    p(
+      "Los gastos de traspaso, impuestos de transferencia y honorarios notariales del contrato definitivo correrán por cuenta de ",
+      { b: "EL PROMITENTE COMPRADOR" },
+      ", salvo acuerdo distinto por escrito.",
+    ),
+    ...closingClauses(),
+    signedIn(),
+    signatures([
+      { label: "EL PROMITENTE VENDEDOR", party: "vendedor" },
+      { label: "EL PROMITENTE COMPRADOR", party: "comprador" },
+    ]),
+  ),
+};
+
+const prestamo: TemplateSeed = {
+  title: "Contrato de préstamo personal con interés",
+  category: "Financiero",
+  description: "Préstamo de dinero con cuotas, interés mensual, mora y vencimiento anticipado.",
+  content: doc(
+    title("CONTRATO DE PRÉSTAMO PERSONAL CON INTERÉS"),
+    p(
+      { b: "ENTRE:" },
+      " De una parte, ",
+      ...person("prestamista", "EL PRESTAMISTA"),
+      "; y de la otra parte, ",
+      ...person("prestatario", "EL PRESTATARIO"),
+      ".",
+    ),
+    clause("OBJETO"),
+    p(
+      { b: "EL PRESTAMISTA" },
+      " entrega en calidad de préstamo a ",
+      { b: "EL PRESTATARIO" },
+      ", quien lo recibe a su entera satisfacción, la suma de ",
+      { v: "monto_prestamo" },
+      ", conforme a las disposiciones del Código Civil sobre el préstamo de consumo.",
+    ),
+    clause("INTERÉS"),
+    p(
+      "El préstamo devengará un interés del ",
+      { v: "tasa_interes_mensual" },
+      " % mensual sobre el saldo insoluto, calculado desde el ",
+      { v: "fecha_inicio" },
+      ".",
+    ),
+    clause("FORMA DE PAGO"),
+    p(
+      { b: "EL PRESTATARIO" },
+      " pagará el préstamo en ",
+      { v: "numero_cuotas" },
+      " cuotas mensuales y consecutivas de ",
+      { v: "monto_cuota" },
+      " cada una, que incluyen capital e intereses, el día ",
+      { v: "dia_pago" },
+      " de cada mes, de manera que la última cuota se pague a más tardar el ",
+      { v: "fecha_fin" },
+      ".",
+    ),
+    clause("MORA Y VENCIMIENTO ANTICIPADO"),
+    p(
+      "El retraso en el pago de una cuota generará un interés moratorio adicional del uno por ciento (1 %) mensual sobre la cuota atrasada. La falta de pago de dos (2) cuotas consecutivas dará derecho a ",
+      { b: "EL PRESTAMISTA" },
+      " a exigir el pago inmediato de la totalidad del saldo adeudado.",
+    ),
+    clause("PAGO ANTICIPADO"),
+    p(
+      { b: "EL PRESTATARIO" },
+      " podrá pagar anticipadamente el saldo, total o parcialmente, sin penalidad, con reducción proporcional de los intereses no devengados.",
+    ),
+    ...closingClauses(),
+    signedIn(),
+    signatures([
+      { label: "EL PRESTAMISTA", party: "prestamista" },
+      { label: "EL PRESTATARIO", party: "prestatario" },
+    ]),
+  ),
+};
+
+const confidencialidad: TemplateSeed = {
+  title: "Acuerdo de confidencialidad",
+  category: "Servicios",
+  description: "Protección de información compartida para evaluar o ejecutar un proyecto (NDA).",
+  content: doc(
+    title("ACUERDO DE CONFIDENCIALIDAD"),
+    p(
+      { b: "ENTRE:" },
+      " De una parte, ",
+      ...person("reveladora", "LA PARTE REVELADORA"),
+      "; y de la otra parte, ",
+      ...person("receptora", "LA PARTE RECEPTORA"),
+      ".",
+    ),
+    clause("OBJETO"),
+    p("Las partes desean intercambiar información con el siguiente propósito:"),
+    p({ v: "proposito_confidencialidad" }),
+    p(
+      "Este acuerdo regula el tratamiento de toda información técnica, comercial, financiera o de cualquier otra naturaleza que ",
+      { b: "LA PARTE REVELADORA" },
+      " comparta con ",
+      { b: "LA PARTE RECEPTORA" },
+      " (la «Información Confidencial»).",
+    ),
+    clause("OBLIGACIONES"),
+    list(
+      ["Usar la Información Confidencial únicamente para el propósito indicado."],
+      [
+        "No divulgarla a terceros sin autorización escrita, salvo a empleados o asesores que la necesiten y estén obligados a la misma reserva.",
+      ],
+      [
+        "Protegerla con, al menos, el mismo cuidado que emplea para su propia información reservada.",
+      ],
+      ["Devolverla o destruirla cuando lo solicite ", { b: "LA PARTE REVELADORA" }, "."],
+    ),
+    clause("EXCEPCIONES"),
+    p(
+      "No será confidencial la información que sea de dominio público sin culpa de ",
+      { b: "LA PARTE RECEPTORA" },
+      ", que esta ya conociera legítimamente, o que deba revelarse por orden de autoridad competente, en cuyo caso se avisará previamente a ",
+      { b: "LA PARTE REVELADORA" },
+      ".",
+    ),
+    clause("DURACIÓN"),
+    p(
+      "El acuerdo rige desde el ",
+      { v: "fecha_inicio" },
+      " y las obligaciones de confidencialidad se mantendrán durante ",
+      { v: "anios_confidencialidad" },
+      " año(s) después de la última entrega de información.",
+    ),
+    clause("PENALIDAD"),
+    p(
+      "El incumplimiento de este acuerdo obligará a ",
+      { b: "LA PARTE RECEPTORA" },
+      " a pagar una penalidad de ",
+      { v: "penalidad_incumplimiento" },
+      ", sin perjuicio de la reparación de los daños y perjuicios adicionales que se demuestren.",
+    ),
+    ...closingClauses(),
+    signedIn(),
+    signatures([
+      { label: "LA PARTE REVELADORA", party: "reveladora" },
+      { label: "LA PARTE RECEPTORA", party: "receptora" },
+    ]),
+  ),
+};
+
+const suministro: TemplateSeed = {
+  title: "Contrato de suministro de bienes",
+  category: "Compras",
+  description:
+    "Suministro de bienes a la institución con plazos de entrega, garantía y penalidades.",
+  content: doc(
+    title("CONTRATO DE SUMINISTRO DE BIENES"),
+    p(
+      { b: "ENTRE:" },
+      " De una parte, ",
+      ...company("institucion", "representante", "LA INSTITUCIÓN"),
+      "; y de la otra parte, ",
+      ...company("proveedor_empresa", "proveedor", "EL PROVEEDOR"),
+      ".",
+    ),
+    clause("OBJETO"),
+    p(
+      { b: "EL PROVEEDOR" },
+      " se obliga a suministrar a ",
+      { b: "LA INSTITUCIÓN" },
+      " los bienes siguientes, nuevos y conformes a las especificaciones acordadas:",
+    ),
+    p({ v: "bienes_descripcion" }),
+    clause("PRECIO Y FORMA DE PAGO"),
+    p(
+      "El valor total del suministro es de ",
+      { v: "valor_contrato" },
+      ", impuestos incluidos, pagadero mediante ",
+      { v: "forma_pago" },
+      ", contra la recepción conforme de los bienes y la factura con comprobante fiscal válido.",
+    ),
+    clause("ENTREGA"),
+    p(
+      "Los bienes se entregarán en ",
+      { v: "lugar_entrega" },
+      " en un plazo máximo de ",
+      { v: "plazo_entrega_dias" },
+      " días calendario, contados a partir de la firma del contrato. ",
+      { b: "LA INSTITUCIÓN" },
+      " podrá rechazar los bienes que no cumplan las especificaciones.",
+    ),
+    clause("GARANTÍA"),
+    p(
+      { b: "EL PROVEEDOR" },
+      " garantiza los bienes contra defectos de fabricación durante ",
+      { v: "garantia_meses" },
+      " mes(es) desde su recepción, obligándose a reparar o sustituir sin costo los que resulten defectuosos.",
+    ),
+    clause("PENALIDADES"),
+    p(
+      "Por cada día de retraso en la entrega, ",
+      { b: "EL PROVEEDOR" },
+      " pagará una penalidad del uno por mil (0,1 %) del valor de los bienes pendientes, hasta un máximo del diez por ciento (10 %), sin perjuicio del derecho de ",
+      { b: "LA INSTITUCIÓN" },
+      " a resolver el contrato.",
+    ),
+    clause("VIGENCIA"),
+    p(
+      "El contrato rige desde el ",
+      { v: "fecha_inicio" },
+      " hasta el ",
+      { v: "fecha_fin" },
+      " o hasta el cumplimiento total de las obligaciones.",
+    ),
+    ...closingClauses(),
+    signedIn(),
+    signatures([
+      { label: "POR LA INSTITUCIÓN", party: "representante" },
+      { label: "EL PROVEEDOR", party: "proveedor" },
+    ]),
+  ),
+};
+
+export const TEMPLATES: TemplateSeed[] = [
+  servicios,
+  trabajoIndefinido,
+  trabajoDeterminado,
+  alquilerVivienda,
+  alquilerLocal,
+  vehiculo,
+  promesaInmueble,
+  prestamo,
+  confidencialidad,
+  suministro,
+];

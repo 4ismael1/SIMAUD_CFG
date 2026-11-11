@@ -15,10 +15,6 @@ export function HeroSection() {
       <DotGrid className="[mask-image:radial-gradient(ellipse_70%_60%_at_65%_35%,black,transparent)]" />
       <div className={cn(CONTAINER, 'grid items-center gap-16 pt-10 pb-20 sm:pt-16 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:gap-12 lg:pt-20 lg:pb-28')}>
         <div className="stagger flex min-w-0 flex-col gap-6 [--stagger-delay:60ms] [--stagger-step:90ms]">
-          <span className="inline-flex w-fit items-center gap-2 rounded-full border border-vino-100 bg-white/80 py-1 pr-3 pl-1 text-xs font-semibold text-vino-700 shadow-card">
-            <span className="rounded-full bg-vino-600 px-2 py-0.5 text-[11px] tracking-wide text-white uppercase">Nuevo</span>
-            Firma electrónica desde cualquier dispositivo
-          </span>
           <h1 className="max-w-[13ch] text-[42px] leading-[1.04] font-semibold tracking-tight sm:text-6xl lg:text-[68px]">
             Contratos que se firman <span className="text-vino-600">sin papel.</span>
           </h1>

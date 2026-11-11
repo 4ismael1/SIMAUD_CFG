@@ -130,6 +130,12 @@ function VariableField({ variable, value, error, onChange }: VariableFieldProps)
           <Input type="date" value={text} onChange={(event) => onChange(event.target.value)} />
         </Field>
       );
+    case 'money':
+      return (
+        <Field {...common} hint={variable.description ?? 'En pesos dominicanos, p. ej. 25000 o 25000.50'}>
+          <Input inputMode="decimal" className="tabular" placeholder="0.00" value={text} onChange={(event) => onChange(event.target.value)} />
+        </Field>
+      );
     case 'number':
       return (
         <Field {...common}>

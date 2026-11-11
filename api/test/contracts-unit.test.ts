@@ -59,18 +59,19 @@ describe("render", () => {
     });
     expect(extractVariables("{{ a }} {{a}} {{b}}")).toEqual(["a", "b"]);
   });
-  it("formatea fecha es-DO, moneda RD$ y select", () => {
+  it("formatea fecha es-DO, monto RD$, número sin moneda y select", () => {
     expect(
       renderTemplate(
-        "{{fecha}} / {{monto}} / {{opcion}}",
-        { fecha: "2026-11-09", monto: 1234.56, opcion: "Mensual" },
+        "{{fecha}} / {{monto}} / {{meses}} / {{opcion}}",
+        { fecha: "2026-11-09", monto: "1234.56", meses: 12, opcion: "Mensual" },
         [
           { name: "fecha", type: "date" },
-          { name: "monto", type: "number" },
+          { name: "monto", type: "money" },
+          { name: "meses", type: "number" },
           { name: "opcion", type: "select", options: ["Mensual"] },
         ],
       ).html,
-    ).toBe("9 de noviembre de 2026 / RD$ 1.234,56 / Mensual");
+    ).toBe("9 de noviembre de 2026 / RD$ 1.234,56 / 12 / Mensual");
   });
   it("rechaza valores inválidos", () => {
     for (const [type, value] of [

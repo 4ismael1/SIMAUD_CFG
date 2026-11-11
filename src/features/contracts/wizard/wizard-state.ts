@@ -185,6 +185,9 @@ export function validateDetailsStep(draft: WizardDraft, variables: Variable[]): 
       continue;
     }
     if (text === '') continue;
+    if (variable.type === 'money' && !validateMoney(text).ok) {
+      errors[`var:${variable.name}`] = 'Escribe un monto válido (p. ej. 25000 o 25000.50).';
+    }
     if (variable.type === 'number' && !Number.isFinite(Number(text.replace(',', '.')))) {
       errors[`var:${variable.name}`] = 'Escribe un número válido.';
     }

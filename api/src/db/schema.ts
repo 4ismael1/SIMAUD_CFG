@@ -56,6 +56,7 @@ export const variableType = pgEnum("variable_type", [
   "number",
   "select",
   "textarea",
+  "money",
 ]);
 export const templateStatus = pgEnum("template_status", ["active", "inactive"]);
 export const cancellationReason = pgEnum("cancellation_reason", [
