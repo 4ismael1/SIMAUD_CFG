@@ -51,11 +51,13 @@ describe("formato dominicano", () => {
     expect(daysUntil("2026-11-08", now)).toBe(-1);
     expect(daysUntil("2026-11-09", now)).toBe(0);
   });
-  it("aplica el dígito verificador de cédula y rechaza entradas mal formadas", () => {
+  it("acepta toda cédula de 11 dígitos (también las que no cumplen el dígito verificador) y rechaza lo mal formado", () => {
     expect(isValidCedula("00113918205")).toBe(true);
     expect(isValidCedula("001-1391820-5")).toBe(true);
     expect(isValidCedula("40200700678")).toBe(true);
-    expect(isValidCedula("00113918206")).toBe(false);
+    // Real cédulas issued by the JCE that fail the usual check-digit formula.
+    expect(isValidCedula("402-3454518-6")).toBe(true);
+    expect(isValidCedula("00113918206")).toBe(true);
     expect(isValidCedula("00000000000")).toBe(false);
     expect(isValidCedula("abc00113918205")).toBe(false);
     expect(isValidCedula("123")).toBe(false);

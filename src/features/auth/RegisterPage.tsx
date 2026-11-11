@@ -24,7 +24,7 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 function validate(form: RegisterForm): FormErrors {
   const errors: FormErrors = {};
   if (form.name.trim().length < 3) errors.name = 'Escribe tu nombre completo.';
-  if (!isValidCedula(form.cedula)) errors.cedula = 'Revisa la cédula: debe tener 11 dígitos válidos (000-0000000-0).';
+  if (!isValidCedula(form.cedula)) errors.cedula = 'La cédula debe tener 11 dígitos (000-0000000-0).';
   if (!EMAIL_PATTERN.test(form.email.trim())) errors.email = 'Escribe un correo válido, por ejemplo nombre@institucion.edu.do.';
   if (!isStrongEnough(form.password)) errors.password = 'La contraseña no cumple los requisitos.';
   if (!form.acceptedTerms) errors.acceptedTerms = 'Debes aceptar los términos para continuar.';

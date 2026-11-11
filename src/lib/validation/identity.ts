@@ -1,5 +1,4 @@
 // mantener sincronizado con api/src/lib/validation/identity.ts
-import { CEDULA_EXCEPTIONS } from "./cedula-exceptions";
 import { valid, invalid, type ValidationResult } from "./result";
 export function validateCedula(input: string): ValidationResult {
   const value = input.trim().replace(/\s/g, "");
@@ -8,14 +7,9 @@ export function validateCedula(input: string): ValidationResult {
   const digits = value.replace(/-/g, "");
   if (/^(\d)\1{10}$/.test(digits))
     return invalid("La cédula no puede tener todos los dígitos iguales.");
-  if (CEDULA_EXCEPTIONS.has(digits)) return valid(digits);
-  const sum = [...digits.slice(0, 10)].reduce((total, digit, index) => {
-    const product = Number(digit) * (index % 2 === 0 ? 1 : 2);
-    return total + (product >= 10 ? product - 9 : product);
-  }, 0);
-  return (10 - (sum % 10)) % 10 === Number(digits[10])
-    ? valid(digits)
-    : invalid("La cédula no es válida: revisa el dígito verificador.");
+  // No check-digit test: the JCE has issued real cédulas that fail the usual formula (e.g. some
+  // 402 series), and a real ID must never be rejected. Eleven digits are required.
+  return valid(digits);
 }
 export function validateRnc(input: string): ValidationResult {
   const value = input.trim();

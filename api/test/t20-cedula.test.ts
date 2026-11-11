@@ -24,7 +24,7 @@ it("POST y PATCH exigen cédula válida por campo también a los testigos y cons
   expect(created.statusCode, created.body).toBe(201);
   const id = created.json().id as string;
   for (const index of [0, 3]) {
-    for (const cedula of [undefined, null, "", "   ", "00000000000", "00113918206"]) {
+    for (const cedula of [undefined, null, "", "   ", "00000000000", "0011391820"]) {
       const signatories = fixture.input.signatories.map((signer, position) =>
         position === index ? { ...signer, cedula } : signer,
       );

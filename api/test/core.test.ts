@@ -64,11 +64,11 @@ const post = async (url: string, payload: unknown, headers: Record<string, strin
 };
 describe("auth", () => {
   it("registro rechaza cédula inválida con detalle por campo", async () => {
-    const response = await post("/auth/register", { ...registration, cedula: "00113918206" });
+    const response = await post("/auth/register", { ...registration, cedula: "0011391820" });
     expect(response.statusCode).toBe(400);
     expect(response.json().error.details).toContainEqual({
       field: "cedula",
-      message: "La cédula no es válida: revisa el dígito verificador.",
+      message: "La cédula debe tener 11 dígitos, con o sin guiones.",
     });
     expect(await db.select().from(users)).toHaveLength(0);
   });
