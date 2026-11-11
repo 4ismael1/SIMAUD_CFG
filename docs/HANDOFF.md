@@ -6,6 +6,19 @@ Rama `feat/backend-propio-y-nueva-ui`. Commits de esta sesión: `aaba3ad` (fix /
 `66dcf50`…`34d2d86` (editor TipTap con formato), `ae1cab0` (módulo Variables), **`51a3e88` T10 + T12a (Codex)**,
 `dcdc549`/`a5f4fce`/`9d79f28` (docs: plan premium, rich-v2, T14), **`4036335` editor premium fase 1**.
 
+### 🆕 11 nov 2026 (sesión 6, ya en producción, último commit a747539)
+- Plantillas DO: nombres de las partes en negrita (`{ vb: ... }` en builders.ts); en prod se actualizaron las 9 no editadas por el dueño.
+- Firma: área sobre la línea 62 pt (`SIGNATURE_AREA_HEIGHT`), vista previa `.sig-space` 83px; trazo dibujado 8.
+- **Visibilidad del firmante**: solo ve el contrato desde `pending_signatures` (o `rejected` si alguien declinó). `visibleToSignatories` en service.ts; también filtra `/me/signatures`.
+- `/app/verificar` dentro del panel; `/verificar` público redirige allí si hay sesión.
+- **Estado visible**: `status-notice.ts` → `statusNotice` en el detalle + marca en el PDF descargado (banda + diagonal). `?final=true` = original sin tocar (coincide con la huella).
+- Forzar estado: el front solo ofrece transiciones válidas (`overrideTargets`). Toasts como popover (encima de los `<dialog>`).
+- Rendimiento: `ownSignatureSlot` solo mide si `signaturesMutable` y cachea; las acciones devuelven el detalle sin slot; el front pone la respuesta en caché y refresca detrás.
+- Animaciones: page-in 200 ms, sin cascada `.stagger` en la app, esqueletos ocultos 180 ms. RouteError recarga sola una vez ante chunks viejos tras un despliegue.
+- Firmar: ya no exige desplazarse hasta el final (basta la casilla de declaración).
+- **Retención**: el trigger `t17_preserve_approval` impide borrar contratos con `ever_approved` (CT-2026-0002 no se borró; pendiente que el dueño decida). Prueba en curso: CT-2026-0003 (compraventa de vehículo, borrador).
+- Tests: Postgres local en 55433 (ver más abajo); suite 736 OK.
+
 ### 🚀 PRODUCCIÓN — https://simaudlex.uapa.edu.do (10 nov 2026, ~22:40)
 - Servidor Google Cloud `simaud-lex` (Debian 13, 2 vCPU, 3,8 GB), IP 34.139.107.246, usuario `simuad`, sudo sin contraseña.
   Acceso de Claude: llave propia `~/.ssh/simaud_uni` (autorizada por el dueño con su llave .ppk; la .ppk tiene frase y NUNCA
