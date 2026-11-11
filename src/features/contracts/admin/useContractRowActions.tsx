@@ -4,7 +4,7 @@ import { useAction, type MenuItem } from '../../../ui';
 import { useContractRowAction, useDeleteContractRow, useReassignContract } from '../../../lib/api/hooks/contract-admin';
 import type { Contract, ContractStatus, Role } from '../../../lib/api/types';
 import { downloadFromApi } from '../../../lib/download';
-import { CancelContractDialog, OverrideStatusDialog } from '../components/ContractDialogs';
+import { CancelContractDialog, OverrideStatusDialog, overrideTargets } from '../components/ContractDialogs';
 import { ReassignDialog } from './ReassignDialog';
 
 type DialogKind = 'cancel' | 'override' | 'reassign';
@@ -78,8 +78,9 @@ export function useContractRowActions(role: Role | undefined): { menuFor: (contr
   function adminItems(contract: Contract): MenuItem[] {
     const items: MenuItem[] = [
       { label: 'Reasignar gestor…', icon: <UserRoundCog />, onSelect: () => setTarget({ kind: 'reassign', contract }), separatorBefore: true },
-      { label: 'Forzar estado…', icon: <ShieldAlert />, onSelect: () => setTarget({ kind: 'override', contract }) },
     ];
+    if (overrideTargets(contract.status).length > 0)
+      items.push({ label: 'Forzar estado…', icon: <ShieldAlert />, onSelect: () => setTarget({ kind: 'override', contract }) });
     if (contract.status === 'cancelled') items.push({ label: 'Reactivar', icon: <RotateCcw />, onSelect: () => reactivate(contract) });
     return items;
   }

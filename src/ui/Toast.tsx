@@ -60,6 +60,21 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const [paused, setPaused] = useState(false);
   const nextId = useRef(1);
+  const regionRef = useRef<HTMLElement>(null);
+
+  /*
+   * Modals use the native <dialog>, which sits in the browser's top layer: no z-index can beat it, so a
+   * toast raised from inside a modal (e.g. a refused action) ended up blurred behind it. The region is a
+   * manual popover, re-opened whenever a toast arrives so it becomes the newest top-layer element,
+   * above any open dialog.
+   */
+  const newestId = toasts.at(-1)?.id;
+  useEffect(() => {
+    const region = regionRef.current;
+    if (!region || newestId === undefined || typeof region.showPopover !== 'function') return;
+    if (region.matches(':popover-open')) region.hidePopover();
+    region.showPopover();
+  }, [newestId]);
 
   const dismiss = useCallback((id: number) => {
     setToasts((current) => current.filter((toast) => toast.id !== id));
@@ -104,13 +119,15 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     <ToastContext.Provider value={api}>
       {children}
       <section
+        ref={regionRef}
+        popover="manual"
         aria-label="Notificaciones"
         onPointerEnter={() => setPaused(true)}
         onPointerLeave={() => setPaused(false)}
         onFocus={() => setPaused(true)}
         onBlur={() => setPaused(false)}
         // Top centre, under the header: results of an action are seen where the eye is, not in a corner.
-        className="pointer-events-none fixed inset-x-0 top-0 z-[60] flex flex-col items-center gap-2 p-3 sm:pt-[68px]"
+        className="pointer-events-none fixed inset-x-0 top-0 z-[60] m-0 flex h-auto max-h-none w-auto max-w-none flex-col items-center gap-2 overflow-visible border-0 bg-transparent p-3 text-inherit sm:pt-[68px]"
       >
         <AnimatePresence initial={false}>
           {toasts.map((toast) => (

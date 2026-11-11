@@ -18,7 +18,7 @@ import { errorMessage } from '../../../lib/errors';
 import { downloadFromApi } from '../../../lib/download';
 import { useReassignContract } from '../../../lib/api/hooks/contract-admin';
 import { ReassignDialog } from '../admin/ReassignDialog';
-import { CancelContractDialog, OverrideStatusDialog } from './ContractDialogs';
+import { CancelContractDialog, OverrideStatusDialog, overrideTargets } from './ContractDialogs';
 
 type OpenDialog = 'submit' | 'cancel' | 'delete' | 'override' | 'reassign' | 'amend' | 'reset-all' | null;
 
@@ -106,7 +106,7 @@ export function ContractActions({ contract }: { contract: ContractDetail }) {
   if (can.reassign) {
     secondary.push({ label: 'Reasignar gestor…', icon: <UserRoundCog />, onSelect: () => setDialog('reassign'), separatorBefore: true });
   }
-  if (can.override) {
+  if (can.override && overrideTargets(contract.status, Boolean(contract.amendsContractId)).length > 0) {
     secondary.push({ label: 'Forzar estado…', icon: <ShieldAlert />, onSelect: () => setDialog('override'), separatorBefore: !can.reassign });
   }
   if (can.cancel) {
@@ -171,6 +171,7 @@ export function ContractActions({ contract }: { contract: ContractDetail }) {
       <OverrideStatusDialog
         open={dialog === 'override'}
         current={contract.status}
+        isAmendment={Boolean(contract.amendsContractId)}
         onClose={() => setDialog(null)}
         loading={override.isPending}
         onConfirm={(input) => void run(() => override.mutateAsync(input), 'Estado actualizado.')}

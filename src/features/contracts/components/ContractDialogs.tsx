@@ -68,28 +68,38 @@ export function CancelContractDialog({ open, onClose, onConfirm, loading }: Canc
   );
 }
 
-const OVERRIDE_TARGETS: ContractStatus[] = [
-  'draft',
-  'pending_approval',
-  'rejected',
-  'pending_signatures',
-  'active',
-  'expiring_soon',
-  'expired',
-  'cancelled',
-];
+/**
+ * States an admin can force from each state: the same transitions the API accepts (state-machine.ts),
+ * so the dialog never offers a change that will be refused. A cancelled contract uses «Reactivar».
+ */
+const OVERRIDE_TRANSITIONS: Partial<Record<ContractStatus, ContractStatus[]>> = {
+  draft: ['pending_approval'],
+  rejected: ['draft', 'pending_approval'],
+  pending_approval: ['pending_signatures', 'rejected'],
+  pending_signatures: ['active', 'rejected', 'cancelled'],
+  active: ['expiring_soon', 'cancelled'],
+  expiring_soon: ['expired', 'cancelled'],
+};
+
+/** Valid targets for «Forzar estado»; empty means the option should not be shown. */
+export function overrideTargets(current: ContractStatus, isAmendment = false): ContractStatus[] {
+  const targets = OVERRIDE_TRANSITIONS[current] ?? [];
+  // An amendment only becomes active through its signatures (the API refuses it too).
+  return isAmendment ? targets.filter((status) => status !== 'active') : targets;
+}
 
 interface OverrideDialogProps {
   open: boolean;
   current: ContractStatus;
+  isAmendment?: boolean;
   onClose: () => void;
   onConfirm: (input: { status: ContractStatus; reason: string }) => void;
   loading: boolean;
 }
 
 /** Admin-only escape hatch. The API only accepts valid transitions and audits every use. */
-export function OverrideStatusDialog({ open, current, onClose, onConfirm, loading }: OverrideDialogProps) {
-  const options = OVERRIDE_TARGETS.filter((status) => status !== current);
+export function OverrideStatusDialog({ open, current, isAmendment, onClose, onConfirm, loading }: OverrideDialogProps) {
+  const options = overrideTargets(current, isAmendment);
   const [status, setStatus] = useState<ContractStatus>(options[0]);
   const [reason, setReason] = useState('');
 
