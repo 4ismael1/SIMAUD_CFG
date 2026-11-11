@@ -287,7 +287,7 @@ const STATUS_VIEW: Record<VerificationStatus, { title: string; detail: string; t
 
 function CodeResult({ code }: { code: string }) {
   const result = useVerification(code);
-  if (result.isPending) return <Skeleton className="h-64 animate-fade-in rounded-xl" />;
+  if (result.isPending) return <Skeleton className="h-64 rounded-xl" />;
   if (result.isError)
     return (
       <div className="animate-pop-in">

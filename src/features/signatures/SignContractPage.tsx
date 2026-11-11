@@ -79,7 +79,7 @@ export function SignContractPage() {
     if (review) URL.revokeObjectURL(review.url);
   }, [review]);
 
-  if (contract.isPending) return <Skeleton className="m-6 h-[70dvh] animate-fade-in rounded-xl" />;
+  if (contract.isPending) return <Skeleton className="m-6 h-[70dvh] rounded-xl" />;
   if (contract.isError) {
     // Usually a link meant for another account (the API hides contracts you do not take part in).
     return (

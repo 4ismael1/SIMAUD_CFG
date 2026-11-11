@@ -34,7 +34,7 @@
   --animate-fade-in: fade-in 160ms ease-out;
   --animate-slide-in-right: slide-in-right 200ms ease-out;
   --animate-pop-in: pop-in 160ms ease-out;
-  --animate-page-in: page-in 380ms var(--ease-out-expo) both;
+  --animate-page-in: page-in 200ms ease-out both;
   --animate-rise-in: rise-in 640ms var(--ease-out-expo) both;
   --animate-hero-doc: hero-doc 1100ms 200ms var(--ease-out-expo) both;
   --animate-float: float 8s 1.4s ease-in-out infinite;
@@ -54,7 +54,7 @@
     to { transform: none; opacity: 1; }
   }
   @keyframes page-in {
-    from { transform: translateY(10px); opacity: 0; }
+    from { transform: translateY(3px); opacity: 0; }
     to { transform: none; opacity: 1; }
   }
   @keyframes rise-in {
@@ -310,6 +310,32 @@
     animation: var(--animate-rise-in);
     animation-delay: calc(var(--stagger-delay, 0ms) + var(--i, 0) * var(--stagger-step, 70ms));
   }
+  /*
+   * Inside the app the page itself already fades in once per navigation; a second, slower cascade
+   * (rise + blur, one item after another) made content appear and then "re-animate". There, lists only
+   * get a short fade when they change (e.g. switching tabs). The cascade stays on the landing page.
+   */
+  #contenido .stagger > * {
+    animation: var(--animate-fade-in) both;
+    animation-delay: 0ms;
+  }
+
+  /*
+   * Skeletons stay invisible for their first 180 ms: fast answers (cache, quick API) go straight to the
+   * content without flashing a placeholder; slow ones still show it, in the same reserved space.
+   */
+  .skeleton {
+    animation:
+      skeleton-wait 180ms step-end,
+      skeleton-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) 180ms infinite;
+  }
+  @keyframes skeleton-pulse {
+    50% { opacity: 0.5; }
+  }
+  @keyframes skeleton-wait {
+    from { visibility: hidden; }
+    to { visibility: hidden; }
+  }
 
   .reveal,
   .reveal-stagger > * {
@@ -424,13 +450,13 @@
   animation: 140ms ease-out both view-fade-out;
 }
 ::view-transition-new(root) {
-  animation: 260ms var(--ease-out-expo) both view-fade-in;
+  animation: 180ms ease-out both view-fade-in;
 }
 @keyframes view-fade-out {
   to { opacity: 0; }
 }
 @keyframes view-fade-in {
-  from { opacity: 0; transform: translateY(6px); }
+  from { opacity: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
   ::view-transition-old(root),

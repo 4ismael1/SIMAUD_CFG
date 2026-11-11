@@ -122,7 +122,7 @@ export function Spinner({ className, label = 'Cargando' }: { className?: string;
 }
 
 export function Skeleton({ className }: { className?: string }) {
-  return <div aria-hidden="true" className={cn('animate-pulse rounded-md bg-slate-200/70', className)} />;
+  return <div aria-hidden="true" className={cn('skeleton rounded-md bg-slate-200/70', className)} />;
 }
 
 interface EmptyStateProps {
