@@ -12,6 +12,7 @@ import { DocumentView } from './components/DocumentView';
 import { SignatoriesPanel } from './components/SignatoriesPanel';
 import { ContractActivity, ContractVersions } from './components/ContractHistory';
 import { useAuth } from '../../lib/auth';
+import { SwitchAccountButton } from '../../app/SwitchAccountButton';
 import { contractsPathFor } from '../../app/navigation';
 
 type DetailTab = 'documento' | 'versiones' | 'actividad';
@@ -40,8 +41,13 @@ export function ContractDetailPage() {
         <EmptyState
           icon={<FileQuestion />}
           title="Contrato no disponible"
-          description="No existe o no tienes permiso para verlo."
-          action={<ButtonLink to={backTo}>Volver a {backLabel.toLowerCase()}</ButtonLink>}
+          description="No existe o no tienes permiso para verlo. Si el enlace te llegó por correo, puede ser para otra cuenta."
+          action={
+            <div className="flex flex-wrap justify-center gap-2">
+              <SwitchAccountButton variant="secondary" />
+              <ButtonLink to={backTo}>Volver a {backLabel.toLowerCase()}</ButtonLink>
+            </div>
+          }
         />
       );
     }

@@ -1,5 +1,7 @@
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { useAuth } from '../../lib/auth';
+import { OpenSessionNotice } from './OpenSessionNotice';
 import { Mail, TriangleAlert } from 'lucide-react';
 import { Alert, Button, ButtonLink, Spinner } from '../../ui';
 import { useConfirmEmail, useResendConfirmation } from '../../lib/api/hooks/auth';
@@ -57,17 +59,45 @@ export function ConfirmEmailPage() {
   const navigate = useNavigate();
   const token = searchParams.get('token') ?? '';
   const confirm = useConfirmEmail();
+  const { status, logout } = useAuth();
   const requested = useRef(false);
 
-  useEffect(() => {
+  const run = useCallback(async () => {
     // StrictMode mounts twice in development; the token is single-use, so send it only once.
     if (!token || requested.current) return;
     requested.current = true;
-    confirm
-      .mutateAsync(token)
-      .then(() => navigate('/auth/login?confirmado=1', { replace: true }))
-      .catch(() => undefined);
-  }, [token, confirm, navigate]);
+    try {
+      await confirm.mutateAsync(token);
+      // Confirming changes this account (activation or new email) and the API revokes its sessions:
+      // whoever was signed in here leaves, and the login asks for the confirmed account.
+      if (status === 'authenticated') await logout();
+      navigate('/auth/login?confirmado=1', { replace: true });
+    } catch {
+      // Rendered below.
+    }
+  }, [token, confirm, status, logout, navigate]);
+
+  // Nobody signed in: confirm straight away. Someone signed in: wait for their explicit go-ahead.
+  useEffect(() => {
+    if (status === 'anonymous') void run();
+  }, [status, run]);
+
+  if (token && !confirm.isError && status === 'authenticated' && !confirm.isPending) {
+    return (
+      <AuthCardLayout>
+        <div className="flex flex-col gap-4">
+          <h1 className="text-2xl font-semibold">Confirmar la cuenta del enlace</h1>
+          <OpenSessionNotice action="confirmar" />
+          <Button variant="primary" size="lg" block onClick={() => void run()}>
+            Cerrar mi sesión y confirmar
+          </Button>
+          <ButtonLink to="/app" variant="ghost" block>
+            Volver sin confirmar
+          </ButtonLink>
+        </div>
+      </AuthCardLayout>
+    );
+  }
 
   if (!token || confirm.isError) {
     return (

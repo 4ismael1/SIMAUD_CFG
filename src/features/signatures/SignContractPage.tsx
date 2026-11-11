@@ -5,6 +5,7 @@ import { Alert, Button, ButtonLink, Checkbox, EmptyState, Logo, Segmented, Skele
 import { useContract } from '../../lib/api/hooks/contracts';
 import { useSignContract } from '../../lib/api/hooks/signatures';
 import { useAuth } from '../../lib/auth';
+import { SwitchAccountButton } from '../../app/SwitchAccountButton';
 import { errorMessage } from '../../lib/errors';
 import { downloadFromApi } from '../../lib/download';
 import { formatCedula, formatDate } from '../../lib/format';
@@ -80,7 +81,20 @@ export function SignContractPage() {
 
   if (contract.isPending) return <Skeleton className="m-6 h-[70dvh] animate-fade-in rounded-xl" />;
   if (contract.isError) {
-    return <EmptyState className="min-h-dvh" title="No se pudo abrir el contrato" description={errorMessage(contract.error)} action={<ButtonLink to="/app/firmas">Volver</ButtonLink>} />;
+    // Usually a link meant for another account (the API hides contracts you do not take part in).
+    return (
+      <EmptyState
+        className="min-h-dvh"
+        title="Este enlace no es para la cuenta con la que entraste"
+        description={`${errorMessage(contract.error)} Si te llegó por correo, entra con la cuenta a la que se envió.`}
+        action={
+          <div className="flex flex-wrap justify-center gap-2">
+            <SwitchAccountButton />
+            <ButtonLink to="/app/firmas">Volver</ButtonLink>
+          </div>
+        }
+      />
+    );
   }
 
   const data = contract.data;
@@ -89,13 +103,23 @@ export function SignContractPage() {
   if (done) return <SignedScreen code={data.code} contractId={data.id} title={data.title} />;
 
   if (!data.can.sign || !mySignatory) {
+    const isSignatory = data.signatories.some((signatory) => signatory.userId === user?.id);
     return (
       <EmptyState
         className="min-h-dvh"
         icon={<PenLine />}
-        title="Este contrato no espera tu firma ahora"
-        description="Puede que ya hayas firmado, que todavía no sea tu turno o que el contrato haya cambiado de estado."
-        action={<ButtonLink to={`/app/contratos/${data.id}`}>Ver contrato</ButtonLink>}
+        title={isSignatory ? 'Este contrato no espera tu firma ahora' : `No firmas este contrato como ${user?.name ?? 'esta cuenta'}`}
+        description={
+          isSignatory
+            ? 'Puede que ya hayas firmado, que todavía no sea tu turno o que el contrato haya cambiado de estado.'
+            : 'Si el enlace te llegó por correo, es para otra cuenta: cambia de cuenta y volverás aquí para firmar.'
+        }
+        action={
+          <div className="flex flex-wrap justify-center gap-2">
+            {!isSignatory && <SwitchAccountButton />}
+            <ButtonLink to={`/app/contratos/${data.id}`}>Ver contrato</ButtonLink>
+          </div>
+        }
       />
     );
   }

@@ -6,6 +6,7 @@ import { useForgotPassword, useResetPassword } from '../../lib/api/hooks/auth';
 import { errorMessage } from '../../lib/errors';
 import { changePassword } from '../../lib/api/hooks/me';
 import { useAuth } from '../../lib/auth';
+import { OpenSessionNotice } from './OpenSessionNotice';
 import { homePathFor } from '../../app/navigation';
 import { AuthCardLayout } from './AuthLayout';
 import { PasswordInput, PasswordStrength, isStrongEnough } from './PasswordInput';
@@ -87,6 +88,7 @@ export function ForgotPasswordPage() {
 export function ResetPasswordPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { status, logout } = useAuth();
   const token = searchParams.get('token') ?? '';
   const reset = useResetPassword();
   const [password, setPassword] = useState('');
@@ -102,6 +104,9 @@ export function ResetPasswordPage() {
     if (!canSubmit) return;
     try {
       await reset.mutateAsync({ token, password });
+      // Whoever was signed in here (this account or another one) leaves: the login must ask for the
+      // account of the link, never fall back into the previous session.
+      if (status === 'authenticated') await logout();
       navigate('/auth/login?clave=actualizada', { replace: true });
     } catch {
       // Rendered below.
@@ -136,8 +141,9 @@ export function ResetPasswordPage() {
         </IconBadge>
         <div className="flex flex-col gap-1.5">
           <h1 className="text-2xl font-semibold">Crea una contraseña nueva</h1>
-          <p className="text-slate-500">Se cerrarán tus sesiones en otros equipos.</p>
+          <p className="text-slate-500">Se cerrarán las sesiones de esta cuenta en todos los equipos.</p>
         </div>
+        <OpenSessionNotice action="guardar la contraseña" />
         <Field label="Contraseña nueva" error={submitted && !isStrongEnough(password) ? 'La contraseña no cumple los requisitos.' : null}>
           <PasswordInput autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} autoFocus />
         </Field>
