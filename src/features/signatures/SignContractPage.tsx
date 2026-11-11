@@ -294,7 +294,7 @@ export function SignContractPage() {
             imageUrl={review?.url ?? null}
             name={mySignatory.name}
             cedula={mySignatory.cedula}
-            slot={signatureSlotFor(data.generatedContent, mySignatory.signingOrder)}
+            slot={signatureSlotFor(data.generatedContent, mySignatory)}
             boxAspect={signatureBoxAspect(data.generatedContent, data.signatureSlot)}
             placement={placement}
             onPlacementChange={setPlacement}

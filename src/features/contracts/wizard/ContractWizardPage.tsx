@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useBlocker, useNavigate, useParams } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, ArrowRight, Check, Save, Send } from 'lucide-react';
 import { Alert, Button, ButtonLink, EmptyState, PageHeader, Skeleton, cn, useConfirm, useToast } from '../../../ui';
 import { apiFetch } from '../../../lib/api/client';
+import { invalidateContract } from '../../../lib/api/hooks/cache';
 import { useContract, useCreateContract, useUpdateContract } from '../../../lib/api/hooks/contracts';
 import { useTemplate } from '../../../lib/api/hooks/templates';
 import { useAuth } from '../../../lib/auth';
@@ -97,6 +99,7 @@ function Wizard({ contractId, initial }: WizardProps) {
   const variables = useMemo(() => template.data?.resolvedVariables ?? [], [template.data]);
   // T19: the template's signature boxes are the signer roles (one person each).
   const slots = template.data?.signatureSlots;
+  const queryClient = useQueryClient();
   const create = useCreateContract();
   const update = useUpdateContract(contractId ?? '');
   const step: StepId = WIZARD_STEPS[stepIndex].id;
@@ -166,7 +169,11 @@ function Wizard({ contractId, initial }: WizardProps) {
     try {
       const input = toContractInput(draft, variables.map((variable) => variable.name), slots);
       const saved = isEdit ? await update.mutateAsync(input) : await create.mutateAsync(input);
-      if (sendToApproval) await apiFetch(`/contracts/${saved.id}/submit`, { method: 'POST' });
+      if (sendToApproval) {
+        await apiFetch(`/contracts/${saved.id}/submit`, { method: 'POST' });
+        // The save above refreshed the cache BEFORE the submit: refresh again so the detail shows «En aprobación».
+        await invalidateContract(queryClient, saved.id);
+      }
       if (storageKey && !isEdit) clearLocalDraft(storageKey);
       toast.success(sendToApproval ? 'Contrato enviado a aprobación.' : 'Borrador guardado.');
       navigate(`/app/contratos/${saved.id}`, { replace: true });

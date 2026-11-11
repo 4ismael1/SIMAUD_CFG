@@ -17,6 +17,11 @@ export function useSessionState() {
     user: null,
   });
   const generation = useRef(0);
+  // Whether someone is signed in right now, readable from the stable loadUser callback.
+  const signedInRef = useRef(false);
+  useEffect(() => {
+    signedInRef.current = state.user !== null;
+  }, [state.user]);
   const setUser = useCallback((user: User | null) => {
     generation.current += 1;
     setState({ status: user ? "authenticated" : "anonymous", user });
@@ -39,6 +44,10 @@ export function useSessionState() {
         );
         return;
       }
+      // Only a real «not authenticated» ends the session. A busy server (429), an error or a lost
+      // connection is temporary: keep whoever is signed in instead of throwing them to the login.
+      const temporary = !(error instanceof ApiError) || error.status !== 401;
+      if (temporary && signedInRef.current) return;
       updateSession("session-expired");
     }
   }, []);
