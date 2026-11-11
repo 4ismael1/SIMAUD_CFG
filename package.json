@@ -4,6 +4,9 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "e2e": "node e2e/run.mjs headless",
+    "e2e:headed": "node e2e/run.mjs headed",
+    "e2e:ui": "node e2e/run.mjs ui",
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
