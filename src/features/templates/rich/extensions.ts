@@ -5,6 +5,34 @@ import Heading from "@tiptap/extension-heading";
 import { SignaturesNode } from "./SignaturesNode";
 import { Pagination } from "./pagination-extension";
 import TextAlign from "@tiptap/extension-text-align";
+/**
+ * Text alignment rendered as a CSS class (text-align-center…) instead of an inline style attribute: the
+ * site's Content-Security-Policy blocks inline styles, which made aligned text look unaligned in the editor.
+ */
+const ClassTextAlign = TextAlign.extend({
+  addGlobalAttributes() {
+    return [
+      {
+        types: this.options.types,
+        attributes: {
+          textAlign: {
+            default: this.options.defaultAlignment,
+            parseHTML: (element: HTMLElement) => {
+              const fromClass = [...element.classList].find((name) => name.startsWith("text-align-"))?.slice("text-align-".length);
+              const alignment = fromClass ?? element.style.textAlign;
+              return this.options.alignments.includes(alignment) ? alignment : this.options.defaultAlignment;
+            },
+            renderHTML: (attributes: { textAlign?: string | null }) =>
+              attributes.textAlign && attributes.textAlign !== this.options.defaultAlignment
+                ? { class: `text-align-${attributes.textAlign}` }
+                : {},
+          },
+        },
+      },
+    ];
+  },
+});
+
 import {
   Table,
   TableCell,
@@ -248,7 +276,7 @@ export function editorExtensions(
     NumberedHeading.configure({ levels: [1, 2, 3] }),
     SignaturesNode,
     Pagination,
-    TextAlign.configure({
+    ClassTextAlign.configure({
       types: ["heading", "paragraph"],
       alignments: ["left", "center", "right", "justify"],
     }),

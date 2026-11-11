@@ -212,7 +212,7 @@ export function SignContractPage() {
           </DocumentView>
         </section>
 
-        <aside className="flex w-full flex-[1_1_360px] flex-col gap-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-pop lg:sticky lg:top-24 lg:max-w-[440px]">
+        <aside className="flex w-full flex-[1_1_360px] flex-col gap-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-pop lg:sticky lg:top-24 lg:max-h-[calc(100dvh-7rem)] lg:max-w-[440px] lg:overflow-y-auto">
           <div>
             <p className="text-xs font-semibold tracking-wider text-vino-600 uppercase">Tu firma</p>
             <h1 className="text-xl font-semibold">Firmar como {signatoryRoleLabel(mySignatory).toLowerCase()}</h1>
@@ -309,10 +309,17 @@ export function SignContractPage() {
               onAccept={handleFullscreenAccept}
             />
           </div>
-          {!readToEnd && <Alert tone="info">Lee el documento hasta el final para habilitar la firma.</Alert>}
-          <Button variant="primary" size="lg" block icon={<PenLine />} disabled={!canSubmit} onClick={() => void handleReview()}>
-            Revisar y firmar
-          </Button>
+          <p className="flex items-start gap-1.5 text-xs text-slate-500">
+            <ShieldCheck className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
+            Se registrarán la fecha, la hora, tu IP y tu dispositivo junto con la versión exacta del documento.
+          </p>
+          {/* Always reachable: pinned to the bottom of the panel (and of the screen on phones). */}
+          <div className="sticky bottom-0 z-10 -mx-5 -mb-5 mt-auto flex flex-col gap-3 rounded-b-2xl border-t border-slate-100 bg-white px-5 pt-3 pb-5">
+            {!readToEnd && <Alert tone="info">Lee el documento hasta el final para habilitar la firma.</Alert>}
+            <Button variant="primary" size="lg" block icon={<PenLine />} disabled={!canSubmit} onClick={() => void handleReview()}>
+              Revisar y firmar
+            </Button>
+          </div>
           <SignaturePreviewDialog
             open={review !== null}
             imageUrl={review?.url ?? null}
@@ -326,10 +333,6 @@ export function SignContractPage() {
             onChange={() => setReview(null)}
             onConfirm={() => void handleSign()}
           />
-          <p className="flex items-start gap-1.5 text-xs text-slate-500">
-            <ShieldCheck className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
-            Se registrarán la fecha, la hora, tu IP y tu dispositivo junto con la versión exacta del documento.
-          </p>
         </aside>
       </div>
     </div>

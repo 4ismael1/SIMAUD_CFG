@@ -53,12 +53,23 @@ async function responseError(response: Response) {
       );
     }
   }
+  // 502/503/504 without an API body: the server is restarting (an update) or briefly overloaded.
+  if (TRANSIENT_STATUSES.has(response.status))
+    return new ApiError(
+      response.status,
+      "SERVICE_UNAVAILABLE",
+      "El servidor se está actualizando o está ocupado. Inténtalo de nuevo en unos segundos.",
+    );
   return new ApiError(
     response.status,
     "HTTP_ERROR",
     "No se pudo completar la solicitud. Inténtalo de nuevo.",
   );
 }
+/** Gateway/overload answers that go away by themselves within seconds. */
+const TRANSIENT_STATUSES = new Set([502, 503, 504]);
+/** Waits before each retry of a read; a restarting API is back in a few seconds. */
+const RETRY_DELAYS_MS = [500, 1000, 2000, 4000];
 async function send(path: string, options: RequestOptions = {}) {
   const headers = new Headers();
   const token = getAccessToken();
@@ -129,14 +140,30 @@ export function refreshSession() {
     });
   return refreshInFlight;
 }
+/**
+ * Sends a request; reads (GET) that hit a restart or overload are retried a few times with growing waits.
+ * Writes are never retried automatically: the user decides, so nothing is done twice.
+ */
+async function sendWithRetry(path: string, options: RequestOptions) {
+  let response = await send(path, options);
+  const isRead = (options.method ?? "GET") === "GET";
+  for (const delay of RETRY_DELAYS_MS) {
+    if (!isRead || !TRANSIENT_STATUSES.has(response.status)) break;
+    const retryAfter = Number(response.headers.get("Retry-After"));
+    await new Promise((resolve) => setTimeout(resolve, Number.isFinite(retryAfter) && retryAfter > 0 ? Math.min(retryAfter * 1000, 5000) : delay));
+    options.signal?.throwIfAborted();
+    response = await send(path, options);
+  }
+  return response;
+}
 async function authorizedResponse(path: string, options: RequestOptions = {}) {
   const token = getAccessToken();
-  let response = await send(path, options);
+  let response = await sendWithRetry(path, options);
   const isAuthEndpoint = path.startsWith("/auth/");
   if (response.status === 401 && !isAuthEndpoint) {
     if (!getAccessToken() || token === getAccessToken()) await refreshSession();
     options.signal?.throwIfAborted();
-    response = await send(path, options);
+    response = await sendWithRetry(path, options);
     if (response.status === 401) updateSession("session-expired");
   }
   if (!response.ok) throw await responseError(response);

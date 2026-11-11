@@ -438,3 +438,9 @@
     animation: none;
   }
 }
+
+/* Text alignment set in the editor (classes instead of inline styles, which the CSP blocks). */
+.text-align-left { text-align: left; }
+.text-align-center { text-align: center; }
+.text-align-right { text-align: right; }
+.text-align-justify { text-align: justify; }
