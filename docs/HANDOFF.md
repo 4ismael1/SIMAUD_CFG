@@ -6,6 +6,25 @@ Rama `feat/backend-propio-y-nueva-ui`. Commits de esta sesión: `aaba3ad` (fix /
 `66dcf50`…`34d2d86` (editor TipTap con formato), `ae1cab0` (módulo Variables), **`51a3e88` T10 + T12a (Codex)**,
 `dcdc549`/`a5f4fce`/`9d79f28` (docs: plan premium, rich-v2, T14), **`4036335` editor premium fase 1**.
 
+### 🚀 PRODUCCIÓN — https://simaudlex.uapa.edu.do (10 nov 2026, ~22:40)
+- Servidor Google Cloud `simaud-lex` (Debian 13, 2 vCPU, 3,8 GB), IP 34.139.107.246, usuario `simuad`, sudo sin contraseña.
+  Acceso de Claude: llave propia `~/.ssh/simaud_uni` (autorizada por el dueño con su llave .ppk; la .ppk tiene frase y NUNCA
+  la introduce Claude). `ssh -i ~/.ssh/simaud_uni simuad@34.139.107.246`.
+- **Proyecto viejo (Supabase) eliminado** (11 contenedores, /opt/simaud-stack, /srv/www/simaud, copias en el home) tras copia
+  completa en `~/respaldo-supabase-20261110/` (pg_dumpall + configs + web + nginx).
+- App en `/srv/simaud` (código de `git archive`; commit en `VERSION_COMMIT`), `.env.prod` (600, secretos generados en el
+  servidor; correo Brevo SMTP), Compose: `sudo docker compose --env-file .env.prod -f docker-compose.prod.yml
+  -f deploy/signing.compose.yml -f deploy/behind-proxy.compose.yml …`. Web solo en 127.0.0.1:8080; **el nginx del host**
+  (`/etc/nginx/sites-available/simaud`) tiene TLS Let's Encrypt (renovación webroot `/var/www/html`, cert hasta ene 2027) y
+  hace de proxy. IP real: host → X-Real-IP → contenedor (real_ip) → API TRUST_PROXY=1.
+- **Sello**: Ed25519 generado en el servidor, `/srv/simaud-secrets/` (uid 1000, clave 400), válido hasta nov 2028, huella
+  SHA-256 4D:66:5F:18…89:1C. Certificado también en `trusted-certificates/`.
+- **Copias**: contenedor `backup`, diario 02:00 UTC en `/srv/simaud-backups/daily/` (probado 11 nov 02:39 UTC).
+- **Admin**: Ismael Paulino `ismaelpaulino32@gmail.com`, cédula PROVISIONAL 001-0000000-9 (cambiarla). Entra con el correo de
+  restablecer contraseña enviado el 11 nov 02:38 UTC. Institución en ajustes: «SIMAUD-LEX» + logo.
+- Para actualizar: `git archive` → `/srv/simaud`, `… build`, `… --profile tools run --rm migrate`, `… up -d`.
+- ⚠️ `create-admin.js` imprime la contraseña temporal: tras usarlo, sustituirla (se hizo) o cambiar el script.
+
 ### 🔀 RAMAS (10 nov ~22:30, pedido del dueño)
 - **`main` = proyecto NUEVO** (antes `feat/backend-propio-y-nueva-ui`, avance limpio, ya en GitHub). Trabajar aquí.
 - **`main-legacy` = proyecto VIEJO** (Supabase), congelado en `a660df1`. No tocar.
