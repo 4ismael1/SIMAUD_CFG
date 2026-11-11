@@ -4,8 +4,8 @@
  */
 import type { RichDoc } from "../../lib/rich-doc/types.js";
 
-/** A piece of a paragraph: plain text, `{ v: "variable" }` or `{ b: "bold text" }`. */
-export type Part = string | { v: string } | { b: string };
+/** A piece of a paragraph: text, `{ v: "variable" }`, `{ vb: "variable in bold" }` or `{ b: "bold text" }`. */
+export type Part = string | { v: string } | { vb: string } | { b: string };
 
 type Inline = Record<string, unknown>;
 type Block = Record<string, unknown>;
@@ -14,6 +14,8 @@ function inline(parts: Part[]): Inline[] {
   return parts.map((part) => {
     if (typeof part === "string") return { type: "text", text: part };
     if ("v" in part) return { type: "variable", attrs: { name: part.v } };
+    if ("vb" in part)
+      return { type: "variable", attrs: { name: part.vb }, marks: [{ type: "bold" }] };
     return { type: "text", text: part.b, marks: [{ type: "bold" }] };
   });
 }
@@ -74,7 +76,7 @@ export const doc = (...content: Block[]): RichDoc =>
 /** «Nombre, de nacionalidad X, mayor de edad, portador(a) de la cédula núm. …, domiciliado(a) en …» */
 export function person(party: string, role: string): Part[] {
   return [
-    { v: `${party}_nombre` },
+    { vb: `${party}_nombre` },
     ", de nacionalidad ",
     { v: `${party}_nacionalidad` },
     ", mayor de edad, portador(a) de la cédula de identidad y electoral núm. ",
@@ -91,13 +93,13 @@ export function person(party: string, role: string): Part[] {
 /** «Empresa, sociedad comercial con RNC …, representada por Nombre, cédula …, en su calidad de cargo» */
 export function company(prefix: string, party: string, role: string): Part[] {
   return [
-    { v: `${prefix}_razon_social` },
+    { vb: `${prefix}_razon_social` },
     ", sociedad comercial organizada de acuerdo con las leyes de la República Dominicana, con Registro Nacional de Contribuyentes (RNC) núm. ",
     { v: `${prefix}_rnc` },
     ", con domicilio social en ",
     { v: `${prefix}_domicilio` },
     ", debidamente representada por ",
-    { v: `${party}_nombre` },
+    { vb: `${party}_nombre` },
     ", portador(a) de la cédula de identidad y electoral núm. ",
     { v: `${party}_cedula` },
     ", en su calidad de ",

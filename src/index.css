@@ -203,7 +203,7 @@
     @apply flex min-w-0 flex-col items-center text-center;
   }
   .rich-content .sig-space {
-    @apply h-14 w-full;
+    @apply h-[83px] w-full; /* 62 pt, same area as the PDF (SIGNATURE_AREA_HEIGHT) */
   }
   .rich-content .sig-line {
     @apply w-4/5 border-t border-slate-700;

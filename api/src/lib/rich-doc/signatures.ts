@@ -79,6 +79,12 @@ function extraSlot(signer?: SlotSigner): RichNode {
   };
 }
 
+/**
+ * Height of the area above the signature line, in points. Tall enough that a drawn signature (usually
+ * 2–3× wider than tall) gets a size close to a typed name, which is limited by the width instead.
+ */
+export const SIGNATURE_AREA_HEIGHT = 62;
+
 function signatureCell(
   slot: RichNode,
   number: number,
@@ -95,14 +101,14 @@ function signatureCell(
     alignment: "left" as const,
     relativePosition: { x: 0, y: 0 },
   };
-  const stack: Content[] = [anchor, { text: "", margin: [0, 0, 0, 42] }];
+  const stack: Content[] = [anchor, { text: "", margin: [0, 0, 0, SIGNATURE_AREA_HEIGHT] }];
   if (signer?.image) {
     const bytes = Buffer.from(signer.image.split(",")[1]!, "base64");
     const placed = placeSignature(
       bytes.readUInt32BE(16),
       bytes.readUInt32BE(20),
       width * 0.8,
-      42,
+      SIGNATURE_AREA_HEIGHT,
       signer.placement ?? undefined,
     );
     stack.splice(1, 0, {
@@ -175,7 +181,7 @@ export function signatureSlotSizes(document: RichDoc, signers: number | SlotSign
     .flatMap((node) => {
       const columns = node.attrs?.columns ?? 2;
       const cellWidth = (contentWidth - (columns - 1) * 24) / columns;
-      return node.content!.map(() => ({ width: cellWidth * 0.8, height: 42, cellWidth, paper }));
+      return node.content!.map(() => ({ width: cellWidth * 0.8, height: SIGNATURE_AREA_HEIGHT, cellWidth, paper }));
     });
 }
 export interface SignatureSlotGeometry {

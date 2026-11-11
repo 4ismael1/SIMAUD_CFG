@@ -66,6 +66,6 @@ it("la celda PDF usa dimensiones y desplazamientos acotados y cédula formateada
   ) as ContentStack;
   const serialized = JSON.stringify(cell);
   expect(serialized).toContain("001-1234567-3");
-  expect(serialized).toContain('"height":21');
-  expect(serialized).toContain('"relativePosition":{"x":138,"y":0}');
+  expect(serialized).toContain('"height":31');
+  expect(serialized).toContain('"relativePosition":{"x":118,"y":0}');
 });

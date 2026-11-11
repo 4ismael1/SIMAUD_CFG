@@ -18,7 +18,7 @@ export const STROKE_COLOR = '#0f172a';
  */
 const EXPORT_BOX = { width: 900, height: 300 };
 /** Line width of the exported strokes, in output pixels (~1 pt once fitted into a signature box). */
-const EXPORT_STROKE = 7;
+const EXPORT_STROKE = 8;
 
 /** Redraws the strokes, cropped to the ink and fitted into EXPORT_BOX, and encodes them as PNG. */
 export function exportStrokes(lines: Point[][], ink: InkBounds | null): Promise<Blob | null> {
