@@ -6,6 +6,15 @@ Rama `feat/backend-propio-y-nueva-ui`. Commits de esta sesión: `aaba3ad` (fix /
 `66dcf50`…`34d2d86` (editor TipTap con formato), `ae1cab0` (módulo Variables), **`51a3e88` T10 + T12a (Codex)**,
 `dcdc549`/`a5f4fce`/`9d79f28` (docs: plan premium, rich-v2, T14), **`4036335` editor premium fase 1**.
 
+### 🔀 RAMAS (10 nov ~22:30, pedido del dueño)
+- **`main` = proyecto NUEVO** (antes `feat/backend-propio-y-nueva-ui`, avance limpio, ya en GitHub). Trabajar aquí.
+- **`main-legacy` = proyecto VIEJO** (Supabase), congelado en `a660df1`. No tocar.
+- La rama `feat/backend-propio-y-nueva-ui` ya no existe en local (renombrada a `main`); nunca se subió a GitHub.
+- Correo: SIMAUD_RUN corre con `MAIL_DRIVER=smtp JOBS_ENABLED=true` (Brevo real). Pedro (firmante de prueba) usa el correo de
+  pruebas del dueño. Plantillas de correo con logo en `api/src/lib/mail/templates/`. Campana con contador.
+- Enlaces de cuenta con sesión abierta: aviso + cierre de sesión (`src/features/auth/OpenSessionNotice.tsx`,
+  `src/app/SwitchAccountButton.tsx`).
+
 ### ⚡⚡⚡⚡⚡⚡ ESTADO 10 nov ~20:40 (sesión 5) — camino a producción (decisiones del dueño)
 - Desplegado en SIMAUD_RUN: T17, T18, T19 (roles = casillas de la plantilla, `party` = prefijo de datos), T20 (cédula
   obligatoria) y **cargo = dato de plantilla** (los usuarios SOLO tienen rol; el campo «Cargo» de usuarios se quitó del front y
