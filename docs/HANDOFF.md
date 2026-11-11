@@ -6,6 +6,20 @@ Rama `feat/backend-propio-y-nueva-ui`. Commits de esta sesión: `aaba3ad` (fix /
 `66dcf50`…`34d2d86` (editor TipTap con formato), `ae1cab0` (módulo Variables), **`51a3e88` T10 + T12a (Codex)**,
 `dcdc549`/`a5f4fce`/`9d79f28` (docs: plan premium, rich-v2, T14), **`4036335` editor premium fase 1**.
 
+### ⚡⚡⚡⚡⚡⚡ ESTADO 10 nov ~20:40 (sesión 5) — camino a producción (decisiones del dueño)
+- Desplegado en SIMAUD_RUN: T17, T18, T19 (roles = casillas de la plantilla, `party` = prefijo de datos), T20 (cédula
+  obligatoria) y **cargo = dato de plantilla** (los usuarios SOLO tienen rol; el campo «Cargo» de usuarios se quitó del front y
+  la API ya no rellena `{party}_cargo` desde el usuario; la columna `users.position` queda sin uso).
+- **T21 recorrido e2e Playwright** (`npm run e2e` sin ventana, `e2e:headed`, `e2e:ui`; BD local `simaud_e2e`, API :3100,
+  Vite :5175, Chrome instalado; resultados en `e2e/output/<fecha>/RESUMEN.md`). Encontró y se arreglaron: vista previa
+  «undefined» con rich-v2, cédula sin formato en la declaración, recuadro de firma que dibujaba solo un punto / se borraba.
+  Pendiente front: el documento del detalle muestra «[Firmante n]» en vez de nombres.
+- **Plan acordado:** recorrido completo en verde → activar **SMTP real (Brevo, ya en api/.env)** en SIMAUD_RUN y probar con un
+  correo de prueba que dará el dueño (enlaces a http://localhost:5173) → **ensayo en staging Instabox** (compose de producción,
+  nginx, backups, repetir e2e) → revisión del dueño → servidor de la universidad.
+- **Sin nueva auditoría de seguridad** (decisión del dueño). **Clave de sello**: se genera al instalar en el servidor de la
+  universidad (uso institucional/demostración, no contratos reales).
+
 ### ⚡⚡⚡⚡⚡ ESTADO 10 nov ~17:20 (sesión 5)
 - **T18 commiteada y desplegada** (`2de9681` API, `50e2e60` front Verificar v2 + ajustar firma). SIMAUD_RUN en `50e2e60`,
   `npm ci` (pdf-lib) y migración 0015 aplicadas; API reiniciada. Suite 666/666 local.
