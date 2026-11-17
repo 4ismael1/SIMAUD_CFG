@@ -1,3 +1,4 @@
+import type React from "react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   EditorContent,
@@ -6,7 +7,7 @@ import {
   type Editor,
 } from "@tiptap/react";
 import { createPortal } from "react-dom";
-import { Plus } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 import { cn } from "../../../ui";
 import type { Variable } from "../../../lib/api/catalog-types";
 import { normalizeText } from "../catalog-filters";
@@ -29,7 +30,6 @@ import {
   repaintVariableChips,
 } from "./extensions";
 
-const MAX_SUGGESTIONS = 8;
 const VARIABLE_NAME = /^[a-z][a-z0-9_]{1,49}$/;
 
 interface SuggestState {
@@ -127,8 +127,16 @@ export function RichTextEditor({
       detectSuggestion(current);
     },
     onSelectionUpdate: ({ editor: current }) => detectSuggestion(current),
-    onBlur: () => window.setTimeout(() => setSuggest(null), 150),
+    // Focus may move to the list's own search box: close only when it left both editor and list.
+    onBlur: () => window.setTimeout(closeUnlessFocusInList, 150),
   });
+
+  const listRef = useRef<HTMLDivElement>(null);
+  function closeUnlessFocusInList() {
+    if (listRef.current?.contains(document.activeElement)) return;
+    if (editor?.view.hasFocus()) return;
+    setSuggest(null);
+  }
 
   // Page set-up lives in the document's own attributes, so undo/redo covers it too.
   const docAttrs =
@@ -390,16 +398,33 @@ export function RichTextEditor({
       )}
       <EditorFooter editor={editor} fullscreen={fullscreen} />
       {suggest &&
-        options.length > 0 &&
+        (options.length > 0 || suggest.manual) &&
         // In <body>, like full screen: an animated ancestor would otherwise trap `position: fixed`.
         createPortal(
           <SuggestionList
+            ref={listRef}
             options={options}
             activeIndex={suggest.index}
             left={suggest.left}
             caretTop={suggest.caretTop}
             caretBottom={suggest.caretBottom}
             onChoose={choose}
+            search={
+              suggest.manual
+                ? {
+                    value: suggest.query,
+                    total: variables.length,
+                    onChange: (query) =>
+                      setSuggest({ ...suggest, query, index: 0 }),
+                    onKeyDown: (event) => {
+                      if (handleSuggestKey(event.nativeEvent))
+                        event.preventDefault();
+                    },
+                    onBlur: () =>
+                      window.setTimeout(closeUnlessFocusInList, 150),
+                  }
+                : undefined
+            }
           />,
           document.body,
         )}
@@ -434,7 +459,8 @@ function buildOptions(
         variable.name.includes(needle) ||
         normalizeText(variable.label).includes(needle),
     )
-    .slice(0, MAX_SUGGESTIONS)
+    // Every match, alphabetically: the list shows about eight rows and scrolls for the rest.
+    .sort((a, b) => a.label.localeCompare(b.label, "es"))
     .map((variable): SuggestOption => ({ kind: "variable", variable }));
   const exists = variables.some((variable) => variable.name === query);
   if (canCreate && VARIABLE_NAME.test(query) && !exists)
@@ -445,96 +471,168 @@ function buildOptions(
 const LIST_MAX_HEIGHT = 288;
 const LIST_GAP = 6;
 
+interface SuggestionSearch {
+  value: string;
+  /** Size of the whole catalogue, to tell how many there are. */
+  total: number;
+  onChange: (query: string) => void;
+  onKeyDown: (event: React.KeyboardEvent<HTMLInputElement>) => void;
+  onBlur: () => void;
+}
+
 interface SuggestionListProps {
+  ref?: React.Ref<HTMLDivElement>;
   options: SuggestOption[];
   activeIndex: number;
   left: number;
   caretTop: number;
   caretBottom: number;
   onChoose: (option: SuggestOption) => void;
+  /** «Insertar dato» from the toolbar: a search box above the list (nothing typed in the document). */
+  search?: SuggestionSearch;
 }
 
 function SuggestionList({
+  ref,
   options,
   activeIndex,
   left: caretLeft,
   caretTop,
   caretBottom,
   onChoose,
+  search,
 }: SuggestionListProps) {
+  const listRef = useRef<HTMLUListElement>(null);
+  // Keyboard navigation through a long list keeps the active row in sight.
+  useEffect(() => {
+    listRef.current
+      ?.querySelector('[aria-selected="true"]')
+      ?.scrollIntoView({ block: "nearest" });
+  }, [activeIndex]);
+
   // Stay on screen: shift left on narrow phones, open above the caret when there is no room below.
-  const left = Math.max(8, Math.min(caretLeft, window.innerWidth - 300));
+  const width = search ? 340 : 300;
+  const left = Math.max(8, Math.min(caretLeft, window.innerWidth - width));
   const roomBelow = window.innerHeight - caretBottom - LIST_GAP;
   const placement =
     roomBelow >= Math.min(LIST_MAX_HEIGHT, 160) || roomBelow >= caretTop
       ? { top: caretBottom + LIST_GAP }
       : { bottom: window.innerHeight - caretTop + LIST_GAP };
+  const variableCount = options.filter(
+    (option) => option.kind === "variable",
+  ).length;
   return (
-    <ul
-      role="listbox"
-      aria-label={
-        options[0]?.kind === "command"
-          ? "Insertar bloque"
-          : "Datos del contrato"
-      }
+    <div
+      ref={ref}
       style={{ left, ...placement }}
-      className="fixed z-[60] max-h-72 w-[min(292px,calc(100vw-16px))] animate-pop-in overflow-y-auto rounded-lg border border-slate-200 bg-white py-1 shadow-pop"
+      className={cn(
+        "fixed z-[60] flex animate-pop-in flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-pop",
+        search
+          ? "w-[min(340px,calc(100vw-16px))]"
+          : "w-[min(292px,calc(100vw-16px))]",
+      )}
     >
-      {options.map((option, index) => (
-        <li
-          key={
-            option.kind === "variable"
-              ? option.variable.id
-              : option.kind === "command"
-                ? option.command.id
-                : `create-${option.name}`
-          }
-          role="option"
-          aria-selected={index === activeIndex}
-        >
-          <button
-            type="button"
-            onMouseDown={(event) => {
-              event.preventDefault();
-              onChoose(option);
-            }}
-            className={cn(
-              "flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm",
-              index === activeIndex ? "bg-vino-50" : "hover:bg-slate-50",
-            )}
+      {search && (
+        <div className="border-b border-slate-100 p-2">
+          <div className="relative">
+            <Search
+              className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-slate-400"
+              aria-hidden="true"
+            />
+            <input
+              autoFocus
+              type="search"
+              value={search.value}
+              onChange={(event) => search.onChange(event.target.value)}
+              onKeyDown={search.onKeyDown}
+              onBlur={search.onBlur}
+              placeholder="Buscar dato por nombre…"
+              aria-label="Buscar dato"
+              className="h-9 w-full rounded-md border border-slate-200 bg-slate-50 pr-2 pl-8 text-sm outline-none focus:border-vino-400 focus:bg-white"
+            />
+          </div>
+          <p className="mt-1.5 px-0.5 text-[11px] text-slate-500">
+            {search.value.trim()
+              ? `${variableCount} de ${search.total} datos`
+              : `${search.total} datos disponibles · desplázate para ver todos`}
+          </p>
+        </div>
+      )}
+      {search && options.length === 0 && (
+        <p className="px-3 py-6 text-center text-sm text-slate-500">
+          Ningún dato coincide con «{search.value}».
+        </p>
+      )}
+      <ul
+        ref={listRef}
+        role="listbox"
+        aria-label={
+          options[0]?.kind === "command"
+            ? "Insertar bloque"
+            : "Datos del contrato"
+        }
+        className={cn(
+          "overflow-y-auto py-1",
+          search ? "max-h-80" : "max-h-72",
+          options.length === 0 && "hidden",
+        )}
+      >
+        {options.map((option, index) => (
+          <li
+            key={
+              option.kind === "variable"
+                ? option.variable.id
+                : option.kind === "command"
+                  ? option.command.id
+                  : `create-${option.name}`
+            }
+            role="option"
+            aria-selected={index === activeIndex}
           >
-            {option.kind === "command" ? (
-              <span className="flex min-w-0 items-center gap-3">
-                <span className="grid size-8 shrink-0 place-items-center rounded-md border border-slate-200 bg-white text-slate-600 [&_svg]:size-4">
-                  <option.command.icon />
-                </span>
-                <span className="min-w-0">
-                  <span className="block truncate text-slate-900">
-                    {option.command.label}
+            <button
+              type="button"
+              onMouseDown={(event) => {
+                event.preventDefault();
+                onChoose(option);
+              }}
+              className={cn(
+                "flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm",
+                index === activeIndex ? "bg-vino-50" : "hover:bg-slate-50",
+              )}
+            >
+              {option.kind === "command" ? (
+                <span className="flex min-w-0 items-center gap-3">
+                  <span className="grid size-8 shrink-0 place-items-center rounded-md border border-slate-200 bg-white text-slate-600 [&_svg]:size-4">
+                    <option.command.icon />
                   </span>
-                  <span className="block truncate text-xs text-slate-500">
-                    {option.command.hint}
+                  <span className="min-w-0">
+                    <span className="block truncate text-slate-900">
+                      {option.command.label}
+                    </span>
+                    <span className="block truncate text-xs text-slate-500">
+                      {option.command.hint}
+                    </span>
                   </span>
                 </span>
-              </span>
-            ) : option.kind === "variable" ? (
-              <>
-                <span className="truncate">{option.variable.label}</span>
-                <span className="shrink-0 font-mono text-[11px] text-slate-400">
-                  {option.variable.name}
+              ) : option.kind === "variable" ? (
+                <>
+                  <span className="truncate">{option.variable.label}</span>
+                  <span className="shrink-0 font-mono text-[11px] text-slate-400">
+                    {option.variable.name}
+                  </span>
+                </>
+              ) : (
+                <span className="flex items-center gap-2 text-vino-700">
+                  <Plus className="size-4" />
+                  Crear dato{" "}
+                  <span className="font-mono text-xs">{option.name}</span>
                 </span>
-              </>
-            ) : (
-              <span className="flex items-center gap-2 text-vino-700">
-                <Plus className="size-4" />
-                Crear dato{" "}
-                <span className="font-mono text-xs">{option.name}</span>
-              </span>
-            )}
-          </button>
-        </li>
-      ))}
-    </ul>
+              )}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 
