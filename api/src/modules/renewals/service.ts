@@ -169,7 +169,7 @@ export async function processRenewal(
       throw contractService.conflict("La renovación ya fue procesada.");
     if (
       action !== "cancel" &&
-      req.user.role !== "admin" &&
+      !["admin", "supervisor"].includes(req.user.role) &&
       renewal.originalRequestedBy === req.user.id
     )
       throw contractService.forbidden();

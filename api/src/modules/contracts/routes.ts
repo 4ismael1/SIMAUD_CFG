@@ -3,7 +3,7 @@ import { statusNotice } from "./status-notice.js";
 import { createContract, updateContract } from "./writes.js";
 import { missingCedula } from "./cedula.js";
 import { hasOpenAmendment, hasOpenRenewal, mirrorAmendmentEvent } from "./amendments.js";
-import { canResetSignature } from "./amendment-permissions.js";
+import { canResetSignature, isContractEditor } from "./amendment-permissions.js";
 import { ownSignatureSlot } from "./signature-placement.js";
 import { listContracts, contractListQuery } from "./list-queries.js";
 import { listApprovals, approvalQuery, getPendingApprovalRequester } from "./approval-queries.js";
@@ -115,13 +115,14 @@ export async function contractRoutes(app: FastifyInstance) {
       ]),
     );
   });
-  app.post("/contracts", { preHandler: requireRole("admin", "gestor") }, async (req, reply) => {
+  const creators = { preHandler: requireRole("admin", "supervisor", "gestor") };
+  app.post("/contracts", creators, async (req, reply) => {
     const input = parse(contractInput, req.body);
     const contract = await createContract(req, input);
     return reply.code(201).send(await detail(req, contract.id));
   });
   app.get("/contracts/:id", auth, (req) => detail(req, idOf(req)));
-  app.patch("/contracts/:id", { preHandler: requireRole("admin", "gestor") }, async (req) => {
+  app.patch("/contracts/:id", creators, async (req) => {
     const id = idOf(req);
     const patch = parse(
       contractFields.partial().extend({ content: contentInput.optional() }).strict(),
@@ -194,11 +195,7 @@ export async function contractRoutes(app: FastifyInstance) {
       await db.transaction(async (tx) => {
         const contract = await contractService.getContract(tx, id, true);
         const allSignatories = await contractService.getSignatories(tx, id);
-        if (!(
-          req.user.role === "admin" ||
-          (req.user.role === "gestor" && contract.createdBy === req.user.id)
-        ))
-          throw contractService.notFound();
+        if (!isContractEditor(contract, req.user)) throw contractService.notFound();
         if (!contractService.permissions(contract, req.user, allSignatories).delete)
           throw contractService.conflict(
             "Un contrato firmado o en proceso no se puede eliminar: cancélalo o archívalo.",

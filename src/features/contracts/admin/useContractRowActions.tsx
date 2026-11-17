@@ -16,14 +16,18 @@ const CANCELLABLE = new Set<ContractStatus>(['pending_approval', 'pending_signat
  * Per-row actions of the contract list. What appears depends on the role and the status;
  * the API stays the authority and answers with a clear error if something is not allowed.
  */
-export function useContractRowActions(role: Role | undefined): { menuFor: (contract: Contract) => MenuItem[]; dialogs: ReactNode } {
+export function useContractRowActions(role: Role | undefined, userId?: string): { menuFor: (contract: Contract) => MenuItem[]; dialogs: ReactNode } {
   const { runAction } = useAction();
   const rowAction = useContractRowAction();
   const removeRow = useDeleteContractRow();
   const reassign = useReassignContract();
   const [target, setTarget] = useState<{ kind: DialogKind; contract: Contract } | null>(null);
   const isAdmin = role === 'admin';
-  const canManage = isAdmin || role === 'gestor';
+  // Archive: anyone who manages contracts (supervisors see them all). Edit/delete: admin, or the
+  // gestor or supervisor who created it — the same rules as the API.
+  const canManage = isAdmin || role === 'gestor' || role === 'supervisor';
+  const canEdit = (contract: Contract) =>
+    isAdmin || ((role === 'gestor' || role === 'supervisor') && contract.createdBy === userId);
 
   function closeAfter(run: () => Promise<unknown>, success: string) {
     void runAction({ run, success }).then((result) => {
@@ -87,7 +91,7 @@ export function useContractRowActions(role: Role | undefined): { menuFor: (contr
 
   function menuFor(contract: Contract): MenuItem[] {
     const items: MenuItem[] = [{ label: 'Ver contrato', icon: <Eye />, to: `/app/contratos/${contract.id}` }];
-    if (canManage && EDITABLE.has(contract.status)) {
+    if (canEdit(contract) && EDITABLE.has(contract.status)) {
       items.push({ label: contract.status === 'rejected' ? 'Corregir' : 'Editar', icon: <Pencil />, to: `/app/contratos/${contract.id}/editar` });
     }
     items.push({ label: 'Descargar PDF', icon: <Download />, onSelect: () => downloadPdf(contract) });
@@ -99,7 +103,7 @@ export function useContractRowActions(role: Role | undefined): { menuFor: (contr
     if (isAdmin && CANCELLABLE.has(contract.status)) {
       items.push({ label: 'Cancelar contrato…', icon: <Ban />, danger: true, onSelect: () => setTarget({ kind: 'cancel', contract }) });
     }
-    if (canManage && contract.status === 'draft') {
+    if (canEdit(contract) && contract.status === 'draft') {
       items.push({ label: 'Eliminar borrador…', icon: <Trash2 />, danger: true, onSelect: () => removeDraft(contract) });
     }
     return items;

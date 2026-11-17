@@ -65,9 +65,7 @@ export async function listApprovals(
       .where(
         and(
           eq(approvals.status, query.status),
-          actor.role !== "admin" && query.status === "pending"
-            ? sql`${contracts.originalCreatedBy} is distinct from ${actor.id}::uuid and ${contracts.createdBy} is distinct from ${actor.id}::uuid and ${approvals.originalRequestedBy} is distinct from ${actor.id}::uuid`
-            : undefined,
+          // Admins and supervisors may approve their own contracts too, so the queue shows them.
         ),
       )
       .orderBy(approvals.requestedAt, approvals.id)

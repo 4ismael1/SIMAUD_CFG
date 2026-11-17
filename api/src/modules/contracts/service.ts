@@ -101,8 +101,7 @@ export function permissions(
   signatories: Signatory[],
   requestedBy?: string | null,
 ) {
-  const own = contract.createdBy === actor.id;
-  const editor = actor.role === "admin" || (actor.role === "gestor" && own);
+  const editor = isContractEditor(contract, actor);
   const editable = ["draft", "rejected"].includes(contract.status);
   const reviewer =
     canReview(contract, actor, requestedBy) && contract.status === "pending_approval";

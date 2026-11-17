@@ -198,8 +198,8 @@ it("aplica permisos, opacidad y validación estricta al crear enmiendas", async 
   expect((await post(id, "submit", gestor.headers)).statusCode).toBe(200);
   await db.update(users).set({ role: "supervisor" }).where(eq(users.id, gestor.user.id));
   const reviewerHeaders = authorization((await signIn(app, gestor.user)).token);
-  expect((await post(id, "approve", reviewerHeaders)).statusCode).toBe(403);
-  expect((await post(id, "approve", fixture.admin.headers)).statusCode).toBe(200);
+  // A supervisor may approve an amendment they created (recorded as their own approval).
+  expect((await post(id, "approve", reviewerHeaders)).statusCode).toBe(200);
 });
 
 it("conserva indefinidamente la aprobación histórica después de declinar, editar e intentar borrar", async () => {

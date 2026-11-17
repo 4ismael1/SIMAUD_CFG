@@ -19,7 +19,7 @@ interface SidebarProps {
 
 export function Sidebar({ user, avatarUrl, counts, collapsed = false, onNavigate, onLogout }: SidebarProps) {
   const groups = navigationFor(user.role);
-  const canCreateContract = user.role === 'admin' || user.role === 'gestor';
+  const canCreateContract = user.role === 'admin' || user.role === 'gestor' || user.role === 'supervisor';
 
   return (
     <nav aria-label="Principal" className="flex h-full flex-col bg-white">

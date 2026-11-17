@@ -90,7 +90,7 @@ export function ContractsListPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const isAdmin = user?.role === 'admin';
   const isGestor = user?.role === 'gestor';
-  const canCreate = isAdmin || isGestor;
+  const canCreate = isAdmin || isGestor || user?.role === 'supervisor';
 
   const tabParam = searchParams.get('estado');
   const tab: TabValue = isTabValue(tabParam) ? tabParam : 'all';
@@ -139,7 +139,7 @@ export function ContractsListPage() {
   const options = useReportFilterOptions();
   const rows = contracts.data?.data;
 
-  const { menuFor, dialogs } = useContractRowActions(user?.role);
+  const { menuFor, dialogs } = useContractRowActions(user?.role, user?.id);
   const selection = useRowSelection<Contract>(rows, (contract) => contract.id, (contract) => contract.code);
   // A gestor only sees their own contracts, so the "Gestor" column would always repeat their name.
   const baseColumns = buildColumns(menuFor).filter((column) => !(isGestor && column.key === 'creator'));

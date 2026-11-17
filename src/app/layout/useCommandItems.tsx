@@ -29,7 +29,7 @@ interface QuickAction {
 }
 
 const QUICK_ACTIONS: QuickAction[] = [
-  { label: 'Crear contrato nuevo', to: '/app/contratos/nuevo', icon: <FilePlus2 />, roles: ['admin', 'gestor'] },
+  { label: 'Crear contrato nuevo', to: '/app/contratos/nuevo', icon: <FilePlus2 />, roles: ['admin', 'supervisor', 'gestor'] },
   { label: 'Crear plantilla nueva', to: '/app/plantillas/nueva', icon: <LayoutTemplate />, roles: ['admin', 'supervisor'] },
   { label: 'Ver mi perfil', to: '/app/perfil', icon: <UserRound />, roles: ['admin', 'supervisor', 'gestor', 'user'] },
 ];

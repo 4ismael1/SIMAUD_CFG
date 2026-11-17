@@ -1,4 +1,5 @@
 import { assertAmendmentCanReopen } from "./amendments.js";
+import { isContractEditor } from "./amendment-permissions.js";
 import { assertSignatoryCedulas } from "./cedula.js";
 import type { FastifyRequest } from "fastify";
 import { and, eq, inArray, isNull } from "drizzle-orm";
@@ -100,11 +101,7 @@ async function submitForApproval(context: ActionContext): Promise<ActionResult> 
   let changes: Partial<typeof contracts.$inferInsert> = {};
 
   if (!can.submit) {
-    if (
-      !["admin", "gestor"].includes(req.user.role) ||
-      (req.user.role === "gestor" && contract.createdBy !== req.user.id)
-    )
-      throw contractService.forbidden();
+    if (!isContractEditor(contract, req.user)) throw contractService.forbidden();
     if (["draft", "rejected"].includes(contract.status)) assertSignatoryCedulas(allSignatories);
     throw contractService.conflict();
   }
@@ -177,7 +174,7 @@ async function reviewApproval(context: ActionContext): Promise<ActionResult> {
   if (action === "approve") await contractService.nextSigners(tx, contract);
   const auditAction =
     action === "approve" &&
-    req.user.role === "admin" &&
+    ["admin", "supervisor"].includes(req.user.role) &&
     isOwnReview(contract, req.user, requestedBy)
       ? "approved_own"
       : action;

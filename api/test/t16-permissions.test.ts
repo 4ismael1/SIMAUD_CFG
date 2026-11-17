@@ -78,7 +78,8 @@ it("el admin autoaprueba su contrato y su renovación con acciones distinguibles
   expect(actions).toContain("renewal-approved_own");
 });
 
-it.each(["supervisor", "gestor"] as const)(
+// Supervisors may approve their own (see contracts.test); a gestor never reviews.
+it.each(["gestor"] as const)(
   "%s no aprueba ni devuelve su contrato o solicitud de renovación",
   async (role) => {
     const actor = await loginUser(app, { role });
@@ -118,7 +119,7 @@ it.each(["supervisor", "gestor"] as const)(
   },
 );
 
-it("reasignar y cambiar de rol no convierte al autor ni al solicitante en revisores", async () => {
+it("reasignar no convierte al autor ni al solicitante (gestores) en revisores", async () => {
   const author = await loginUser(app, { role: "gestor" });
   const manager = await loginUser(app, { role: "gestor" });
   const contract = await contractFixture(author.user.id, { status: "pending_approval" });
@@ -133,16 +134,14 @@ it("reasignar y cambiar de rol no convierte al autor ni al solicitante en reviso
     .update(contracts)
     .set({ createdBy: manager.user.id })
     .where(eq(contracts.id, contract.id));
-  await db.update(users).set({ role: "supervisor" }).where(eq(users.id, author.user.id));
-  await db.update(users).set({ role: "supervisor" }).where(eq(users.id, manager.user.id));
-  author.headers = authorization((await signIn(app, author.user)).token);
-  manager.headers = authorization((await signIn(app, manager.user)).token);
   for (const actor of [author, manager]) {
     const response = await app.inject({
       url: `/api/v1/contracts/${contract.id}`,
       headers: actor.headers,
     });
-    expect(response.json().can).toMatchObject({ approve: false, reject: false });
+    // The former author no longer even sees it; the new manager sees it but cannot review it.
+    if (actor === author) expect(response.statusCode).toBe(404);
+    else expect(response.json().can).toMatchObject({ approve: false, reject: false });
     for (const action of ["approve", "reject"])
       expect(
         (
@@ -153,9 +152,7 @@ it("reasignar y cambiar de rol no convierte al autor ni al solicitante en reviso
             payload: { comment: "Revisión" },
           })
         ).statusCode,
-      ).toBe(403);
-    const queue = await app.inject({ url: "/api/v1/approvals", headers: actor.headers });
-    expect(queue.json()).toEqual([]);
+      ).toBe(actor === author ? 404 : 403);
   }
   expect(
     (

@@ -9,8 +9,6 @@ export function isOwnReview(contract: Contract, actor: Actor, requestedBy?: stri
 }
 
 export function canReview(contract: Contract, actor: Actor, requestedBy?: string | null) {
-  return (
-    actor.role === "admin" ||
-    (actor.role === "supervisor" && !isOwnReview(contract, actor, requestedBy))
-  );
+  // Admins and supervisors review any contract, their own included (recorded as «approved_own»).
+  return actor.role === "admin" || actor.role === "supervisor";
 }

@@ -32,7 +32,7 @@ export async function reassignContract(
       !manager ||
       !manager.isActive ||
       manager.deletedAt ||
-      !["admin", "gestor"].includes(manager.role)
+      !["admin", "supervisor", "gestor"].includes(manager.role)
     )
       throw service.invalid("El destino debe ser un gestor o administrador activo.");
     if (contract.createdBy === manager.id)

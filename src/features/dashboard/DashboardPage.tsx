@@ -26,7 +26,7 @@ export function DashboardPage() {
   const dashboard = useDashboard(months);
 
   if (!user) return null;
-  const canCreate = user.role === 'admin' || user.role === 'gestor';
+  const canCreate = user.role !== 'user';
 
   return (
     <>

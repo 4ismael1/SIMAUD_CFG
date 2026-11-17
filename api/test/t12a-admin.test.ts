@@ -90,7 +90,7 @@ it("limita la reasignación al admin y valida identidad, actividad y motivo del 
       ).statusCode,
     ).toBe(403);
   }
-  for (const managerId of [supervisor.user.id, signer.user.id, randomUUID()]) {
+  for (const managerId of [signer.user.id, randomUUID()]) {
     expect(
       (await post(contract.id + "/reassign", { managerId, reason: "Cambio de responsable" }))
         .statusCode,

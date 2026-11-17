@@ -1,4 +1,5 @@
 import type { FastifyRequest } from "fastify";
+import { isContractEditor } from "./amendment-permissions.js";
 import type { z } from "zod";
 import { eq } from "drizzle-orm";
 import { db, type Transaction } from "../../db/client.js";
@@ -146,8 +147,7 @@ function assertEditable(
   signatories: service.Signatory[],
   patch: ContractPatch,
 ) {
-  if (!(actor.role === "admin" || (actor.role === "gestor" && contract.createdBy === actor.id)))
-    throw service.notFound();
+  if (!isContractEditor(contract, actor)) throw service.notFound();
   if (!service.permissions(contract, actor, signatories).edit) throw service.conflict();
   if (!Object.keys(patch).length) throw service.invalid("Debe indicar algún cambio.");
 }

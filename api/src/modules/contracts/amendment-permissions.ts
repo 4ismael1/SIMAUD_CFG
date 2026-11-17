@@ -1,7 +1,11 @@
 import type { Actor, Contract, Signatory } from "./service.js";
 
+/** Admin on any contract; gestor and supervisor on the contracts they created (or were assigned). */
 export function isContractEditor(contract: Contract, actor: Actor) {
-  return actor.role === "admin" || (actor.role === "gestor" && contract.createdBy === actor.id);
+  return (
+    actor.role === "admin" ||
+    (["gestor", "supervisor"].includes(actor.role) && contract.createdBy === actor.id)
+  );
 }
 
 export function canAmend(contract: Contract, actor: Actor) {

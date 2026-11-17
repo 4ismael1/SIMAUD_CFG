@@ -52,7 +52,7 @@ export function ApprovalReview({ item, position, total, onPrevious, onNext, onBa
       </Card>
 
       {item.diff && <ChangesCard diff={item.diff} versionNumber={item.versionNumber} />}
-      {isOwn && item.status === 'pending' && <Alert tone="info">Este contrato lo enviaste tú: otro supervisor debe aprobarlo.</Alert>}
+      {isOwn && item.status === 'pending' && <Alert tone="info">Este contrato lo enviaste tú. Puedes aprobarlo; quedará registrado como aprobación propia.</Alert>}
       {item.comments && (
         <Alert tone={item.status === 'rejected' ? 'warning' : 'info'} title={item.status === 'rejected' ? 'Observaciones de la devolución' : 'Observaciones'}>
           {item.comments}

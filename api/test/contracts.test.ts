@@ -211,7 +211,7 @@ it("permisos: usuario no crea; gestor no ve ajenos; firmante solo participa; sup
   expect((await request(first, "GET", "/contracts/" + c.id)).statusCode).toBe(404);
   expect(
     (await request(supervisor, "PATCH", "/contracts/" + c.id, { title: "x" })).statusCode,
-  ).toBe(403);
+  ).toBe(404);
   expect((await request(other, "POST", "/contracts/" + c.id + "/submit", {})).statusCode).toBe(404);
   expect((await request(other, "GET", "/contracts/counts")).json().draft).toBe(0);
 });
@@ -289,13 +289,15 @@ it("aprobación concurrente, orden de firmas, archivos privados y última firma 
   expect(logs.meta.total).toBe(5);
   expect(logs.data.find((l: { action: string }) => l.action === "sign").ip).toBe("127.0.0.1");
 });
-it("supervisor nunca aprueba su propio contrato, ni con override", async () => {
-  const c = await create();
-  await db.update(contracts).set({ createdBy: supervisor.id }).where(eq(contracts.id, c.id));
-  await request(admin, "POST", "/contracts/" + c.id + "/submit", {});
-  expect(
-    (await request(supervisor, "POST", "/contracts/" + c.id + "/approve", {})).statusCode,
-  ).toBe(403);
+it("supervisor crea y aprueba su propio contrato (queda como aprobación propia), sin override", async () => {
+  const created = await request(supervisor, "POST", "/contracts", input());
+  expect(created.statusCode, created.body).toBe(201);
+  const c = created.json();
+  expect((await request(supervisor, "POST", "/contracts/" + c.id + "/submit", {})).statusCode).toBe(
+    200,
+  );
+  const queue = (await request(supervisor, "GET", "/approvals")).json();
+  expect(queue.map((item: { contractId: string }) => item.contractId)).toContain(c.id);
   expect(
     (
       await request(supervisor, "POST", "/contracts/" + c.id + "/override-status", {
@@ -304,6 +306,13 @@ it("supervisor nunca aprueba su propio contrato, ni con override", async () => {
       })
     ).statusCode,
   ).toBe(403);
+  expect(
+    (await request(supervisor, "POST", "/contracts/" + c.id + "/approve", {})).statusCode,
+  ).toBe(200);
+  const actions = (await request(supervisor, "GET", "/contracts/" + c.id + "/audit"))
+    .json()
+    .data.map((entry: { action: string }) => entry.action);
+  expect(actions).toContain("approved_own");
 });
 it("rechazo requiere comentario; edición conserva ids y vínculos, crea versión y diff", async () => {
   const c = await create();
