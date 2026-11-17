@@ -802,6 +802,98 @@ const suministro: TemplateSeed = {
   ),
 };
 
+/** Short, one-signature contract: the person commits to the institution, which does not sign. */
+const compromisoConfidencialidad: TemplateSeed = {
+  title: "Compromiso unilateral de confidencialidad",
+  category: "Servicios",
+  description:
+    "Contrato corto de una sola firma: la persona se obliga a guardar reserva sobre la información de la institución.",
+  content: doc(
+    title("COMPROMISO UNILATERAL DE CONFIDENCIALIDAD"),
+    p(
+      { b: "QUIEN SUSCRIBE:" },
+      " ",
+      ...person("declarante", "LA PERSONA DECLARANTE"),
+      "; quien, actuando por sí y en pleno ejercicio de sus derechos, otorga el presente compromiso a favor de ",
+      { vb: "institucion_razon_social" },
+      ", RNC núm. ",
+      { v: "institucion_rnc" },
+      ", con domicilio en ",
+      { v: "institucion_domicilio" },
+      ", en lo adelante ",
+      { b: "LA INSTITUCIÓN" },
+      ".",
+    ),
+    p(
+      { b: "POR CUANTO:" },
+      " ",
+      { b: "LA PERSONA DECLARANTE" },
+      " tendrá acceso a información de ",
+      { b: "LA INSTITUCIÓN" },
+      " con el siguiente propósito: ",
+      { v: "proposito_confidencialidad" },
+    ),
+    p(
+      { b: "POR TANTO:" },
+      " en atención a lo anterior, ",
+      { b: "LA PERSONA DECLARANTE" },
+      " se obliga libre y voluntariamente conforme a las cláusulas siguientes:",
+    ),
+    clause("OBJETO"),
+    p(
+      { b: "LA PERSONA DECLARANTE" },
+      " se compromete a mantener en estricta reserva toda información técnica, académica, financiera, administrativa o personal de ",
+      { b: "LA INSTITUCIÓN" },
+      " a la que tenga acceso, cualquiera que sea su soporte (la «Información Confidencial»).",
+    ),
+    clause("OBLIGACIONES"),
+    list(
+      ["Usar la Información Confidencial únicamente para el propósito indicado."],
+      [
+        "No divulgarla, copiarla ni entregarla a terceros sin autorización escrita de ",
+        { b: "LA INSTITUCIÓN" },
+        ".",
+      ],
+      ["Devolverla o destruirla al concluir su relación o cuando le sea requerido."],
+    ),
+    clause("EXCEPCIONES"),
+    p(
+      "No se considera confidencial la información que sea de dominio público sin culpa de ",
+      { b: "LA PERSONA DECLARANTE" },
+      ", ni la que deba revelarse por orden de autoridad competente, en cuyo caso se avisará previamente a ",
+      { b: "LA INSTITUCIÓN" },
+      ".",
+    ),
+    clause("VIGENCIA"),
+    p(
+      "Este compromiso rige desde el ",
+      { v: "fecha_inicio" },
+      " y sus obligaciones se mantendrán durante ",
+      { v: "anios_confidencialidad" },
+      " año(s) después de terminado el acceso a la información.",
+    ),
+    clause("INCUMPLIMIENTO"),
+    p(
+      "El incumplimiento de este compromiso faculta a ",
+      { b: "LA INSTITUCIÓN" },
+      " a reclamar la reparación de los daños y perjuicios que se demuestren, sin perjuicio de las acciones legales que correspondan.",
+    ),
+    clause("FIRMA ELECTRÓNICA, DATOS Y JURISDICCIÓN"),
+    p(
+      "Este documento se suscribe mediante firma electrónica, con la misma validez que la firma manuscrita conforme a la Ley núm. 126-02. Los datos personales se tratarán conforme a la Ley núm. 172-13. Para cualquier controversia rige el derecho de la República Dominicana y son competentes los tribunales de ",
+      { v: "ciudad_firma" },
+      ", República Dominicana.",
+    ),
+    p(
+      { b: "HECHO Y FIRMADO" },
+      " en la ciudad de ",
+      { v: "ciudad_firma" },
+      ", República Dominicana, en la fecha de la firma electrónica registrada en este documento.",
+    ),
+    signatures([{ label: "LA PERSONA DECLARANTE", party: "declarante" }], 1),
+  ),
+};
+
 export const TEMPLATES: TemplateSeed[] = [
   servicios,
   trabajoIndefinido,
@@ -813,4 +905,5 @@ export const TEMPLATES: TemplateSeed[] = [
   prestamo,
   confidencialidad,
   suministro,
+  compromisoConfidencialidad,
 ];

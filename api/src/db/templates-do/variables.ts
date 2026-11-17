@@ -106,6 +106,7 @@ export const VARIABLES: VariableSeed[] = [
   ...personVars("prestatario", "el prestatario"),
   ...personVars("reveladora", "la parte reveladora"),
   ...personVars("receptora", "la parte receptora"),
+  ...personVars("declarante", "quien se compromete"),
 
   // Companies represented by a signer.
   ...companyVars("empresa", "empleador", "el empleador"),
