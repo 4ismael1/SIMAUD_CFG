@@ -51,7 +51,8 @@ it("el PDF coloca cada nombre, imagen y etiqueta en su casilla aunque firme prim
   const firstRow = block.stack[0] as ContentColumns;
   const secondRow = (rendered[3] as ContentStack).stack[0] as ContentColumns;
   for (let index = 0; index < 4; index++) {
-    const cell = (index < 3 ? firstRow.columns[index] : secondRow.columns[0]) as ContentStack;
+    // An incomplete row is centred between two flexible spacers: the box is the middle column.
+    const cell = (index < 3 ? firstRow.columns[index] : secondRow.columns[1]) as ContentStack;
     const serialized = JSON.stringify(cell);
     expect(serialized).toContain(`Persona ${index}`);
     expect(serialized).toContain(signerImage(index));

@@ -196,11 +196,13 @@
   .rich-content .signatures-block {
     @apply my-6 break-inside-avoid;
   }
+  /* Boxes keep the width of one column; an incomplete row (e.g. a single signer) is centred. */
   .rich-content .sig-grid {
-    @apply grid gap-x-8 gap-y-6;
+    @apply flex flex-wrap justify-center gap-x-8 gap-y-6;
   }
   .rich-content .sig-slot {
     @apply flex min-w-0 flex-col items-center text-center;
+    width: calc((100% - (var(--sig-cols, 2) - 1) * 2rem) / var(--sig-cols, 2));
   }
   .rich-content .sig-space {
     @apply h-[83px] w-full; /* 62 pt, same area as the PDF (SIGNATURE_AREA_HEIGHT) */

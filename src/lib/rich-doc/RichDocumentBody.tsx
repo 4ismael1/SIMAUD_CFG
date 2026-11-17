@@ -243,7 +243,7 @@ function Signatures({
     <div data-signatures="" className="signatures-block">
       <div
         className="sig-grid"
-        style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
+        style={{ "--sig-cols": columns } as React.CSSProperties}
       >
         {block.content.map((slot, index) => {
           const number = (options.signatureStart?.get(block) ?? 1) + index;

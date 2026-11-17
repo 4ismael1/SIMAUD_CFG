@@ -156,14 +156,18 @@ export function signatureContent(
   const width = (contentWidth - (columns - 1) * 24) / columns;
   const rows: Content[] = [];
   for (let index = 0; index < node.content!.length; index += columns) {
+    const count = Math.min(columns, node.content!.length - index);
+    const cells: Content[] = Array.from({ length: count }, (_, column) => {
+      const number = start + index + column;
+      return {
+        width,
+        ...signatureCell(node.content![index + column]!, number, signers[number - 1], width, fontSize, lineMetric),
+      } as Content;
+    });
+    // An incomplete row (e.g. a single signer) keeps the column width and is centred on the page.
+    const spacer = { width: "*", text: "" } as Content;
     rows.push({
-      columns: Array.from({ length: columns }, (_, column) => {
-        const slot = node.content![index + column];
-        const number = start + index + column;
-        return slot
-          ? signatureCell(slot, number, signers[number - 1], width, fontSize, lineMetric)
-          : { text: "" };
-      }),
+      columns: count < columns ? [spacer, ...cells, spacer] : cells,
       columnGap: 24,
       margin: [0, 0, 0, index + columns < node.content!.length ? 18 : 0],
     });

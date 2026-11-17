@@ -198,7 +198,7 @@ function SignaturesView({ node, updateAttributes, deleteNode, selected, editor, 
         <option value="cliente" />
         <option value="representante" />
       </datalist>
-      <div className="sig-grid" style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}>
+      <div className="sig-grid" style={{ "--sig-cols": columns } as React.CSSProperties}>
         {slots.map((slot, index) => (
           <div key={index} className="sig-slot group/slot relative">
             <div className="sig-space" />
