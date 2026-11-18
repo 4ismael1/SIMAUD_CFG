@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Alert, Button, Checkbox, Field, Input, revealFirstError } from '../../ui';
 import { useRegister } from '../../lib/api/hooks/auth';
 import { formatCedula, isValidCedula } from '../../lib/format';
+import { validatePhoneDo } from '../../lib/validation';
 import { errorField, errorMessage } from '../../lib/errors';
 import { AuthLayout } from './AuthLayout';
 import { PasswordInput, PasswordStrength, isStrongEnough } from './PasswordInput';
@@ -25,6 +26,10 @@ function validate(form: RegisterForm): FormErrors {
   const errors: FormErrors = {};
   if (form.name.trim().length < 3) errors.name = 'Escribe tu nombre completo.';
   if (!isValidCedula(form.cedula)) errors.cedula = 'La cédula debe tener 11 dígitos (000-0000000-0).';
+  // The server requires a valid Dominican phone, so the form asks for it too.
+  const phone = validatePhoneDo(form.phone);
+  if (!form.phone.trim()) errors.phone = 'Escribe un teléfono de contacto (809, 829 u 849).';
+  else if (!phone.ok) errors.phone = phone.message;
   if (!EMAIL_PATTERN.test(form.email.trim())) errors.email = 'Escribe un correo válido, por ejemplo nombre@institucion.edu.do.';
   if (!isStrongEnough(form.password)) errors.password = 'La contraseña no cumple los requisitos.';
   if (!form.acceptedTerms) errors.acceptedTerms = 'Debes aceptar los términos para continuar.';
@@ -102,7 +107,7 @@ export function RegisterPage() {
               onChange={(event) => update('cedula', formatCedula(event.target.value))}
             />
           </Field>
-          <Field label="Teléfono" optional>
+          <Field label="Teléfono" error={errors.phone}>
             <Input type="tel" autoComplete="tel" placeholder="809-000-0000" value={form.phone} onChange={(event) => update('phone', event.target.value)} />
           </Field>
         </div>

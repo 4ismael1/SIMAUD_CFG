@@ -274,10 +274,9 @@ function InviteUserDialog({ open, onClose }: { open: boolean; onClose: () => voi
     if (!name.ok) next.name = name.message;
     if (!email.ok) next.email = email.message;
     if (!cedula.ok) next.cedula = cedula.message;
-    if (form.phone.trim()) {
-      const phone = validatePhoneDo(form.phone);
-      if (!phone.ok) next.phone = phone.message;
-    }
+    const phone = validatePhoneDo(form.phone);
+    if (!form.phone.trim()) next.phone = 'Escribe un teléfono de contacto (809, 829 u 849).';
+    else if (!phone.ok) next.phone = phone.message;
     setErrors(next);
     return Object.keys(next).length === 0;
   }
@@ -330,7 +329,7 @@ function InviteUserDialog({ open, onClose }: { open: boolean; onClose: () => voi
               onBlur={() => { const check = validateCedula(form.cedula); if (check.ok) set('cedula', formatCedula(check.value)); }}
             />
           </Field>
-          <Field label="Teléfono" optional error={errors.phone}>
+          <Field label="Teléfono" error={errors.phone}>
             <Input inputMode="tel" placeholder="809-000-0000" value={form.phone} onChange={(event) => set('phone', event.target.value)} />
           </Field>
         </div>

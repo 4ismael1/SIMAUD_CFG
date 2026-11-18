@@ -22,10 +22,9 @@ function validate(form: EditForm): EditErrors {
   const cedula = validateCedula(form.cedula);
   if (!name.ok) errors.name = name.message;
   if (!cedula.ok) errors.cedula = cedula.message;
-  if (form.phone.trim()) {
-    const phone = validatePhoneDo(form.phone);
-    if (!phone.ok) errors.phone = phone.message;
-  }
+  const phone = validatePhoneDo(form.phone);
+  if (!form.phone.trim()) errors.phone = 'Escribe un teléfono de contacto (809, 829 u 849).';
+  else if (!phone.ok) errors.phone = phone.message;
   return errors;
 }
 
@@ -102,7 +101,7 @@ export function EditUserDialog({ user, open, onClose }: EditUserDialogProps) {
             }}
           />
         </Field>
-        <Field label="Teléfono" optional error={errors.phone}>
+        <Field label="Teléfono" error={errors.phone}>
           <Input inputMode="tel" placeholder="809-000-0000" value={form.phone} onChange={(event) => set('phone', event.target.value)} />
         </Field>
         <Field label="Correo electrónico" hint="El correo identifica la cuenta; la persona lo cambia desde su perfil.">

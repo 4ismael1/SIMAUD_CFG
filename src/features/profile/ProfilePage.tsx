@@ -72,10 +72,9 @@ function PersonalSection() {
     const next: typeof errors = {};
     const nameCheck = validatePersonName(name);
     if (!nameCheck.ok) next.name = nameCheck.message;
-    if (phone.trim()) {
-      const phoneCheck = validatePhoneDo(phone);
-      if (!phoneCheck.ok) next.phone = phoneCheck.message;
-    }
+    const phoneCheck = validatePhoneDo(phone);
+    if (!phone.trim()) next.phone = 'Escribe un teléfono de contacto (809, 829 u 849).';
+    else if (!phoneCheck.ok) next.phone = phoneCheck.message;
     setErrors(next);
     if (Object.keys(next).length > 0) {
       revealFirstError();
@@ -132,7 +131,7 @@ function PersonalSection() {
           <Input value={name} onChange={(event) => setName(event.target.value)} autoComplete="name" />
         </Field>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Teléfono" optional error={errors.phone}>
+          <Field label="Teléfono" error={errors.phone}>
             <Input inputMode="tel" value={phone} onChange={(event) => setPhone(event.target.value)} autoComplete="tel" />
           </Field>
           <Field label="Cédula" hint="Para cambiarla, contacta con administración.">
