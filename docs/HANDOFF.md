@@ -9,15 +9,15 @@ Rama `feat/backend-propio-y-nueva-ui`. Commits de esta sesión: `aaba3ad` (fix /
 ### 🧪 18 nov 2026 — MODO PILOTAJE (prueba con ~30 estudiantes con cuenta supervisor)
 - **Qué hace**: cada supervisor ve y opera solo sus contratos, plantillas, variables, aprobaciones,
   reportes, renovaciones y avisos, más los **ejemplos** (lo creado por las «cuentas de ejemplo»;
-  vacío = los admins), que son de solo lectura (las plantillas de ejemplo sí se pueden duplicar).
+  solo las marcadas), que son de solo lectura (las plantillas de ejemplo sí se pueden duplicar).
   El admin lo ve todo. Se aplica en el **servidor** (`api/src/lib/pilot.ts`: `pilotScope` con caché
   de 5 s, `inPilot`, `pilotCanSee`, `pilotOwns`, `ownContractsOnly`, `pilotReviewers`); el front solo
   oculta acciones (aviso en la lista de contratos, «Mis contratos», «Ejemplo» en plantillas).
-- **Activar / desactivar**: Configuración → «Prueba piloto» (interruptor + cuentas de ejemplo). Se
+- **Activar / desactivar**: Configuración → «Prueba piloto» (interruptor + cuentas de ejemplo; solo cuentan las MARCADAS, ninguna = sin ejemplos). Se
   guarda en `settings` clave `pilot` = `{enabled, exampleUserIds}`. **Al terminar el piloto, apagar el
   interruptor**: todo vuelve a la regla normal (supervisores ven todo); no hay datos que migrar.
-- **Estado en producción**: ACTIVADO el 18 nov 2026 (commit 4044a68), ejemplos = la cuenta admin
-  (lista vacía). Comprobado: 17 supervisores, 0 contratos ajenos visibles, ejemplos no editables.
+- **Estado en producción**: ACTIVADO el 18 nov 2026 (commit 4044a68), ejemplos = la cuenta admin, marcada explícitamente
+  (antes la lista vacía significaba «los admins» sin marcarlos; confundía y se quitó). Comprobado: 17 supervisores, 0 contratos ajenos visibles, ejemplos no editables.
 - 18 nov: se confirmaron a mano (BD) 3 cuentas afectadas por el error del cambio de rol;
   100056813@ap.uapa.edu.do está dada de baja y se dejó así por decisión del dueño.
 - Migración `0020_variable_created_by` (las variables guardan autor; las anteriores quedan sin autor,

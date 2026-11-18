@@ -1,15 +1,15 @@
 import { eq } from "drizzle-orm";
 import { db } from "../db/client.js";
-import { settings, users } from "../db/schema.js";
+import { settings } from "../db/schema.js";
 
 /**
  * Pilot mode (temporary, switched on by an admin): each supervisor works as if alone in the system.
  * They see and act only on the contracts, templates and variables they created, plus the read-only
- * examples created by the example accounts (by default, the admins).
+ * examples created by the example accounts ticked in Settings.
  */
 export interface PilotSettings {
   enabled: boolean;
-  /** Accounts whose contracts and templates every supervisor sees as examples. Empty = the admins. */
+  /** Accounts whose contracts and templates every supervisor sees as examples. Empty = none. */
   exampleUserIds: string[];
 }
 export const PILOT_DEFAULTS: PilotSettings = { enabled: false, exampleUserIds: [] };
@@ -33,12 +33,8 @@ export async function pilotScope(): Promise<PilotScope | null> {
   const value = (row?.value as Partial<PilotSettings> | undefined) ?? {};
   let scope: PilotScope | null = null;
   if (value.enabled) {
-    let ids = Array.isArray(value.exampleUserIds) ? value.exampleUserIds : [];
-    if (!ids.length)
-      ids = (await db.select({ id: users.id }).from(users).where(eq(users.role, "admin"))).map(
-        (u) => u.id,
-      );
-    scope = { exampleUserIds: ids };
+    // Exactly the accounts ticked in Settings: none ticked = no examples (no hidden default).
+    scope = { exampleUserIds: Array.isArray(value.exampleUserIds) ? value.exampleUserIds : [] };
   }
   cache = { at: Date.now(), value: scope };
   return scope;

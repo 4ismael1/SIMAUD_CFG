@@ -95,7 +95,7 @@ function InstitutionSection({ settings }: { settings: SystemSettings }) {
 
 /**
  * Temporary pilot mode: every supervisor works as if alone in the system. They see only what they
- * created, plus the read-only examples of the chosen accounts (the admins when none is chosen).
+ * created, plus the read-only examples of the ticked accounts (none ticked = no examples).
  */
 function PilotSection({ settings }: { settings: SystemSettings }) {
   const update = useUpdateSettings();
@@ -106,6 +106,12 @@ function PilotSection({ settings }: { settings: SystemSettings }) {
   const [examples, setExamples] = useState<string[]>(current.exampleUserIds);
   const candidates = (users.data?.data ?? []).filter((user) => user.role !== 'user' && user.isActive !== false);
   const toggle = (id: string) => setExamples((list) => (list.includes(id) ? list.filter((value) => value !== id) : [...list, id]));
+  // Switching the pilot on with nothing ticked suggests the admins, visibly ticked (editable).
+  function handleEnabled(next: boolean) {
+    setEnabled(next);
+    if (next && !current.enabled && examples.length === 0)
+      setExamples(candidates.filter((user) => user.role === 'admin').map((user) => user.id));
+  }
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -119,7 +125,7 @@ function PilotSection({ settings }: { settings: SystemSettings }) {
     <Section icon={<FlaskConical />} title="Prueba piloto" description="Aísla a cada supervisor mientras dura el pilotaje. Al terminar, desactívalo.">
       <form className="flex flex-col gap-4" onSubmit={handleSubmit} noValidate>
         <div className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 px-4 py-3">
-          <Checkbox checked={enabled} onChange={(event) => setEnabled(event.target.checked)} label="Modo pilotaje activo" />
+          <Checkbox checked={enabled} onChange={(event) => handleEnabled(event.target.checked)} label="Modo pilotaje activo" />
           <Badge tone={current.enabled ? 'success' : 'neutral'}>{current.enabled ? 'Activo' : 'Inactivo'}</Badge>
         </div>
         <ul className="flex list-disc flex-col gap-1 pl-5 text-sm text-slate-600">
@@ -128,7 +134,7 @@ function PilotSection({ settings }: { settings: SystemSettings }) {
           <li>Los avisos de aprobación llegan solo a quien creó el contrato.</li>
           <li>Tú, como administrador, sigues viéndolo todo.</li>
         </ul>
-        <Field label="Cuentas de ejemplo" hint="Todo lo que creen estas cuentas lo verán los supervisores como ejemplo. Sin marcar ninguna, se usan las de administrador.">
+        <Field label="Cuentas de ejemplo" hint="Los contratos y plantillas de las cuentas marcadas los verán todos los supervisores como ejemplo (solo lectura). Si no marcas ninguna, no verán ejemplos.">
           <div className="flex max-h-56 flex-col gap-2 overflow-y-auto rounded-lg border border-slate-200 p-3">
             {users.isPending && <Skeleton className="h-6" />}
             {candidates.map((user) => (

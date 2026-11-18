@@ -38,12 +38,13 @@ async function setup() {
     await db
       .insert(contractApprovals)
       .values({ contractId: contract.id, versionNumber: 1, requestedBy: by });
-  const pilot = (enabled: boolean) =>
+  // The admin is ticked explicitly as the example account (no hidden default).
+  const pilot = (enabled: boolean, exampleUserIds: string[] = [admin.user.id]) =>
     app.inject({
       method: "PATCH",
       url: "/api/v1/system/settings",
       headers: admin.headers,
-      payload: { pilot: { enabled, exampleUserIds: [] } },
+      payload: { pilot: { enabled, exampleUserIds } },
     });
   const get = (who: typeof ana, url: string) =>
     app.inject({ url: "/api/v1" + url, headers: who.headers });
@@ -88,6 +89,13 @@ it("modo pilotaje: cada supervisor ve solo lo suyo y los ejemplos; al apagarlo v
   expect(dashResponse.statusCode, dashResponse.body).toBe(200);
   const dash = dashResponse.json();
   expect(dash.queue.map((item: { contractId: string }) => item.contractId)).not.toContain(other.id);
+
+  // No example account ticked: no examples at all (only their own work).
+  expect((await pilot(true, [])).statusCode).toBe(200);
+  expect((await get(ana, "/contracts")).json().data.map((c: { title: string }) => c.title)).toEqual(
+    ["De Ana"],
+  );
+  expect((await get(ana, "/contracts/" + example.id)).statusCode).toBe(404);
 
   expect((await pilot(false)).statusCode).toBe(200);
   expect((await get(ana, "/contracts/" + other.id)).statusCode).toBe(200);
