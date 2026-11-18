@@ -1,3 +1,4 @@
+import { ownContractsOnly } from "../../lib/pilot.js";
 import { boundedReportRows } from "./limits.js";
 import { localDateRange } from "../../lib/sql.js";
 import { sql, type SQL } from "drizzle-orm";
@@ -6,7 +7,7 @@ import type { Actor } from "../contracts/service.js";
 import type { DateRange, OverviewQuery } from "./overview-schema.js";
 
 export function overviewScope(actor: Actor, query: OverviewQuery) {
-  const managerId = actor.role === "gestor" ? actor.id : query.managerId;
+  const managerId = ownContractsOnly(actor) ? actor.id : query.managerId;
   const statuses = query.status
     ? sql`c.status::text in (${sql.join(
         query.status.map((status) => sql`${status}`),

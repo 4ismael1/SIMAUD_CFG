@@ -66,6 +66,8 @@ export interface SystemSettings {
     address: string;
     logo?: string | null;
   };
+  /** Temporary pilot mode: each supervisor sees only their own work plus the example accounts'. */
+  pilot?: { enabled: boolean; exampleUserIds: string[] };
 }
 export type JobName = "contract-status" | "expiry-notifications" | "cleanup" | "email-dispatch" | "storage-migrate";
 export interface JobRun {

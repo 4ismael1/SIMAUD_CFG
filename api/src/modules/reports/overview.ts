@@ -1,3 +1,4 @@
+import { ownContractsOnly } from "../../lib/pilot.js";
 import { withReportRead } from "./limits.js";
 import { sql } from "drizzle-orm";
 import { db } from "../../db/client.js";
@@ -48,8 +49,8 @@ export async function reportFilters(actor: Actor) {
   const managers = (
     await db.execute<{ id: string; name: string }>(sql`
     select id, name from users where deleted_at is null
-    and (${actor.role} = 'gestor' and id = ${actor.id}::uuid
-      or ${actor.role} <> 'gestor' and is_active and role in ('admin', 'gestor'))
+    and (${ownContractsOnly(actor)} and id = ${actor.id}::uuid
+      or ${!ownContractsOnly(actor)} and is_active and role in ('admin', 'supervisor', 'gestor'))
     order by name, id
   `)
   ).rows;

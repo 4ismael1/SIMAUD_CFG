@@ -1,3 +1,4 @@
+import { inPilot, ownContractsOnly } from "../../lib/pilot.js";
 import { withReportRead } from "../reports/limits.js";
 import { summaryColumns } from "../contracts/list-summary.js";
 import { and, eq, sql } from "drizzle-orm";
@@ -10,7 +11,7 @@ import { santoDomingoToday } from "../../lib/sql.js";
 function eligibleScope(actor: contractService.Actor) {
   return sql`
     (
-      ${actor.role} in ('admin', 'supervisor')
+      (${actor.role} in ('admin', 'supervisor') and ${!inPilot(actor)})
       or ${contracts.createdBy} = ${actor.id}
       or exists (
         select 1
@@ -67,8 +68,8 @@ export async function listEligibleRenewals(
 export async function listRenewals(actor: contractService.Actor, query: RenewalQuery) {
   const scope = sql`
     (
-      ${actor.role} in ('admin', 'supervisor')
-      or (${actor.role} = 'gestor' and ${contracts.createdBy} = ${actor.id})
+      (${actor.role} in ('admin', 'supervisor') and ${!inPilot(actor)})
+      or (${ownContractsOnly(actor)} and ${contracts.createdBy} = ${actor.id})
       or ${renewals.requestedBy} = ${actor.id}
     )
   `;

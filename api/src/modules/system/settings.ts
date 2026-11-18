@@ -1,3 +1,4 @@
+import { PILOT_DEFAULTS, invalidatePilotCache } from "../../lib/pilot.js";
 import { z } from "zod";
 import { inArray } from "drizzle-orm";
 import { db, type Transaction } from "../../db/client.js";
@@ -27,6 +28,13 @@ export const settingsSchema = z
           .optional(),
       })
       .strict(),
+    /** Temporary pilot mode: each supervisor sees only their own work plus the example accounts'. */
+    pilot: z
+      .object({
+        enabled: z.boolean(),
+        exampleUserIds: z.array(z.string().uuid()).max(20),
+      })
+      .strict(),
   })
   .strict();
 export type Settings = z.infer<typeof settingsSchema>;
@@ -36,11 +44,19 @@ export async function getSettings(connection: Transaction | typeof db = db): Pro
     expiryWarningDays: env.EXPIRY_WARNING_DAYS,
     expiryNotificationDays: [30, 15, 7, 1],
     institution: { name: "SIMAUD", rnc: "", address: "", logo: null },
+    pilot: PILOT_DEFAULTS,
   };
   const rows = await connection
     .select()
     .from(settings)
-    .where(inArray(settings.key, ["expiryWarningDays", "expiryNotificationDays", "institution"]));
+    .where(
+      inArray(settings.key, [
+        "expiryWarningDays",
+        "expiryNotificationDays",
+        "institution",
+        "pilot",
+      ]),
+    );
   return settingsSchema.parse({
     ...defaults,
     ...Object.fromEntries(rows.map((row) => [row.key, row.value])),
@@ -72,5 +88,6 @@ export async function updateSettings(patch: Partial<Settings>, actor?: AuditActo
         details: { fields: Object.keys(patch) },
       });
   });
+  invalidatePilotCache();
   return getSettings();
 }

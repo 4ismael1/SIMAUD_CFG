@@ -16,6 +16,8 @@ export interface VariableInput {
 export interface Variable extends VariableInput {
   id: string;
   required: boolean;
+  /** Absent or null on variables created before authorship was recorded. */
+  createdBy?: string | null;
   createdAt: string;
   updatedAt: string;
 }

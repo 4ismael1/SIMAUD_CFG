@@ -1,3 +1,4 @@
+import { pilotScope } from "../../lib/pilot.js";
 import { hasOpenAmendment } from "../contracts/amendments.js";
 import { historicalDefinitions } from "../contracts/variable-history.js";
 import { santoDomingoToday } from "../../lib/sql.js";
@@ -27,6 +28,8 @@ async function notifyRenewal(
   type: string,
   message: string,
 ) {
+  // Pilot mode: only the contract's creator and the requester, not every supervisor.
+  const pilot = !!(await pilotScope());
   const recipients = await tx
     .select({ id: users.id })
     .from(users)
@@ -35,7 +38,7 @@ async function notifyRenewal(
         is_active
         and deleted_at is null
         and (
-          role in ('admin', 'supervisor')
+          (role in ('admin', 'supervisor') and ${!pilot})
           or id = ${contract.createdBy}
           or id = ${requester}
         )

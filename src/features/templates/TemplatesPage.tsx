@@ -71,6 +71,12 @@ function useUrlParams() {
 
 const FILTER_SELECT_CLASS = 'w-full sm:w-48';
 
+/** Pilot mode: a supervisor changes only what they created; the rest are read-only examples. */
+function useOwnsCatalogItem() {
+  const { user } = useAuth();
+  return (createdBy: string | null | undefined) => !user?.pilot || createdBy === user.id;
+}
+
 export function TemplatesPage() {
   const { hasRole } = useAuth();
   const canManage = hasRole('admin', 'supervisor');
@@ -173,6 +179,7 @@ function TemplateCard({ template, canManage }: { template: Template; canManage: 
   const setStatus = useSetTemplateStatus(template.id);
   const remove = useDeleteTemplate(template.id);
   const active = template.status === 'active';
+  const owns = useOwnsCatalogItem()(template.createdBy);
 
   return (
     <Card className="lift flex h-full flex-col gap-3 p-4">
@@ -185,13 +192,13 @@ function TemplateCard({ template, canManage }: { template: Template; canManage: 
         {canManage && (
           <Menu
             items={[
-              { label: 'Editar', icon: <Pencil />, to: `/app/plantillas/${template.id}` },
+              ...(owns ? [{ label: 'Editar', icon: <Pencil />, to: `/app/plantillas/${template.id}` }] : []),
               {
                 label: 'Duplicar',
                 icon: <Copy />,
                 onSelect: () => void runAction({ run: () => duplicate.mutateAsync(), success: `Se creó una copia de «${template.title}».` }),
               },
-              {
+              ...(owns ? [{
                 label: active ? 'Desactivar' : 'Activar',
                 icon: <Power />,
                 onSelect: () =>
@@ -217,7 +224,7 @@ function TemplateCard({ template, canManage }: { template: Template; canManage: 
                     run: () => remove.mutateAsync(),
                     success: 'Plantilla eliminada.',
                   }),
-              },
+              }] : []),
             ]}
             trigger={(props) => <IconButton label={`Acciones de ${template.title}`} size="sm" {...props}><Ellipsis /></IconButton>}
           />
@@ -226,6 +233,7 @@ function TemplateCard({ template, canManage }: { template: Template; canManage: 
       {template.description && <p className="line-clamp-2 text-[13px] text-slate-500">{template.description}</p>}
       <div className="mt-auto flex flex-wrap items-center gap-2 text-xs text-slate-500">
         <Badge tone={active ? 'success' : 'neutral'}>{active ? 'Activa' : 'Inactiva'}</Badge>
+        {!owns && <Badge tone="info">Ejemplo</Badge>}
         <span>{template.variables.length} variables</span>
         {template.usageCount !== undefined && <span>· {template.usageCount} contratos</span>}
       </div>
@@ -248,6 +256,7 @@ export function VariablesTable({ canManage }: { canManage: boolean }) {
   const hasFilters = Boolean(filters.search || filters.type || filters.required);
   const clear = () => update({ q: '', tipo: '', obligatoria: '' });
   const total = variables.data?.length ?? 0;
+  const owns = useOwnsCatalogItem();
 
   const columns: Column<Variable>[] = [
     { key: 'name', header: 'Nombre', cell: (variable) => <code className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs">{`{{${variable.name}}}`}</code> },
@@ -260,7 +269,10 @@ export function VariablesTable({ canManage }: { canManage: boolean }) {
       key: 'edit',
       header: <span className="sr-only">Editar</span>,
       align: 'right',
-      cell: (variable) => <IconButton size="sm" label={`Editar ${variable.label}`} onClick={() => setEditing(variable)}><Pencil /></IconButton>,
+      cell: (variable) =>
+        owns(variable.createdBy) ? (
+          <IconButton size="sm" label={`Editar ${variable.label}`} onClick={() => setEditing(variable)}><Pencil /></IconButton>
+        ) : null,
     });
   }
 

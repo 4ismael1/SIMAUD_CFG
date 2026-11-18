@@ -259,7 +259,9 @@ it("ofrece filtros sin datos personales y limita los gestores a su propia identi
     templates: [{ id: templateId, title: "Servicios" }],
   });
   const staff = await app.inject({ url: "/api/v1/reports/filters", headers: supervisor.headers });
-  expect(staff.json().managers).toHaveLength(3);
+  // Supervisors create and own contracts too, so they are managers in the filter.
+  expect(staff.json().managers).toHaveLength(4);
+  expect(staff.json().managers).toContainEqual({ id: supervisor.user.id, name: "Supervisión" });
   expect(staff.body).not.toContain("email");
   expect(
     (await app.inject({ url: "/api/v1/reports/filters", headers: signer.headers })).statusCode,

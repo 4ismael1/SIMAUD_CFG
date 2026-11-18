@@ -1,3 +1,4 @@
+import { pilotCanSee, pilotOwns } from "../../lib/pilot.js";
 import {
   canAmend,
   canResetSignature,
@@ -83,7 +84,9 @@ export function visibleToSignatories(contract: Contract, signatories: Signatory[
 
 export function canRead(contract: Contract, actor: Actor, signatories: Signatory[]) {
   return (
-    ["admin", "supervisor"].includes(actor.role) ||
+    actor.role === "admin" ||
+    // Pilot mode: a supervisor sees their own contracts and the examples only.
+    (actor.role === "supervisor" && pilotCanSee(actor, contract.createdBy)) ||
     (actor.role === "gestor" && contract.createdBy === actor.id) ||
     (signatories.some((item) => item.userId === actor.id) &&
       visibleToSignatories(contract, signatories))
@@ -91,7 +94,9 @@ export function canRead(contract: Contract, actor: Actor, signatories: Signatory
 }
 export function canManage(contract: Contract, actor: Actor) {
   return (
-    ["admin", "supervisor"].includes(actor.role) ||
+    actor.role === "admin" ||
+    // Pilot mode: examples are read-only, a supervisor manages their own contracts only.
+    (actor.role === "supervisor" && pilotOwns(actor, contract.createdBy)) ||
     (actor.role === "gestor" && contract.createdBy === actor.id)
   );
 }

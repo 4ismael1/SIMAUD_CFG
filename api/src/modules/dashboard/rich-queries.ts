@@ -32,7 +32,8 @@ export async function usersByRole() {
     group by e.enumlabel order by e.enumlabel`);
 }
 
-export async function recentContractActivity() {
+/** `scope`: condition on contracts `c` (pilot mode limits it to the actor's contracts and examples). */
+export async function recentContractActivity(scope: SQL = sql`true`) {
   const activity = await rows<{
     id: string;
     at: string;
@@ -44,7 +45,7 @@ export async function recentContractActivity() {
   }>(sql`select l.id, l.created_at at, l.action, u.name "actorName",
     l.contract_id "contractId", c.code "contractCode", c.title "contractTitle"
     from contract_audit_logs l left join contracts c on c.id = l.contract_id
-    left join users u on u.id = l.user_id where l.entity_type = 'contract'
+    left join users u on u.id = l.user_id where l.entity_type = 'contract' and ${scope}
     order by l.created_at desc, l.id desc limit 15`);
   return activity.map((entry) => ({ ...entry, at: new Date(entry.at).toISOString() }));
 }

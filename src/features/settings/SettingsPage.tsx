@@ -1,6 +1,7 @@
 import { useState, type FormEvent, type ReactNode } from 'react';
-import { Building2, CalendarClock, Mail, Play, Timer } from 'lucide-react';
-import { Alert, Badge, Button, Card, CardHeader, Field, Input, PageHeader, Skeleton, useAction } from '../../ui';
+import { Building2, CalendarClock, FlaskConical, Mail, Play, Timer } from 'lucide-react';
+import { Alert, Badge, Button, Card, CardHeader, Checkbox, Field, Input, PageHeader, Skeleton, useAction } from '../../ui';
+import { useUsers } from '../../lib/api/hooks/users';
 import { useJobs, useRunJob, useSendTestMail, useSettings, useUpdateSettings } from '../../lib/api/hooks/system';
 import type { JobName, SystemSettings } from '../../lib/api/lifecycle-types';
 import { useAuth } from '../../lib/auth';
@@ -28,6 +29,7 @@ export function SettingsPage() {
         <Skeleton className="h-96 rounded-xl" />
       ) : settings.data ? (
         <div className="stagger grid items-start gap-5 lg:grid-cols-2">
+          <PilotSection settings={settings.data} />
           <InstitutionSection settings={settings.data} />
           <ExpirySection settings={settings.data} />
           <JobsSection />
@@ -84,6 +86,60 @@ function InstitutionSection({ settings }: { settings: SystemSettings }) {
         </Field>
         <Field label="Dirección">
           <Input value={form.address} onChange={(event) => setForm({ ...form, address: event.target.value })} />
+        </Field>
+        <Button type="submit" variant="primary" loading={update.isPending} className="self-end">Guardar</Button>
+      </form>
+    </Section>
+  );
+}
+
+/**
+ * Temporary pilot mode: every supervisor works as if alone in the system. They see only what they
+ * created, plus the read-only examples of the chosen accounts (the admins when none is chosen).
+ */
+function PilotSection({ settings }: { settings: SystemSettings }) {
+  const update = useUpdateSettings();
+  const { runAction } = useAction();
+  const users = useUsers({ pageSize: 100 });
+  const current = settings.pilot ?? { enabled: false, exampleUserIds: [] };
+  const [enabled, setEnabled] = useState(current.enabled);
+  const [examples, setExamples] = useState<string[]>(current.exampleUserIds);
+  const candidates = (users.data?.data ?? []).filter((user) => user.role !== 'user' && user.isActive !== false);
+  const toggle = (id: string) => setExamples((list) => (list.includes(id) ? list.filter((value) => value !== id) : [...list, id]));
+
+  async function handleSubmit(event: FormEvent) {
+    event.preventDefault();
+    await runAction({
+      run: () => update.mutateAsync({ pilot: { enabled, exampleUserIds: examples } }),
+      success: enabled ? 'Modo pilotaje activado.' : 'Modo pilotaje desactivado.',
+    });
+  }
+
+  return (
+    <Section icon={<FlaskConical />} title="Prueba piloto" description="Aísla a cada supervisor mientras dura el pilotaje. Al terminar, desactívalo.">
+      <form className="flex flex-col gap-4" onSubmit={handleSubmit} noValidate>
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 px-4 py-3">
+          <Checkbox checked={enabled} onChange={(event) => setEnabled(event.target.checked)} label="Modo pilotaje activo" />
+          <Badge tone={current.enabled ? 'success' : 'neutral'}>{current.enabled ? 'Activo' : 'Inactivo'}</Badge>
+        </div>
+        <ul className="flex list-disc flex-col gap-1 pl-5 text-sm text-slate-600">
+          <li>Cada supervisor ve solo sus contratos, plantillas y aprobaciones, más los ejemplos.</li>
+          <li>Los ejemplos son de solo lectura: se pueden ver, descargar y duplicar (plantillas), no modificar.</li>
+          <li>Los avisos de aprobación llegan solo a quien creó el contrato.</li>
+          <li>Tú, como administrador, sigues viéndolo todo.</li>
+        </ul>
+        <Field label="Cuentas de ejemplo" hint="Todo lo que creen estas cuentas lo verán los supervisores como ejemplo. Sin marcar ninguna, se usan las de administrador.">
+          <div className="flex max-h-56 flex-col gap-2 overflow-y-auto rounded-lg border border-slate-200 p-3">
+            {users.isPending && <Skeleton className="h-6" />}
+            {candidates.map((user) => (
+              <Checkbox
+                key={user.id}
+                checked={examples.includes(user.id)}
+                onChange={() => toggle(user.id)}
+                label={`${user.name} · ${user.email} (${user.role === 'admin' ? 'administrador' : user.role})`}
+              />
+            ))}
+          </div>
         </Field>
         <Button type="submit" variant="primary" loading={update.isPending} className="self-end">Guardar</Button>
       </form>

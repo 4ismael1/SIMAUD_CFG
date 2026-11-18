@@ -160,6 +160,8 @@ export const templateVariables = pgTable("template_variables", {
   options: text("options").array(),
   required: boolean("required").default(false).notNull(),
   description: text("description"),
+  /** Pilot mode: a supervisor edits or deletes only the variables they created. */
+  createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
   ...timestamps(),
 });
 export const contractTemplates = pgTable(

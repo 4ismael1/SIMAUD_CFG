@@ -28,6 +28,8 @@ interface ContractListFiltersProps {
   /** Undefined while loading or when the role has no access to the catalogue of filters. */
   options: ReportFilterOptions | undefined;
   showManager: boolean;
+  /** Adds «Mis contratos» (contracts created by the signed-in user) to the manager filter. */
+  currentUserId?: string;
   onChange: (changes: { plantilla?: string; gestor?: string; orden?: string }) => void;
   onClear: () => void;
 }
@@ -36,7 +38,7 @@ const SELECT_CLASS = 'w-full sm:w-48';
 
 /** Search, template, manager and order of the contract list. Everything lives in the URL so a view can be shared. */
 export function ContractListFilters(props: ContractListFiltersProps) {
-  const { search, onSearchChange, templateId, managerId, sort, options, showManager, onChange, onClear } = props;
+  const { search, onSearchChange, templateId, managerId, sort, options, showManager, currentUserId, onChange, onClear } = props;
   const hasFilters = Boolean(search || templateId || managerId) || sort !== DEFAULT_SORT;
 
   return (
@@ -52,10 +54,13 @@ export function ContractListFilters(props: ContractListFiltersProps) {
       )}
       {options && showManager && (
         <Select aria-label="Gestor" className={SELECT_CLASS} value={managerId} onChange={(event) => onChange({ gestor: event.target.value })}>
-          <option value="">Todos los gestores</option>
-          {options.managers.map((manager) => (
-            <option key={manager.id} value={manager.id}>{manager.name}</option>
-          ))}
+          <option value="">Todos los responsables</option>
+          {currentUserId && <option value={currentUserId}>Mis contratos</option>}
+          {options.managers
+            .filter((manager) => manager.id !== currentUserId)
+            .map((manager) => (
+              <option key={manager.id} value={manager.id}>{manager.name}</option>
+            ))}
         </Select>
       )}
       <Select aria-label="Orden" className={SELECT_CLASS} value={sort} onChange={(event) => onChange({ orden: event.target.value === DEFAULT_SORT ? '' : event.target.value })}>

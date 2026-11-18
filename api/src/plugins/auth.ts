@@ -4,9 +4,11 @@ import { sessionUser } from "../lib/auth/sessions.js";
 import { verifyAccessToken } from "../lib/auth/jwt.js";
 import { ApiError, unauthorized } from "../lib/errors.js";
 import { publicUser, type PublicUser } from "../modules/users/schemas.js";
+import { pilotScope, type PilotScope } from "../lib/pilot.js";
 declare module "fastify" {
   interface FastifyRequest {
-    user: PublicUser;
+    /** `pilot`: set for supervisors while pilot mode is on (see lib/pilot.ts). */
+    user: PublicUser & { pilot?: PilotScope | null };
     sessionId?: string;
     credentialsVersion: number;
   }
@@ -50,7 +52,10 @@ export async function authenticate(request: FastifyRequest) {
       "PASSWORD_CHANGE_REQUIRED",
       "Debes cambiar tu contraseña temporal antes de continuar.",
     );
-  request.user = publicUser(user);
+  request.user = {
+    ...publicUser(user),
+    pilot: user.role === "supervisor" ? await pilotScope() : null,
+  };
   request.sessionId = payload.sid;
   request.credentialsVersion = payload.cv;
 }

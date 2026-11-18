@@ -1,3 +1,4 @@
+import { inPilot } from "../../lib/pilot.js";
 import { withReportRead } from "../reports/limits.js";
 import { and, eq, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
@@ -66,6 +67,10 @@ export async function listApprovals(
         and(
           eq(approvals.status, query.status),
           // Admins and supervisors may approve their own contracts too, so the queue shows them.
+          // Pilot mode: a supervisor's queue holds only what they created or sent themselves.
+          inPilot(actor)
+            ? sql`(${contracts.createdBy} = ${actor.id}::uuid or ${contracts.originalCreatedBy} = ${actor.id}::uuid or ${approvals.originalRequestedBy} = ${actor.id}::uuid)`
+            : undefined,
         ),
       )
       .orderBy(approvals.requestedAt, approvals.id)

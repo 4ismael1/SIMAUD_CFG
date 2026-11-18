@@ -1,3 +1,4 @@
+import { pilotReviewers } from "../../lib/pilot.js";
 import { assertAmendmentCanReopen } from "./amendments.js";
 import { isContractEditor } from "./amendment-permissions.js";
 import { assertSignatoryCedulas } from "./cedula.js";
@@ -115,16 +116,18 @@ async function submitForApproval(context: ActionContext): Promise<ActionResult> 
     versionNumber: contract.currentVersion,
     requestedBy: req.user.id,
   });
-  const reviewers = await tx
-    .select({ userId: users.id })
-    .from(users)
-    .where(
-      and(
-        inArray(users.role, ["admin", "supervisor"]),
-        eq(users.isActive, true),
-        isNull(users.deletedAt),
-      ),
-    );
+  const reviewers =
+    (await pilotReviewers(contract.createdBy)) ??
+    (await tx
+      .select({ userId: users.id })
+      .from(users)
+      .where(
+        and(
+          inArray(users.role, ["admin", "supervisor"]),
+          eq(users.isActive, true),
+          isNull(users.deletedAt),
+        ),
+      ));
   await contractService.notify(
     tx,
     contract,
@@ -287,16 +290,18 @@ async function overrideContractStatus(context: ActionContext): Promise<ActionRes
       versionNumber: contract.currentVersion,
       requestedBy: req.user.id,
     });
-    const reviewers = await tx
-      .select({ userId: users.id })
-      .from(users)
-      .where(
-        and(
-          inArray(users.role, ["admin", "supervisor"]),
-          eq(users.isActive, true),
-          isNull(users.deletedAt),
-        ),
-      );
+    const reviewers =
+      (await pilotReviewers(contract.createdBy)) ??
+      (await tx
+        .select({ userId: users.id })
+        .from(users)
+        .where(
+          and(
+            inArray(users.role, ["admin", "supervisor"]),
+            eq(users.isActive, true),
+            isNull(users.deletedAt),
+          ),
+        ));
     await contractService.notify(
       tx,
       contract,

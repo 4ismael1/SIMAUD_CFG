@@ -160,6 +160,12 @@ export function ContractsListPage() {
         actions={canCreate && <ButtonLink to="/app/contratos/nuevo" variant="primary" icon={<Plus />}>Nuevo contrato</ButtonLink>}
       />
 
+      {user?.pilot && (
+        <Alert tone="info" title="Prueba piloto">
+          Ves solo tus contratos y los de ejemplo. Los de ejemplo son de solo lectura.
+        </Alert>
+      )}
+
       <Tabs label="Filtrar por estado" items={tabs} value={tab} onChange={(value) => updateParams({ estado: value === 'all' ? null : value, pagina: null })} />
 
       <ContractListFilters
@@ -170,6 +176,7 @@ export function ContractsListPage() {
         sort={sort}
         options={options.data}
         showManager={!isGestor}
+        currentUserId={user?.id}
         onChange={(changes) => updateParams({ ...changes, pagina: null })}
         onClear={clearFilters}
       />

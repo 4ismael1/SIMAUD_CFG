@@ -1,6 +1,6 @@
-import { sql } from "drizzle-orm";
+import { sql, type SQL } from "drizzle-orm";
 import type { Actor } from "../contracts/service.js";
-import { rows, object, currentMonth } from "./queries.js";
+import { rows, object, currentMonth, reviewScope } from "./queries.js";
 
 export async function getSupervisorKpis(actor: Actor) {
   return await object(sql`
@@ -12,7 +12,7 @@ export async function getSupervisorKpis(actor: Actor) {
           from contract_approvals a
           join contracts c on c.id = a.contract_id
           where a.status = 'pending'
-          and c.created_by is distinct from ${actor.id}::uuid
+          and ${reviewScope(actor)}
         ),
         'approvedThisMonth',
         count(*) filter (where status = 'approved'),
@@ -38,7 +38,7 @@ export async function getSupervisorKpis(actor: Actor) {
   `);
 }
 
-export async function getSupervisorTemplateUsage() {
+export async function getSupervisorTemplateUsage(scope: SQL = sql`true`) {
   return await rows(
     sql`
       select
@@ -46,7 +46,7 @@ export async function getSupervisorTemplateUsage() {
         t.title,
         count(c.id)::int count
       from contract_templates t
-      left join contracts c on c.template_id = t.id
+      left join contracts c on c.template_id = t.id and ${scope}
       group by t.id,
       t.title
       order by count(c.id) desc,

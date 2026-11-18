@@ -57,6 +57,8 @@ export interface User {
   /** T12b: "invited" = invitation sent and not accepted yet. Absent on older APIs. */
   status?: UserStatus;
   invitedAt?: string | null;
+  /** Set for supervisors while pilot mode is on: they see only their own work and the examples. */
+  pilot?: { exampleUserIds: string[] } | null;
 }
 export interface ProfileInput {
   name: string;

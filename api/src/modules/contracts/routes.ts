@@ -1,3 +1,4 @@
+import { inPilot, pilotOwners } from "../../lib/pilot.js";
 import { amendmentRoutes } from "./amendment-routes.js";
 import { statusNotice } from "./status-notice.js";
 import { createContract, updateContract } from "./writes.js";
@@ -104,6 +105,7 @@ export async function contractRoutes(app: FastifyInstance) {
       .where(
         and(
           req.user.role === "gestor" ? eq(contracts.createdBy, req.user.id) : undefined,
+          inPilot(req.user) ? inArray(contracts.createdBy, pilotOwners(req.user)) : undefined,
           eq(contracts.archived, query.archived === "true"),
         ),
       )

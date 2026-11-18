@@ -107,6 +107,69 @@ describe("gestión de acceso", () => {
     ).toBe(true);
   });
 
+  it("cambiar el rol tras el registro no anula el enlace de confirmación", async () => {
+    const email = `nuevo-${randomUUID()}@example.com`;
+    const registered = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/register",
+      payload: {
+        email,
+        password: testPassword,
+        name: "Estudiante piloto",
+        phone: "8095551234",
+        cedula: testCedula(),
+      },
+    });
+    expect(registered.statusCode).toBeLessThan(300);
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    targetId = user!.id;
+    const [mail] = await db.select().from(emailOutbox).where(eq(emailOutbox.to, email));
+    const token = decryptPayload(
+      mail!.encryptedPayload!,
+      payloadContext(mail!.to, mail!.template),
+    ).token!;
+    expect((await request("PATCH", "", { role: "supervisor" })).statusCode).toBe(200);
+    const confirm = () =>
+      app.inject({ method: "POST", url: "/api/v1/auth/confirm-email", payload: { token } });
+    expect((await confirm()).statusCode).toBe(200);
+    expect((await confirm()).statusCode).toBe(400);
+    const [confirmed] = await db.select().from(users).where(eq(users.id, targetId));
+    expect(confirmed!.emailConfirmedAt).toBeTruthy();
+    expect(confirmed!.role).toBe("supervisor");
+  });
+
+  it("desactivar la cuenta sí anula el enlace de confirmación pendiente", async () => {
+    const pending = await createUser({ emailConfirmedAt: null });
+    targetId = pending.id;
+    await db.transaction(async (tx) => {
+      const { issueAuthToken } = await import("../src/modules/auth/service.js");
+      await issueAuthToken(tx, pending, "email_confirmation");
+    });
+    expect((await request("PATCH", "", { isActive: false })).statusCode).toBe(200);
+    const tokens = await db.select().from(authTokens).where(eq(authTokens.userId, targetId));
+    expect(tokens.every((token) => token.usedAt)).toBe(true);
+  });
+
+  it("restablecer la contraseña desde el correo de la cuenta también lo confirma", async () => {
+    const pending = await createUser({ emailConfirmedAt: null });
+    targetId = pending.id;
+    expect((await request("POST", "/password-reset")).statusCode).toBe(202);
+    const mails = await db.select().from(emailOutbox).where(eq(emailOutbox.to, pending.email));
+    const mail = mails.at(-1)!;
+    const token = decryptPayload(
+      mail.encryptedPayload!,
+      payloadContext(mail.to, mail.template),
+    ).token!;
+    const reset = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/reset-password",
+      payload: { token, password: testPassword + "x" },
+    });
+    expect(reset.statusCode).toBe(200);
+    const [confirmed] = await db.select().from(users).where(eq(users.id, targetId));
+    expect(confirmed!.emailConfirmedAt).toBeTruthy();
+  });
+
   it("restablece con caducidad de una hora y revoca sesiones inmediatamente", async () => {
     const [user] = await db.select().from(users).where(eq(users.id, targetId));
     const session = authorization((await signIn(app, user!)).token);

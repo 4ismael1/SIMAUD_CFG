@@ -1,3 +1,4 @@
+import { inPilot, pilotCanSee, pilotOwners, pilotOwns } from "../../lib/pilot.js";
 import { escapeLike } from "../../lib/sql.js";
 import { signatureSlots, assertTemplateSlotLabels } from "../../lib/rich-doc/slots.js";
 import { storedDocument } from "../../lib/rich-doc/content.js";
@@ -6,7 +7,7 @@ import { auditCatalog } from "../audit/catalog.js";
 import { assertVariableNotReferenced } from "./variable-usage.js";
 import { normalizeTemplateValues } from "../../lib/validation/template-values.js";
 import type { FastifyInstance, FastifyRequest } from "fastify";
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "../../db/client.js";
 import {
@@ -32,6 +33,14 @@ export async function catalogRoutes(app: FastifyInstance) {
   const read = { preHandler: requireRole("admin", "supervisor", "gestor") };
   const write = { preHandler: requireRole("admin", "supervisor") };
   app.get("/variables", read, async (req) => {
+    // Pilot mode: own variables, the examples' and the shared ones from before authorship existed.
+    if (inPilot(req.user))
+      return db
+        .select()
+        .from(variables)
+        .where(
+          or(isNull(variables.createdBy), inArray(variables.createdBy, pilotOwners(req.user))),
+        );
     if (req.user.role !== "gestor") return db.select().from(variables);
     const active = await db.select().from(templates).where(eq(templates.status, "active"));
     const names = [...new Set(active.flatMap((template) => template.variables))];
@@ -42,7 +51,10 @@ export async function catalogRoutes(app: FastifyInstance) {
     if (data.type === "select" && !data.options?.length)
       throw new ApiError(400, "VALIDATION_ERROR", "Select exige opciones.");
     const row = await db.transaction(async (tx) => {
-      const [created] = await tx.insert(variables).values(data).returning();
+      const [created] = await tx
+        .insert(variables)
+        .values({ ...data, createdBy: req.user.id })
+        .returning();
       await auditCatalog(tx, req, "variables", "variable.created", created!);
       return created;
     });
@@ -54,6 +66,12 @@ export async function catalogRoutes(app: FastifyInstance) {
       const id = parse(uuid, (req.params as { id: string }).id);
       const [old] = await tx.select().from(variables).where(eq(variables.id, id)).for("update");
       if (!old) throw missing();
+      if (!pilotOwns(req.user, old.createdBy))
+        throw new ApiError(
+          403,
+          "FORBIDDEN",
+          "En la prueba piloto solo puedes modificar lo que creaste tú.",
+        );
       const patch = parse(
         variableInput.partial().extend({ required: z.boolean().optional() }),
         req.body,
@@ -92,6 +110,12 @@ export async function catalogRoutes(app: FastifyInstance) {
       const id = parse(uuid, (req.params as { id: string }).id);
       const [variable] = await tx.select().from(variables).where(eq(variables.id, id));
       if (!variable) throw missing();
+      if (!pilotOwns(req.user, variable.createdBy))
+        throw new ApiError(
+          403,
+          "FORBIDDEN",
+          "En la prueba piloto solo puedes modificar lo que creaste tú.",
+        );
       const used = await tx
         .select({ id: templates.id, title: templates.title })
         .from(templates)
@@ -125,6 +149,8 @@ export async function catalogRoutes(app: FastifyInstance) {
               ? eq(templates.status, query.status)
               : undefined,
           query.category ? eq(templates.category, query.category) : undefined,
+          // Pilot mode: own templates plus the examples.
+          inPilot(req.user) ? inArray(templates.createdBy, pilotOwners(req.user)) : undefined,
           query.q ? sql`${templates.title} ilike ${"%" + escapeLike(query.q) + "%"}` : undefined,
         ),
       );
@@ -178,6 +204,7 @@ export async function catalogRoutes(app: FastifyInstance) {
       .from(templates)
       .where(eq(templates.id, parse(uuid, (req.params as { id: string }).id)));
     if (!template || (req.user.role === "gestor" && template.status !== "active")) throw missing();
+    if (!pilotCanSee(req.user, template.createdBy)) throw missing();
     return {
       ...contentResponse(template),
       signatureSlots: signatureSlots(template.content, template.contentFormat),
@@ -210,7 +237,14 @@ export async function catalogRoutes(app: FastifyInstance) {
         await tx.execute(sql`select pg_advisory_xact_lock(10404)`);
         const id = parse(uuid, (req.params as { id: string }).id);
         const [old] = await tx.select().from(templates).where(eq(templates.id, id)).for("update");
-        if (!old) throw missing();
+        if (!old || !pilotCanSee(req.user, old.createdBy)) throw missing();
+        // Pilot mode: examples can be duplicated (to start from them) but only own templates change.
+        if (kind !== "duplicate" && !pilotOwns(req.user, old.createdBy))
+          throw new ApiError(
+            403,
+            "FORBIDDEN",
+            "En la prueba piloto solo puedes modificar lo que creaste tú.",
+          );
         if (kind === "delete") {
           const used = await tx
             .select({ id: contracts.id })

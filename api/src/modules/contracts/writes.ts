@@ -1,3 +1,4 @@
+import { pilotCanSee } from "../../lib/pilot.js";
 import type { FastifyRequest } from "fastify";
 import { isContractEditor } from "./amendment-permissions.js";
 import type { z } from "zod";
@@ -87,6 +88,8 @@ async function availableTemplate(tx: Transaction, id: string, actor: service.Act
     .for("share");
   if (!template || (actor.role === "gestor" && template.status !== "active"))
     throw service.invalid("Plantilla no disponible.");
+  // Pilot mode: contracts only from one's own templates or the examples.
+  if (!pilotCanSee(actor, template.createdBy)) throw service.invalid("Plantilla no disponible.");
   return template;
 }
 

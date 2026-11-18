@@ -1,3 +1,4 @@
+import { inPilot, pilotOwners } from "../../lib/pilot.js";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import { contracts } from "../../db/schema.js";
@@ -39,6 +40,7 @@ export async function listContracts(actor: Actor, query: z.infer<typeof contract
     const search = query.q ? "%" + escapeLike(query.q) + "%" : undefined;
     const where = and(
       actor.role === "gestor" ? eq(contracts.createdBy, actor.id) : undefined,
+      inPilot(actor) ? inArray(contracts.createdBy, pilotOwners(actor)) : undefined,
       query.status ? inArray(contracts.status, query.status) : undefined,
       query.templateId ? eq(contracts.templateId, query.templateId) : undefined,
       query.createdBy ? eq(contracts.createdBy, query.createdBy) : undefined,

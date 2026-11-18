@@ -60,7 +60,8 @@ export async function adminDashboard(actor: Actor, months: number) {
 
 export async function supervisorDashboard(actor: Actor) {
   const kpis = await getSupervisorKpis(actor);
-  const templateUsage = await getSupervisorTemplateUsage();
+  const scope = contractScope(actor);
+  const templateUsage = await getSupervisorTemplateUsage(scope);
   const myRecentDecisions = await getSupervisorMyRecentDecisions(actor);
   return {
     kpis,
@@ -69,7 +70,7 @@ export async function supervisorDashboard(actor: Actor) {
     myRecentDecisions,
     catalog: await supervisorCatalog(),
     templatesByCategory: await templatesByCategory(),
-    recentActivity: await recentContractActivity(),
+    recentActivity: await recentContractActivity(scope),
   };
 }
 

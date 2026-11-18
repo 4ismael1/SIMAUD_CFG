@@ -1,3 +1,4 @@
+import { ownContractsOnly } from "../../lib/pilot.js";
 import { boundedReportRows, withReportRead } from "./limits.js";
 import { localDateRange } from "../../lib/sql.js";
 import { sql, type SQL } from "drizzle-orm";
@@ -38,7 +39,7 @@ export async function contractReport(actor: Actor, query: Query): Promise<Report
         : group;
   const filter = sql`
     ${dateFilter(query, sql`c.created_at`)}
-    and (${actor.role} <> 'gestor' or c.created_by = ${actor.id})
+    and (${!ownContractsOnly(actor)} or c.created_by = ${actor.id})
     and (${query.templateId ?? null}::uuid is null or c.template_id = ${query.templateId ?? null}::uuid)
     and (${query.managerId ?? null}::uuid is null or c.created_by = ${query.managerId ?? null}::uuid)
   `;
@@ -110,7 +111,7 @@ export async function approvalReport(actor: Actor, query: Query): Promise<Report
   const filter = sql`
     ${dateFilter(query, sql`a.reviewed_at`)}
     and a.status <> 'pending'
-    and (${actor.role} <> 'gestor' or c.created_by = ${actor.id})
+    and (${!ownContractsOnly(actor)} or c.created_by = ${actor.id})
     and (${query.templateId ?? null}::uuid is null or c.template_id = ${query.templateId ?? null}::uuid)
     and (${query.managerId ?? null}::uuid is null or c.created_by = ${query.managerId ?? null}::uuid)
   `;
