@@ -156,14 +156,23 @@ export async function changeUser(
       )
       .where(eq(users.id, id))
       .returning();
-    if (
-      remove ||
-      input.isActive === false ||
-      (input.role && input.role !== user.role) ||
-      emailChanged
-    ) {
+    const roleChanged = !!input.role && input.role !== user.role;
+    if (remove || input.isActive === false || roleChanged || emailChanged) {
       await revokeSessions(tx, id);
-      await tx.update(authTokens).set({ usedAt: new Date() }).where(eq(authTokens.userId, id));
+      // A role change alone keeps the pending email confirmation: it only proves the
+      // address and grants nothing, and the admin usually promotes people right after
+      // they register, before they open the email.
+      const keepConfirmation = !remove && input.isActive !== false && !emailChanged;
+      await tx
+        .update(authTokens)
+        .set({ usedAt: new Date() })
+        .where(
+          and(
+            eq(authTokens.userId, id),
+            isNull(authTokens.usedAt),
+            keepConfirmation ? ne(authTokens.type, "email_confirmation") : undefined,
+          ),
+        );
     }
     if (input.role && input.role !== user.role)
       afterCommit(tx, () =>

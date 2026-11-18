@@ -269,9 +269,16 @@ export async function consumeToken(
           "VALIDATION_ERROR",
           "Elige una contraseña distinta de la temporal.",
         );
+      // The link reached this address, so it also proves the address (an unconfirmed
+      // account would otherwise get a new password it still cannot use).
+      const provesEmail = !user.emailConfirmedAt && token.email === user.email;
       await tx
         .update(users)
-        .set({ passwordHash, mustChangePassword: false })
+        .set({
+          passwordHash,
+          mustChangePassword: false,
+          ...(provesEmail ? { emailConfirmedAt: new Date() } : {}),
+        })
         .where(eq(users.id, user.id));
       await invalidatePasswordResets(tx, user.id);
     }
