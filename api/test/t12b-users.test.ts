@@ -138,6 +138,37 @@ describe("gestión de acceso", () => {
     expect(confirmed!.role).toBe("supervisor");
   });
 
+  it("eliminar una cuenta libera su cédula y su correo para registrarse de nuevo", async () => {
+    const cedula = testCedula();
+    const email = `vuelve-${randomUUID()}@example.com`;
+    const old = await createUser({ cedula, email });
+    targetId = old.id;
+    const register = () =>
+      app.inject({
+        method: "POST",
+        url: "/api/v1/auth/register",
+        payload: { email, password: testPassword, name: "Ana Pérez", phone: "8095551234", cedula },
+      });
+    // While the account exists, its cédula and email are taken.
+    const taken = await register();
+    expect(taken.statusCode).toBe(202);
+    expect(await db.select().from(users).where(eq(users.cedula, cedula))).toHaveLength(1);
+
+    expect((await request("DELETE", "")).statusCode).toBeLessThan(300);
+    const again = await register();
+    expect(again.statusCode, again.body).toBe(202);
+    const rows = await db.select().from(users).where(eq(users.cedula, cedula));
+    expect(rows).toHaveLength(2);
+    const fresh = rows.find((row) => !row.deletedAt)!;
+    expect(fresh.email).toBe(email);
+    expect(fresh.id).not.toBe(old.id);
+    const [mail] = await db
+      .select()
+      .from(emailOutbox)
+      .where(eq(emailOutbox.template, "email_confirmation"));
+    expect(mail!.to).toBe(email);
+  });
+
   it("desactivar la cuenta sí anula el enlace de confirmación pendiente", async () => {
     const pending = await createUser({ emailConfirmedAt: null });
     targetId = pending.id;

@@ -10,6 +10,7 @@ import {
   pool,
   prepareDatabase,
   signIn,
+  testCedula,
   testPassword,
 } from "./helpers.js";
 
@@ -31,15 +32,18 @@ const input = {
 const post = (route: string, payload: object, ip = "127.0.0.1") =>
   app.inject({ method: "POST", url: "/api/v1/auth/" + route, payload, remoteAddress: ip });
 
-it("registro devuelve idéntico 202 sin datos para email nuevo, email existente y cédula ocupada", async () => {
+it("registro devuelve idéntico 202 para email nuevo y existente; la cédula ocupada se avisa en su campo", async () => {
   const fresh = await post("register", input);
   const existing = await post("register", {
     ...input,
     email: " NEW@EXAMPLE.COM ",
     cedula: "40200700678",
   });
+  // Owner's decision: a cédula already in use is reported on its field instead of a silent 202.
   const document = await post("register", { ...input, email: "another@example.com" });
-  for (const response of [fresh, existing, document]) {
+  expect(document.statusCode).toBe(409);
+  expect(document.json().error.details).toEqual({ field: "cedula" });
+  for (const response of [fresh, existing]) {
     expect(response.statusCode).toBe(202);
     expect(response.json()).toEqual({ message: "Revisa tu correo." });
     expect(response.body).toBe(fresh.body);
@@ -123,8 +127,25 @@ it("registro, recuperación y reenvío comparten presupuesto agregado por IP", a
       expect((await post(route, { email: `${route}${index}@example.com` })).statusCode).toBe(200);
   for (let index = 0; index < 4; index++)
     expect(
-      (await post("register", { ...input, email: `new${index}@example.com` })).statusCode,
+      (
+        await post("register", {
+          ...input,
+          email: `new${index}@example.com`,
+          cedula: testCedula(),
+        })
+      ).statusCode,
     ).toBe(202);
-  expect((await post("register", { ...input, email: "last@example.com" })).statusCode).toBe(429);
-  expect((await post("register", input, "127.0.0.2")).statusCode).toBe(202);
+  expect(
+    (await post("register", { ...input, email: "last@example.com", cedula: testCedula() }))
+      .statusCode,
+  ).toBe(429);
+  expect(
+    (
+      await post(
+        "register",
+        { ...input, email: "other-ip@example.com", cedula: testCedula() },
+        "127.0.0.2",
+      )
+    ).statusCode,
+  ).toBe(202);
 });

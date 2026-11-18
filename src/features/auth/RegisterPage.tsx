@@ -3,8 +3,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Alert, Button, Checkbox, Field, Input, revealFirstError } from '../../ui';
 import { useRegister } from '../../lib/api/hooks/auth';
 import { formatCedula, isValidCedula } from '../../lib/format';
-import { validatePhoneDo } from '../../lib/validation';
-import { errorField, errorMessage } from '../../lib/errors';
+import { validatePersonName, validatePhoneDo } from '../../lib/validation';
+import { errorFields, errorMessage } from '../../lib/errors';
 import { AuthLayout } from './AuthLayout';
 import { PasswordInput, PasswordStrength, isStrongEnough } from './PasswordInput';
 
@@ -24,7 +24,10 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 function validate(form: RegisterForm): FormErrors {
   const errors: FormErrors = {};
-  if (form.name.trim().length < 3) errors.name = 'Escribe tu nombre completo.';
+  // Same rule as the server: at least a first name and a last name.
+  const name = validatePersonName(form.name);
+  if (!form.name.trim()) errors.name = 'Escribe tu nombre y apellido.';
+  else if (!name.ok) errors.name = name.message.includes('dos palabras') ? 'Escribe tu nombre y apellido (por ejemplo, Ana Pérez).' : name.message;
   if (!isValidCedula(form.cedula)) errors.cedula = 'La cédula debe tener 11 dígitos (000-0000000-0).';
   // The server requires a valid Dominican phone, so the form asks for it too.
   const phone = validatePhoneDo(form.phone);
@@ -34,6 +37,18 @@ function validate(form: RegisterForm): FormErrors {
   if (!isStrongEnough(form.password)) errors.password = 'La contraseña no cumple los requisitos.';
   if (!form.acceptedTerms) errors.acceptedTerms = 'Debes aceptar los términos para continuar.';
   return errors;
+}
+
+const FIELD_NAMES: (keyof RegisterForm)[] = ['name', 'cedula', 'phone', 'email', 'password'];
+
+/** Server errors placed under their own field (the message of a list item, or the main one). */
+function inlineErrors(error: unknown): FormErrors {
+  const result: FormErrors = {};
+  for (const issue of errorFields(error)) {
+    const field = issue.field as keyof RegisterForm;
+    if (FIELD_NAMES.includes(field) && !result[field]) result[field] = issue.message || errorMessage(error);
+  }
+  return result;
 }
 
 export function RegisterPage() {
@@ -69,15 +84,17 @@ export function RegisterPage() {
       });
       navigate(`/auth/verifica?email=${encodeURIComponent(form.email.trim().toLowerCase())}`, { replace: true });
     } catch (registerError) {
-      const field = errorField(registerError);
-      if (field === 'email' || field === 'cedula') {
-        setErrors({ [field]: errorMessage(registerError) });
+      // Mark each field the server flagged under its own box.
+      const flagged = inlineErrors(registerError);
+      if (Object.keys(flagged).length) {
+        setErrors(flagged);
+        revealFirstError();
       }
     }
   }
 
   const apiError = registerMutation.error;
-  const apiErrorHandledInline = errorField(apiError) === 'email' || errorField(apiError) === 'cedula';
+  const apiErrorHandledInline = Object.keys(inlineErrors(apiError)).length > 0;
 
   return (
     <AuthLayout
@@ -94,7 +111,7 @@ export function RegisterPage() {
     >
       {apiError && !apiErrorHandledInline && <Alert tone="danger">{errorMessage(apiError)}</Alert>}
       <form className="flex flex-col gap-4" onSubmit={handleSubmit} noValidate>
-        <Field label="Nombre completo" error={errors.name}>
+        <Field label="Nombre y apellido" error={errors.name}>
           <Input autoComplete="name" value={form.name} onChange={(event) => update('name', event.target.value)} autoFocus />
         </Field>
         <div className="grid gap-4 sm:grid-cols-2">

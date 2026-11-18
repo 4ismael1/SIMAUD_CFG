@@ -148,6 +148,13 @@
       "when": 1794365065947,
       "tag": "0020_variable_created_by",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1794365125947,
+      "tag": "0021_cedula_free_on_delete",
+      "breakpoints": true
     }
   ]
 }

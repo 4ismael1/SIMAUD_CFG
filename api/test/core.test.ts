@@ -104,7 +104,7 @@ describe("auth", () => {
     expect(signed.response.headers["set-cookie"]).toMatch(/HttpOnly/);
     expect(signed.response.headers["set-cookie"]).toMatch(/SameSite=Lax/);
   });
-  it("registro duplicado es opaco y disponibilidad pública no existe", async () => {
+  it("correo duplicado es opaco, cédula duplicada se avisa en el formulario y no hay disponibilidad pública", async () => {
     await post("/auth/register", registration);
     const email = await post("/auth/register", {
       ...registration,
@@ -113,12 +113,16 @@ describe("auth", () => {
     });
     expect(email.statusCode).toBe(202);
     expect(email.json()).toEqual({ message: "Revisa tu correo." });
+    // Owner's decision: a cédula already in use is reported on its field (no silent success).
     const cedula = await post("/auth/register", {
       ...registration,
       email: "other@example.com",
     });
-    expect(cedula.statusCode).toBe(202);
-    expect(cedula.body).toBe(email.body);
+    expect(cedula.statusCode).toBe(409);
+    expect(cedula.json().error).toMatchObject({
+      message: "La cédula ya está registrada.",
+      details: { field: "cedula" },
+    });
     expect(await db.select().from(users)).toHaveLength(1);
     expect(
       (await app.inject(base + "/auth/availability?email=NEW%40example.com&cedula=00113918205"))

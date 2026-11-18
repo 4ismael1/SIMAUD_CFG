@@ -26,6 +26,16 @@ Rama `feat/backend-propio-y-nueva-ui`. Commits de esta sesión: `aaba3ad` (fix /
   confirmación («El enlace no es válido o ha expirado»). Ahora un cambio de rol conserva la confirmación
   pendiente, y restablecer la contraseña desde el correo de la cuenta también lo confirma.
 
+### 🪪 18 nov 2026 — Registro y bajas (decisiones del dueño)
+- Registro con **cédula ya registrada** → 409 «La cédula ya está registrada.» en su casilla (antes 202 opaco y
+  sin correo: el estudiante esperaba un correo que nunca llegaba). El **correo** repetido sigue siendo opaco.
+- **Eliminar una cuenta libera su cédula y su correo** (migración `0021`: índice único de cédula solo para
+  cuentas no borradas; el correo pasa a `eliminado-<id>@cuentas.invalid`). La persona puede registrarse de nuevo.
+- Formulario de registro: «Nombre y apellido» se valida como el servidor (dos palabras) y marca la casilla;
+  cualquier error por campo que devuelva la API se muestra bajo su casilla (`errorFields` en src/lib/errors.ts).
+- 18 nov: se recuperó a mano la cuenta de Jonathan Marte Vásquez con su correo bueno (100057813@p) y se le
+  envió el enlace para poner contraseña.
+
 ### 🆕 11 nov 2026 (sesión 6, ya en producción, último commit a747539)
 - Plantillas DO: nombres de las partes en negrita (`{ vb: ... }` en builders.ts); en prod se actualizaron las 9 no editadas por el dueño.
 - Firma: área sobre la línea 62 pt (`SIGNATURE_AREA_HEIGHT`), vista previa `.sig-space` 83px; trazo dibujado 8.

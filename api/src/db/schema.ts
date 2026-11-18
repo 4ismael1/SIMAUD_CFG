@@ -100,9 +100,10 @@ export const users = pgTable(
   },
   (t) => [
     uniqueIndex("users_email_unique").on(sql`lower(${t.email})`),
+    // Deleted accounts free their cédula so the person can register again.
     uniqueIndex("users_cedula_unique")
       .on(t.cedula)
-      .where(sql`${t.cedula} <> ''`),
+      .where(sql`${t.cedula} <> '' and ${t.deletedAt} is null`),
     check("users_email_lower", sql`${t.email} = lower(trim(${t.email}))`),
     check("users_position_length", sql`char_length(${t.position}) <= 120`),
     index("users_role_idx").on(t.role),

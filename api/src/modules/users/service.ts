@@ -151,7 +151,14 @@ export async function changeUser(
       .update(users)
       .set(
         remove
-          ? { deletedAt: new Date(), isActive: false }
+          ? // Free the email too (the cédula is freed by its partial index): the person can
+            // register again with both.
+            {
+              deletedAt: new Date(),
+              isActive: false,
+              email: `eliminado-${id}@cuentas.invalid`,
+              pendingEmail: null,
+            }
           : { ...input, ...(emailChanged ? { pendingEmail: null } : {}) },
       )
       .where(eq(users.id, id))
